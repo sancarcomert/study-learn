@@ -328,7 +328,7 @@ Row(
                         children: filteredTasks
                             .map((task) => _AnimatedTaskEntry(
                                   key: ValueKey(task.id),
-                                  child: _TaskTile(task: task, subjects: subjects),
+                                 child: TaskTile(task: task, subjects: subjects),
                                 ))
                             .toList(),
                       ),

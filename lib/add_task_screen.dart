@@ -91,6 +91,7 @@ ref.read(taskProvider.notifier).updateTask(
   estimatedMinutes: _selectedDuration,
 );
     } else {
+      print("SEÇİLEN DERS ID: $_selectedSubjectId");
     ref.read(taskProvider.notifier).addTask(
   title: title,
   subjectId: _selectedSubjectId,
@@ -111,7 +112,12 @@ ref.read(taskProvider.notifier).updateTask(
 
   @override
   Widget build(BuildContext context) {
+
+
     final subjects = ref.watch(subjectProvider);
+
+  print("DERS SAYISI: ${subjects.length}");
+  print("DERSLER: ${subjects.map((e) => e.name).toList()}");
 
     return Scaffold(
       appBar: AppBar(
@@ -228,7 +234,7 @@ const SizedBox(height: 24),
                   isSelected: _selectedSubjectId == null,
                   onTap: () => setState(() => _selectedSubjectId = null),
                 ),
-                ...subjects.map((subject) => _SubjectChip(
+                 ...subjects.map((subject) => _SubjectChip(
                       label: subject.name,
                       color: Color(subject.colorValue),
                       isSelected: _selectedSubjectId == subject.id,
