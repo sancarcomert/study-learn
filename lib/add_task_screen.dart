@@ -73,21 +73,21 @@ _selectedDuration = task.estimatedMinutes ?? 30;
     }
 
     if (_isEditing) {
-   ref.read(taskProvider.notifier).updateTask(
+      print("SEÇİLEN SAAT: $_selectedTime");
+print("SEÇİLEN SÜRE: $_selectedDuration");
+ref.read(taskProvider.notifier).updateTask(
   widget.taskToEdit!,
   title: title,
   subjectId: _selectedSubjectId,
   dueDate: _selectedDate,
   priority: _selectedPriority,
-  scheduledTime: _selectedTime == null
-      ? null
-      : DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute,
-        ),
+ scheduledTime: DateTime(
+  _selectedDate.year,
+  _selectedDate.month,
+  _selectedDate.day,
+  (_selectedTime ?? TimeOfDay.now()).hour,
+  (_selectedTime ?? TimeOfDay.now()).minute,
+),
   estimatedMinutes: _selectedDuration,
 );
     } else {
@@ -96,15 +96,13 @@ _selectedDuration = task.estimatedMinutes ?? 30;
   subjectId: _selectedSubjectId,
   dueDate: _selectedDate,
   priority: _selectedPriority,
-  scheduledTime: _selectedTime == null
-      ? null
-      : DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute,
-        ),
+ scheduledTime: DateTime(
+  _selectedDate.year,
+  _selectedDate.month,
+  _selectedDate.day,
+  (_selectedTime ?? TimeOfDay.now()).hour,
+  (_selectedTime ?? TimeOfDay.now()).minute,
+),
   estimatedMinutes: _selectedDuration,
 );
     }
@@ -143,8 +141,11 @@ GestureDetector(
       setState(() {
         _selectedTime = picked;
       });
+
+      print("KAYDEDİLEN SAAT: $_selectedTime");
     }
   },
+
   child: Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(

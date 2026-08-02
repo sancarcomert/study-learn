@@ -317,8 +317,9 @@ Row(
               ],
             ),
           ),
-                 ],
+           ],
       ),
+       
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -458,6 +459,10 @@ class _TaskTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+   print("TASK TILE TEST ÇALIŞTI");
+print("GÖREV: ${task.title}");
+print("BAŞLANGIÇ: ${task.scheduledTime}");
+print("SÜRE: ${task.estimatedMinutes}");
     final subject = task.subjectId == null
         ? null
         : subjects.where((s) => s.id == task.subjectId).firstOrNull;
@@ -548,6 +553,7 @@ class _TaskTile extends ConsumerWidget {
           children: [
             TapScale(
               onTap: () {
+                print("CHECKBOX BASILDI");
                 ref.read(taskProvider.notifier).toggleTaskCompletion(task.id, ref);
               },
               child: Icon(
@@ -578,48 +584,20 @@ class _TaskTile extends ConsumerWidget {
                             : AppColors.textPrimary,
                       ),
                     ),
-                    if (task.scheduledTime != null || task.estimatedMinutes != null) ...[
-  const SizedBox(height: 6),
-  Row(
-    children: [
-      if (task.scheduledTime != null) ...[
-        const Icon(
-          Icons.access_time_rounded,
-          size: 14,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(width: 4),
-     Text(
-  '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
-  style: AppTextStyles.caption,
-),
-if (task.estimatedMinutes != null) ...[
+                    
+               if (task.scheduledTime != null) ...[
+  const SizedBox(height: 4),
+  Text(
+    'Başlangıç: ${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
+    style: AppTextStyles.caption,
+  ),
+],
+
+if (task.scheduledTime != null && task.estimatedMinutes != null) ...[
   const SizedBox(height: 3),
   Text(
     'Bitiş: ${task.scheduledTime!.add(Duration(minutes: task.estimatedMinutes!)).hour.toString().padLeft(2, '0')}:${task.scheduledTime!.add(Duration(minutes: task.estimatedMinutes!)).minute.toString().padLeft(2, '0')}',
     style: AppTextStyles.caption,
-  ),
-],
-      ],
-
-      if (task.scheduledTime != null && task.estimatedMinutes != null)
-        const SizedBox(width: 10),
-
-      if (task.estimatedMinutes != null) ...[
-        const Icon(
-          Icons.timer_outlined,
-          size: 14,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          task.estimatedMinutes! >= 60
-              ? '${task.estimatedMinutes! ~/ 60} saat'
-              : '${task.estimatedMinutes} dk',
-      style: AppTextStyles.caption,
-),
-      ],
-    ],
   ),
 ],
                     if (subject != null) ...[
@@ -651,7 +629,7 @@ class _EmptyStateCard extends StatelessWidget {
   const _EmptyStateCard({required this.icon, required this.message, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+ Widget build(BuildContext context) {
     final content = Container(
       padding: const EdgeInsets.all(24),
       alignment: Alignment.center,
