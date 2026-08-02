@@ -8,6 +8,7 @@ import 'widgets/week_strip.dart';
 import 'widgets/today_summary_card.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
+import 'widgets/next_task_card.dart';
 import 'task_model.dart';
 import 'subject_model.dart';
 import 'day_detail_screen.dart';
@@ -134,7 +135,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);
+final nextTask = todayTasks
+    .where((task) =>
+        task.scheduledTime != null &&
+        !task.isCompleted)
+    .toList()
+  ..sort((a, b) =>
+      a.scheduledTime!.compareTo(b.scheduledTime!));
 
+final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
    ref.listen<int>(taskCompletionEventProvider, (previous, next) {
   if (previous != null && next > previous) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -211,10 +220,19 @@ HeroProgressCard(
 ),
 
 const SizedBox(height: 16),
+
+NextTaskCard(
+  task: upcomingTask,
+  subjects: subjects,
+),
+
+const SizedBox(height: 16),
+
 TodaySummaryCard(
   completedCount: completedCount,
   totalCount: totalCount,
 ),
+
 const SizedBox(height: 16),
 
 WeekStrip(
