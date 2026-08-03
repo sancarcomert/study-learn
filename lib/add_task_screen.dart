@@ -1,143 +1,136 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'subject_ai.dart';
 import 'subject_provider.dart';
-import 'task_provider.dart';
 import 'task_model.dart';
+import 'task_provider.dart';
+
 
 class AddTaskScreen extends ConsumerStatefulWidget {
   final TaskModel? taskToEdit;
-  const AddTaskScreen({super.key, this.taskToEdit});
+
+  const AddTaskScreen({
+    super.key,
+    this.taskToEdit,
+  });
 
   @override
-  ConsumerState<AddTaskScreen> createState() => _AddTaskScreenState();
+  ConsumerState<AddTaskScreen> createState() =>
+      _AddTaskScreenState();
 }
 
+
 class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
-  final _titleController = TextEditingController();
+
+  final TextEditingController _titleController =
+      TextEditingController();
+
+
   String? _selectedSubjectId;
+  String? _suggestedSubject;
+
+
   DateTime _selectedDate = DateTime.now();
-  TaskPriority _selectedPriority = TaskPriority.medium;
-TimeOfDay? _selectedTime;
-int _selectedDuration = 30;
-  bool get _isEditing => widget.taskToEdit != null;
+
+  TaskPriority _selectedPriority =
+      TaskPriority.medium;
+
+
+  TimeOfDay? _selectedTime;
+
+  int _selectedDuration = 30;
+
+  TopicDifficulty _selectedDifficulty = TopicDifficulty.medium;
+
+  static const List<int> _durationOptions = [15, 30, 45, 60, 90];
+
+
+  bool get _isEditing =>
+      widget.taskToEdit != null;
+
+
 
   @override
   void initState() {
     super.initState();
-    if (_isEditing) {
-      final task = widget.taskToEdit!;
-      _titleController.text = task.title;
-      _selectedSubjectId = task.subjectId;
-      _selectedDate = task.dueDate;
-      _selectedPriority = task.priority;
-      _selectedTime = task.scheduledTime != null
-    ? TimeOfDay.fromDateTime(task.scheduledTime!)
-    : null;
 
-_selectedDuration = task.estimatedMinutes ?? 30;
+
+    if (_isEditing) {
+
+      final task = widget.taskToEdit!;
+
+
+      _titleController.text =
+          task.title;
+
+      _selectedSubjectId =
+          task.subjectId;
+
+      _selectedDate =
+          task.dueDate;
+
+      _selectedPriority =
+          task.priority;
+
+
+      _selectedDuration =
+          task.estimatedMinutes ?? 30;
+
+      _selectedDifficulty = task.difficulty;
+
+
+      if (task.scheduledTime != null) {
+
+        _selectedTime =
+            TimeOfDay.fromDateTime(
+              task.scheduledTime!,
+            );
+
+      }
+
     }
+
+
+
+    _titleController.addListener(() {
+
+      final result =
+          SubjectAI.predict(
+            _titleController.text,
+          );
+
+
+      if (result != _suggestedSubject) {
+
+        setState(() {
+
+          _suggestedSubject = result;
+
+        });
+
+      }
+
+    });
+
   }
+
+
+
 
   @override
   void dispose() {
+
     _titleController.dispose();
+
     super.dispose();
+
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) setState(() => _selectedDate = picked);
-  }
 
-  void _submit() {
-    final title = _titleController.text.trim();
-    if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Görev başlığı boş olamaz')),
-      );
-      return;
-    }
-    if (title.length > 80) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Başlık çok uzun (max 80 karakter)')),
-      );
-      return;
-    }
-
-    if (_isEditing) {
-      print("SEÇİLEN SAAT: $_selectedTime");
-print("SEÇİLEN SÜRE: $_selectedDuration");
-ref.read(taskProvider.notifier).updateTask(
-  widget.taskToEdit!,
-  title: title,
-  subjectId: _selectedSubjectId,
-  dueDate: _selectedDate,
-  priority: _selectedPriority,
- scheduledTime: DateTime(
-  _selectedDate.year,
-  _selectedDate.month,
-  _selectedDate.day,
-  (_selectedTime ?? TimeOfDay.now()).hour,
-  (_selectedTime ?? TimeOfDay.now()).minute,
-),
-  estimatedMinutes: _selectedDuration,
-);
-    } else {
-      print("SEÇİLEN DERS ID: $_selectedSubjectId");
-    ref.read(taskProvider.notifier).addTask(
-  title: title,
-  subjectId: _selectedSubjectId,
-  dueDate: _selectedDate,
-  priority: _selectedPriority,
- scheduledTime: DateTime(
-  _selectedDate.year,
-  _selectedDate.month,
-  _selectedDate.day,
-  (_selectedTime ?? TimeOfDay.now()).hour,
-  (_selectedTime ?? TimeOfDay.now()).minute,
-),
-  estimatedMinutes: _selectedDuration,
-);
-    }
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-
-
-    final subjects = ref.watch(subjectProvider);
-
-  print("DERS SAYISI: ${subjects.length}");
-  print("DERSLER: ${subjects.map((e) => e.name).toList()}");
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Görevi Düzenle' : 'Yeni Görev', style: AppTextStyles.heading2),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _titleController,
-              autofocus: true,
-              decoration: const InputDecoration(hintText: 'Görev başlığı, örn. Türev konusu çöz'),
-            ),
-            Text('Saat (opsiyonel)', style: AppTextStyles.bodySecondary),
-const SizedBox(height: 10),
-
-GestureDetector(
-  onTap: () async {
+  Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
@@ -147,166 +140,60 @@ GestureDetector(
       setState(() {
         _selectedTime = picked;
       });
-
-      print("KAYDEDİLEN SAAT: $_selectedTime");
     }
-  },
-
-  child: Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.background,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Row(
-      children: [
-        const Icon(
-          Icons.access_time_rounded,
-          size: 18,
-          color: AppColors.primary,
-        ),
-        const SizedBox(width: 10),
-        Text(
-          _selectedTime == null
-              ? 'Saat seç'
-              : _selectedTime!.format(context),
-          style: AppTextStyles.body,
-        ),
-      ],
-    ),
-  ),
-),
-
-const SizedBox(height: 24),
-
-Text('Tahmini Süre', style: AppTextStyles.bodySecondary),
-const SizedBox(height: 10),
-
-Wrap(
-  spacing: 8,
-  children: [30, 45, 60, 120].map((minutes) {
-    final selected = _selectedDuration == minutes;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedDuration = minutes;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary
-              : AppColors.background,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          minutes >= 60
-              ? '${minutes ~/ 60} saat'
-              : '$minutes dk',
-          style: AppTextStyles.body.copyWith(
-            color: selected
-                ? Colors.white
-                : AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }).toList(),
-),
-
-const SizedBox(height: 24),
-            const SizedBox(height: 24),
-            Text('Ders (opsiyonel)', style: AppTextStyles.bodySecondary),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SubjectChip(
-                  label: 'Dersiz',
-                  color: AppColors.textSecondary,
-                  isSelected: _selectedSubjectId == null,
-                  onTap: () => setState(() => _selectedSubjectId = null),
-                ),
-                 ...subjects.map((subject) => _SubjectChip(
-                      label: subject.name,
-                      color: Color(subject.colorValue),
-                      isSelected: _selectedSubjectId == subject.id,
-                      onTap: () => setState(() => _selectedSubjectId = subject.id),
-                    )),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text('Tarih', style: AppTextStyles.bodySecondary),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: _pickDate,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
-                    const SizedBox(width: 10),
-                    Text(
-                      DateFormat('dd MMMM yyyy', 'tr_TR').format(_selectedDate),
-                      style: AppTextStyles.body,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text('Öncelik', style: AppTextStyles.bodySecondary),
-            const SizedBox(height: 10),
-            Row(
-              children: TaskPriority.values.map((priority) {
-                final isSelected = _selectedPriority == priority;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedPriority = priority),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? _priorityColor(priority) : AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        _priorityLabel(priority),
-                        style: AppTextStyles.body.copyWith(
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submit,
-                child: Text(_isEditing ? 'Değişiklikleri Kaydet' : 'Görevi Kaydet'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
+
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final target = DateTime(date.year, date.month, date.day);
+
+    if (target == today) {
+      return "Bugün";
+    }
+
+    if (target == tomorrow) {
+      return "Yarın";
+    }
+
+    const months = [
+      "Oca", "Şub", "Mar", "Nis", "May", "Haz",
+      "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
+    ];
+
+    return "${date.day} ${months[date.month - 1]} ${date.year}";
+  }
+
+
+  String _priorityLabel(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.low:
+        return "Düşük";
+      case TaskPriority.medium:
+        return "Orta";
+      case TaskPriority.high:
+        return "Yüksek";
+    }
+  }
+
 
   Color _priorityColor(TaskPriority priority) {
     switch (priority) {
@@ -319,19 +206,619 @@ const SizedBox(height: 24),
     }
   }
 
-  String _priorityLabel(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return 'Düşük';
-      case TaskPriority.medium:
-        return 'Orta';
-      case TaskPriority.high:
-        return 'Yüksek';
+
+  String _difficultyLabel(TopicDifficulty difficulty) {
+    switch (difficulty) {
+      case TopicDifficulty.easy:
+        return "Kolay";
+      case TopicDifficulty.medium:
+        return "Orta";
+      case TopicDifficulty.hard:
+        return "Zor";
     }
+  }
+
+
+  Color _difficultyColor(TopicDifficulty difficulty) {
+    switch (difficulty) {
+      case TopicDifficulty.easy:
+        return AppColors.success;
+      case TopicDifficulty.medium:
+        return AppColors.priorityMedium;
+      case TopicDifficulty.hard:
+        return AppColors.danger;
+    }
+  }
+
+
+
+
+  void _submit() {
+
+
+    final title =
+        _titleController.text.trim();
+
+
+    if (title.isEmpty) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+          content:
+              Text(
+                "Görev adı boş olamaz",
+              ),
+        ),
+
+      );
+
+      return;
+
+    }
+
+
+
+    final scheduledTime =
+        _selectedTime == null
+            ? null
+            : DateTime(
+                _selectedDate.year,
+                _selectedDate.month,
+                _selectedDate.day,
+                _selectedTime!.hour,
+                _selectedTime!.minute,
+              );
+
+
+
+    if (_isEditing) {
+
+
+      ref
+          .read(taskProvider.notifier)
+          .updateTask(
+
+            widget.taskToEdit!,
+
+            title: title,
+
+            subjectId:
+                _selectedSubjectId,
+
+            dueDate:
+                _selectedDate,
+
+            priority:
+                _selectedPriority,
+
+            scheduledTime:
+                scheduledTime,
+
+            estimatedMinutes:
+                _selectedDuration,
+
+            difficulty:
+                _selectedDifficulty,
+
+          );
+
+
+    } else {
+
+
+      ref
+          .read(taskProvider.notifier)
+          .addTask(
+
+            title: title,
+
+            subjectId:
+                _selectedSubjectId,
+
+            dueDate:
+                _selectedDate,
+
+            priority:
+                _selectedPriority,
+
+            scheduledTime:
+                scheduledTime,
+
+            estimatedMinutes:
+                _selectedDuration,
+
+            difficulty:
+                _selectedDifficulty,
+
+          );
+
+    }
+
+
+    Navigator.pop(context);
+
+  }
+  @override
+Widget build(BuildContext context) {
+
+  final subjects = ref.watch(subjectProvider);
+
+
+  return Scaffold(
+
+    appBar: AppBar(
+      title: Text(
+        _isEditing
+            ? "Görevi Düzenle"
+            : "Yeni Görev",
+        style: AppTextStyles.heading2,
+      ),
+    ),
+
+
+    body: Padding(
+      padding: const EdgeInsets.all(20),
+
+      child: Column(
+
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+        children: [
+
+          Expanded(
+            child: ListView(
+              children: [
+
+                const _SectionHeader(title: "Temel Bilgiler"),
+
+                const SizedBox(height: 12),
+
+                TextField(
+
+                  controller:
+                      _titleController,
+
+                  decoration:
+                      const InputDecoration(
+
+                    hintText:
+                        "Örn: Türev konusu çöz",
+
+                  ),
+
+                ),
+
+
+
+                if (_suggestedSubject != null) ...[
+
+                  const SizedBox(height: 12),
+
+
+                  Container(
+
+                    padding:
+                        const EdgeInsets.all(12),
+
+                    decoration:
+                        BoxDecoration(
+
+                      color:
+                          AppColors.primary
+                              .withOpacity(0.1),
+
+                      borderRadius:
+                          BorderRadius.circular(12),
+
+                    ),
+
+
+                    child: Row(
+
+                      children: [
+
+                        const Icon(
+                          Icons.auto_awesome,
+                          color: AppColors.primary,
+                        ),
+
+
+                        const SizedBox(width: 8),
+
+
+                        Text(
+                          "Önerilen ders: $_suggestedSubject",
+                          style:
+                              AppTextStyles.body,
+                        ),
+
+                      ],
+
+                    ),
+
+                  ),
+
+                ],
+
+
+
+                const SizedBox(height: 20),
+
+
+
+                Text(
+                  "Ders",
+                  style:
+                      AppTextStyles.bodySecondary,
+                ),
+
+
+
+                const SizedBox(height: 10),
+
+
+
+                Wrap(
+
+                  spacing: 8,
+
+                  children: [
+
+                    _SubjectChip(
+
+                      label:
+                          "Derssiz",
+
+                      color:
+                          AppColors.textSecondary,
+
+                      isSelected:
+                          _selectedSubjectId == null,
+
+                      onTap: () {
+
+                        setState(() {
+
+                          _selectedSubjectId =
+                              null;
+
+                        });
+
+                      },
+
+                    ),
+
+
+
+                    ...subjects.map(
+
+                      (subject) => _SubjectChip(
+
+                        label:
+                            subject.name,
+
+                        color:
+                            Color(
+                              subject.colorValue,
+                            ),
+
+                        isSelected:
+                            _selectedSubjectId ==
+                                subject.id,
+
+
+                        onTap: () {
+
+                          setState(() {
+
+                            _selectedSubjectId =
+                                subject.id;
+
+                          });
+
+                        },
+
+                      ),
+
+                    ),
+
+                  ],
+
+                ),
+
+
+                const SizedBox(height: 28),
+
+                const _SectionHeader(title: "Planlama"),
+
+                const SizedBox(height: 16),
+
+
+                Text(
+                  "Tarih",
+                  style: AppTextStyles.bodySecondary,
+                ),
+
+                const SizedBox(height: 10),
+
+                GestureDetector(
+                  onTap: _pickDate,
+
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        Text(
+                          _formatDate(_selectedDate),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+
+                const SizedBox(height: 24),
+
+
+                Text(
+                  "Saat (opsiyonel)",
+                  style: AppTextStyles.bodySecondary,
+                ),
+
+                const SizedBox(height: 10),
+
+                GestureDetector(
+                  onTap: _pickTime,
+
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+
+                    decoration: BoxDecoration(
+                      color: _selectedTime != null
+                          ? AppColors.primary.withOpacity(0.12)
+                          : AppColors.primary.withOpacity(0.06),
+
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        Text(
+                          _selectedTime == null
+                              ? "Saat seç"
+                              : _selectedTime!.format(context),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                        if (_selectedTime != null) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedTime = null;
+                              });
+                            },
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+
+                const SizedBox(height: 24),
+
+
+                Text(
+                  "Süre",
+                  style: AppTextStyles.bodySecondary,
+                ),
+
+                const SizedBox(height: 10),
+
+                Wrap(
+                  spacing: 8,
+                  children: _durationOptions.map((minutes) {
+                    final isSelected = _selectedDuration == minutes;
+
+                    return _SubjectChip(
+                      label: "$minutes dk",
+                      color: AppColors.primary,
+                      isSelected: isSelected,
+                      onTap: () {
+                        setState(() {
+                          _selectedDuration = minutes;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+
+
+                const SizedBox(height: 24),
+
+
+                Text(
+                  "Öncelik",
+                  style: AppTextStyles.bodySecondary,
+                ),
+
+                const SizedBox(height: 10),
+
+                Wrap(
+                  spacing: 8,
+                  children: TaskPriority.values.map((priority) {
+                    final isSelected = _selectedPriority == priority;
+
+                    return _SubjectChip(
+                      label: _priorityLabel(priority),
+                      color: _priorityColor(priority),
+                      isSelected: isSelected,
+                      onTap: () {
+                        setState(() {
+                          _selectedPriority = priority;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+
+
+                const SizedBox(height: 24),
+
+
+                Text(
+                  "Zorluk",
+                  style: AppTextStyles.bodySecondary,
+                ),
+
+                const SizedBox(height: 10),
+
+                Wrap(
+                  spacing: 8,
+                  children: TopicDifficulty.values.map((difficulty) {
+                    final isSelected = _selectedDifficulty == difficulty;
+
+                    return _SubjectChip(
+                      label: _difficultyLabel(difficulty),
+                      color: _difficultyColor(difficulty),
+                      isSelected: isSelected,
+                      onTap: () {
+                        setState(() {
+                          _selectedDifficulty = difficulty;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+
+                const SizedBox(height: 20),
+
+              ],
+            ),
+          ),
+
+
+          const SizedBox(height: 12),
+
+
+          SizedBox(
+
+            width:
+                double.infinity,
+
+
+            child:
+                ElevatedButton(
+
+              onPressed:
+                  _submit,
+
+
+              child:
+                  Text(
+
+                _isEditing
+                    ? "Kaydet"
+                    : "Görevi Ekle",
+
+              ),
+
+            ),
+
+          ),
+
+
+        ],
+
+      ),
+
+    ),
+
+  );
+
+}
+
+} // build kapanışı
+
+ // _AddTaskScreenState kapanışı
+
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: AppTextStyles.heading2,
+        ),
+
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: Container(
+            height: 1,
+            color: AppColors.textSecondary.withOpacity(0.15),
+          ),
+        ),
+      ],
+    );
   }
 }
 
+
 class _SubjectChip extends StatelessWidget {
+
   final String label;
   final Color color;
   final bool isSelected;
@@ -344,24 +831,46 @@ class _SubjectChip extends StatelessWidget {
     required this.onTap,
   });
 
+
   @override
   Widget build(BuildContext context) {
+
     return GestureDetector(
       onTap: onTap,
+
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? color : color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(20),
+
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
         ),
+
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color
+              : color.withOpacity(0.15),
+
+          borderRadius:
+              BorderRadius.circular(20),
+        ),
+
         child: Text(
           label,
-          style: AppTextStyles.bodySecondary.copyWith(
-            color: isSelected ? Colors.white : color,
-            fontWeight: FontWeight.w600,
+
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : color,
+
+            fontWeight:
+                FontWeight.w600,
           ),
+
         ),
+
       ),
+
     );
+
   }
 }

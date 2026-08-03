@@ -142,7 +142,6 @@ print("Bulunan subject: ${subject?.name}");
 
         child: Container(
           margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(18),
 
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -153,173 +152,217 @@ print("Bulunan subject: ${subject?.name}");
             boxShadow: AppColors.cardShadow,
           ),
 
-          child: Row(
-            children: [
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
 
-              TapScale(
-                onTap: () {
-                  ref
-                      .read(taskProvider.notifier)
-                      .toggleTaskCompletion(
-                        task.id,
-                        ref,
-                      );
-                },
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
 
-                child: Icon(
-                  task.isCompleted
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
+                  // Öncelik vurgu şeridi — kartın en solunda, önceliği ilk bakışta gösterir.
+                  Container(
+                    width: 4,
+                    color: priorityColor,
+                  ),
 
-                  color: task.isCompleted
-                      ? AppColors.success
-                      : AppColors.textSecondary,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 18, 18, 18),
 
-                  size: 26,
-                ),
-              ),
+                      child: Row(
+                        children: [
 
+                          TapScale(
+                            onTap: () {
+                              ref
+                                  .read(taskProvider.notifier)
+                                  .toggleTaskCompletion(
+                                    task.id,
+                                    ref,
+                                  );
+                            },
 
-              const SizedBox(width: 12),
-
-
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AddTaskScreen(
-                              taskToEdit: task,
-                            ),
-                      ),
-                    );
-                  },
-
-
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-
-                    children: [
-
-                      Text(
-                        task.title,
-
-                        style:
-                            AppTextStyles.body.copyWith(
-                          decoration:
+                            child: Icon(
                               task.isCompleted
-                                  ? TextDecoration
-                                      .lineThrough
-                                  : null,
+                                  ? Icons.check_circle_rounded
+                                  : Icons.radio_button_unchecked_rounded,
 
-                          color: task.isCompleted
-                              ? AppColors.textSecondary
-                              : AppColors.textPrimary,
-                        ),
-                      ),
+                              color: task.isCompleted
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
 
-
-                      if (task.scheduledTime != null ||
-                          task.estimatedMinutes != null) ...[
-                        const SizedBox(height: 8),
-
-                        Wrap(
-                          spacing: 8,
-
-                          children: [
-
-                            if (task.scheduledTime != null)
-                              _InfoChip(
-                                icon: Icons.schedule_rounded,
-
-                                text:
-                                    '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
-                              ),
-
-
-                            if (task.estimatedMinutes != null)
-                              _InfoChip(
-                                icon:
-                                    Icons.timer_outlined,
-
-                                text:
-                                    '${task.estimatedMinutes} dk',
-                              ),
-                          ],
-                        ),
-                      ],
-                                            if (subject != null) ...[
-                        const SizedBox(height: 8),
-
-                        Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
+                              size: 26,
+                            ),
                           ),
 
-                          decoration: BoxDecoration(
-                            color: Color(subject.colorValue)
-                                .withOpacity(0.12),
 
-                            borderRadius:
-                                BorderRadius.circular(10),
-                          ),
+                          const SizedBox(width: 14),
 
-                          child: Row(
-                            mainAxisSize:
-                                MainAxisSize.min,
 
-                            children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        AddTaskScreen(
+                                          taskToEdit: task,
+                                        ),
+                                  ),
+                                );
+                              },
 
-                              Icon(
-                                Icons.menu_book_rounded,
 
-                                size: 14,
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
 
-                                color:
-                                    Color(subject.colorValue),
-                              ),
+                                children: [
 
-                              const SizedBox(width: 5),
+                                  Text(
+                                    task.title,
 
-                              Text(
-                                subject.name,
+                                    style: AppTextStyles.body.copyWith(
+                                      fontSize: 16,
+                                      height: 1.25,
+                                      fontWeight: task.isCompleted
+                                          ? FontWeight.w500
+                                          : FontWeight.w700,
 
-                                style:
-                                    AppTextStyles.caption
-                                        .copyWith(
-                                  color: Color(
-                                    subject.colorValue,
+                                      decoration:
+                                          task.isCompleted
+                                              ? TextDecoration
+                                                  .lineThrough
+                                              : null,
+
+                                      color: task.isCompleted
+                                          ? AppColors.textSecondary
+                                          : AppColors.textPrimary,
+                                    ),
                                   ),
 
-                                  fontWeight:
-                                      FontWeight.w600,
-                                ),
+
+                                  if (subject != null ||
+                                      task.scheduledTime != null ||
+                                      task.estimatedMinutes != null) ...[
+
+                                    const SizedBox(height: 10),
+
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+
+                                      children: [
+
+                                        if (subject != null)
+                                          _SubjectChip(subject: subject),
+
+                                        if (task.scheduledTime != null)
+                                          _InfoChip(
+                                            icon: Icons.schedule_rounded,
+
+                                            text:
+                                                '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
+                                          ),
+
+
+                                        if (task.estimatedMinutes != null)
+                                          _InfoChip(
+                                            icon:
+                                                Icons.timer_outlined,
+
+                                            text:
+                                                '${task.estimatedMinutes} dk',
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
+
+
+                          const SizedBox(width: 8),
+
+
+                          Container(
+                            width: 30,
+                            height: 30,
+                            alignment: Alignment.center,
+
+                            decoration: BoxDecoration(
+                              color: priorityColor.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                            ),
+
+                            child: Icon(
+                              _priorityIcon(task.priority),
+
+                              color: priorityColor,
+
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-
-
-              Icon(
-                _priorityIcon(task.priority),
-
-                color: priorityColor,
-
-                size: 20,
-              ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+
+class _SubjectChip extends StatelessWidget {
+  final SubjectModel subject;
+
+  const _SubjectChip({required this.subject});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(subject.colorValue);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+
+        children: [
+          Icon(
+            Icons.menu_book_rounded,
+            size: 14,
+            color: color,
+          ),
+
+          const SizedBox(width: 5),
+
+          Text(
+            subject.name,
+
+            style: AppTextStyles.caption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

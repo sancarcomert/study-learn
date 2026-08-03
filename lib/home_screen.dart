@@ -5,7 +5,6 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'task_provider.dart';
 import 'widgets/week_strip.dart';
-import 'widgets/today_summary_card.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/next_task_card.dart';
@@ -136,7 +135,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);
-final nextTask = todayTasks
+
+// "Sıradaki Görev": sadece bugüne değil, tüm görevler içinden
+// zamanı planlanmış ve henüz tamamlanmamış en yakın olanı bulur.
+// Böylece Akıllı Plan ile başka günlere dağıtılmış görevler de
+// zamanı geldiğinde burada görünebilir.
+final nextTask = allTasks
     .where((task) =>
         task.scheduledTime != null &&
         !task.isCompleted)
@@ -225,13 +229,6 @@ const SizedBox(height: 16),
 NextTaskCard(
   task: upcomingTask,
   subjects: subjects,
-),
-
-const SizedBox(height: 16),
-
-TodaySummaryCard(
-  completedCount: completedCount,
-  totalCount: totalCount,
 ),
 
 const SizedBox(height: 16),

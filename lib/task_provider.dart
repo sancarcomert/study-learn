@@ -130,6 +130,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     required TaskPriority priority,
     DateTime? scheduledTime,
     int? estimatedMinutes,
+    TopicDifficulty difficulty = TopicDifficulty.medium,
   }) {
 
     task.title = title;
@@ -138,6 +139,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     task.priority = priority;
     task.scheduledTime = scheduledTime;
     task.estimatedMinutes = estimatedMinutes;
+    task.difficulty = difficulty;
 
 
     _repository.updateTask(task);

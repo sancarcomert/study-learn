@@ -84,19 +84,26 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
 
     final daysToUse = daysLeft < topics.length ? daysLeft : topics.length;
 
-    for (int i = 0; i < topics.length; i++) {
-      final subject = targetSubjects[i % targetSubjects.length];
-      final dayOffset = (i % daysToUse) + 1;
-      final taskDate = today.add(Duration(days: dayOffset));
+  for (int i = 0; i < topics.length; i++) {
+  final subject = targetSubjects[i % targetSubjects.length];
+  final dayOffset = (i % daysToUse) + 1;
+  final taskDate = today.add(Duration(days: dayOffset));
+  final scheduledTime = DateTime(
+    taskDate.year,
+    taskDate.month,
+    taskDate.day,
+    9,
+    0,
+  );
 
-      ref.read(taskProvider.notifier).addTask(
-            title: '$examName: ${topics[i]}',
-            subjectId: subject.id,
-            dueDate: taskDate,
-            priority: TaskPriority.high,
-          );
-    }
-
+  ref.read(taskProvider.notifier).addTask(
+        title: '$examName: ${topics[i]}',
+        subjectId: subject.id,
+        dueDate: taskDate,
+        priority: TaskPriority.high,
+        scheduledTime: scheduledTime,
+      );
+}
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${topics.length} konu $daysToUse güne dağıtıldı 🎯')),

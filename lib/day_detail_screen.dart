@@ -103,23 +103,54 @@ class DayDetailScreen extends ConsumerWidget {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      task.isCompleted
-                          ? Icons.check_circle
-                          : Icons.circle_outlined,
-                      color: task.isCompleted
-                          ? AppColors.success
-                          : AppColors.textSecondary,
+                    Row(
+                      children: [
+                        Icon(
+                          task.isCompleted
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          color: task.isCompleted
+                              ? AppColors.success
+                              : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: AppTextStyles.body.copyWith(
+                              decoration: task.isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              color: task.isCompleted
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        task.title,
-                        style: AppTextStyles.body,
+                    if (task.scheduledTime != null ||
+                        task.estimatedMinutes != null) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (task.scheduledTime != null)
+                            Text(
+                              '⏰ ${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
+                              style: AppTextStyles.caption,
+                            ),
+                          if (task.estimatedMinutes != null)
+                            Text(
+                              '⏱ ${task.estimatedMinutes} dk',
+                              style: AppTextStyles.caption,
+                            ),
+                        ],
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
