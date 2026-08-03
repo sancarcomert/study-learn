@@ -8,6 +8,7 @@ import '../subject_model.dart';
 import '../task_model.dart';
 import '../task_provider.dart';
 import '../tap_scale.dart';
+import '../focus_screen.dart';
 
 class TaskTile extends ConsumerWidget {
   final TaskModel task;
@@ -287,6 +288,40 @@ print("Bulunan subject: ${subject?.name}");
 
                           const SizedBox(width: 8),
 
+                          if (!task.isCompleted)
+                            TapScale(
+                              onTap: () {
+                                 final route = ModalRoute.of(context);
+                               if (route != null && !route.isCurrent) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FocusScreen(
+                                      taskId: task.id,
+                                      taskTitle: task.title,
+                                      initialMinutes:
+                                          task.estimatedMinutes ?? 25,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(width: 8),
 
                           Container(
                             width: 30,
