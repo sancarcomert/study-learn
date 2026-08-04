@@ -18,6 +18,7 @@ import 'stats_screen.dart';
 import 'smart_plan_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/hero_progress_card.dart';
+import 'dart:async';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -33,11 +34,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final ConfettiController _goalConfetti =
       ConfettiController(duration: const Duration(seconds: 1));
 
+  // Sadece zamana bağlı metinleri (örn. "X dakika sonra başlayacak")
+  // canlı tutmak için periyodik olarak ekranı yeniler. Görev verisine
+  // veya mantığa dokunmaz, sadece görsel yenileme tetikler.
+  Timer? _liveClockTicker;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(statsProvider.notifier).checkStreakBroken();
+    });
+
+    _liveClockTicker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
     });
   }
 
@@ -45,6 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
    
     _goalConfetti.dispose();
+    _liveClockTicker?.cancel();
     super.dispose();
   }
 
@@ -136,10 +147,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);
 
-// "Sıradaki Görev": sadece bugüne değil, tüm görevler içinden
-// zamanı planlanmış ve henüz tamamlanmamış en yakın olanı bulur.
-// Böylece Akıllı Plan ile başka günlere dağıtılmış görevler de
-// zamanı geldiğinde burada görünebilir.
 final nextTask = allTasks
     .where((task) =>
         task.scheduledTime != null &&

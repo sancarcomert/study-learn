@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'task_model.dart';
 import 'task_repository.dart';
 import 'stats_provider.dart';
+import 'notification_service.dart';
 
 const _uuidTask = Uuid();
 
@@ -20,6 +21,32 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
   TaskNotifier(this._repository)
       : super(_repository.getAllTasks());
+
+
+  Future<void> _scheduleReminder(TaskModel task) async {
+    if (task.scheduledTime == null || task.isCompleted) return;
+
+    try {
+      await NotificationService.instance.scheduleNotification(
+        id: task.id,
+        category: NotificationCategory.taskReminder,
+        title: task.title,
+        body: 'Görev zamanı geldi',
+        dateTime: task.scheduledTime!,
+      );
+      print('BİLDİRİM BAŞARIYLA PLANLANDI: ${task.title} -> ${task.scheduledTime}');
+    } catch (e, stackTrace) {
+      print('BİLDİRİM PLANLAMA HATASI: $e');
+      print('STACK: $stackTrace');
+    }
+  }
+
+  Future<void> _cancelReminder(String taskId) async {
+    await NotificationService.instance.cancelNotification(
+      taskId,
+      NotificationCategory.taskReminder,
+    );
+  }
 
 
   void addTask({
@@ -45,6 +72,8 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
     _repository.addTask(newTask);
     state = [..._repository.getAllTasks()];
+
+    _scheduleReminder(newTask);
   }
 
 
@@ -60,8 +89,6 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   Future<void> toggleTaskCompletion(
       String id, WidgetRef ref) async {
 
-    print("TOGGLE ÇALIŞTI: $id");
-
     final taskBefore =
         state.firstWhere((task) => task.id == id);
 
@@ -74,10 +101,9 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     final taskAfter =
         state.firstWhere((task) => task.id == id);
 
-    print("SON DURUM: ${taskAfter.isCompleted}");
-
-
     if (!wasCompleted && taskAfter.isCompleted) {
+
+      await _cancelReminder(id);
 
       ref.read(taskCompletionEventProvider.notifier).state++;
 
@@ -94,10 +120,6 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
           ref.read(statsProvider).dailyGoal;
 
 
-      print("BUGÜN TAMAMLANAN: $completedToday");
-      print("HEDEF: $dailyGoal");
-
-
       if (completedToday >= dailyGoal) {
 
         ref
@@ -109,11 +131,16 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
             .read(goalReachedEventProvider.notifier)
             .state++;
       }
+    } else if (wasCompleted && !taskAfter.isCompleted) {
+
+      await _scheduleReminder(taskAfter);
     }
   }
 
 
   void deleteTask(String id) {
+
+    _cancelReminder(id);
 
     _repository.deleteTask(id);
 
@@ -145,6 +172,9 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     _repository.updateTask(task);
 
     state = [..._repository.getAllTasks()];
+
+    _cancelReminder(task.id);
+    _scheduleReminder(task);
   }
 }
 
