@@ -49,10 +49,6 @@ class TaskTile extends ConsumerWidget {
 
 final priorityColor = _priorityColor(task.priority);
 
-print("Görev: ${task.title}");
-print("Subject ID: ${task.subjectId}");
-print("Bulunan subject: ${subject?.name}");
-
     return Dismissible(
       key: Key(task.id),
       direction: DismissDirection.endToStart,

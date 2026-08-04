@@ -67,9 +67,13 @@ class StatsScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.ac_unit_rounded, color: AppColors.primary, size: 18),
                   const SizedBox(width: 8),
-                  Text(
-                    '${stats.freezesAvailable} dondurma hakkın var — bir günü kaçırsan bile serin bozulmaz',
-                    style: AppTextStyles.bodySecondary,
+                  Expanded(
+                    child: Text(
+                      '${stats.freezesAvailable} dondurma hakkın var — bir günü kaçırsan bile serin bozulmaz',
+                      style: AppTextStyles.bodySecondary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -89,7 +93,12 @@ class StatsScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Günde tamamlanacak görev', style: AppTextStyles.body),
+                Expanded(
+                  child: Text(
+                    'Günde tamamlanacak görev',
+                    style: AppTextStyles.body,
+                  ),
+                ),
                 Row(
                   children: [
                     _GoalButton(

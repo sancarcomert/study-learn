@@ -8,7 +8,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await HiveBoxes.init();
   await NotificationService.instance.initialize();
-  await NotificationService.instance.showTestNotificationNow();
   await initializeDateFormatting('tr_TR', null);
   runApp(const StudyPlannerApp());
 }

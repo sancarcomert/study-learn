@@ -45,24 +45,6 @@ class NotificationService {
     return categoryOffset + base;
   }
 
-  Future<void> showTestNotificationNow() async {
-    if (!_isSupportedPlatform) return;
-    if (!_initialized) return;
-
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-      'task_reminder_channel',
-      'Görev Hatırlatmaları',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    const NotificationDetails details =
-        NotificationDetails(android: androidDetails);
-
-    await _plugin.show(999999, 'Test Bildirimi', 'Bu anlık bir test', details);
-  }
-
   Future<void> scheduleNotification({
     required String id,
     required NotificationCategory category,

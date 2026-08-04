@@ -26,19 +26,13 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   Future<void> _scheduleReminder(TaskModel task) async {
     if (task.scheduledTime == null || task.isCompleted) return;
 
-    try {
-      await NotificationService.instance.scheduleNotification(
-        id: task.id,
-        category: NotificationCategory.taskReminder,
-        title: task.title,
-        body: 'Görev zamanı geldi',
-        dateTime: task.scheduledTime!,
-      );
-      print('BİLDİRİM BAŞARIYLA PLANLANDI: ${task.title} -> ${task.scheduledTime}');
-    } catch (e, stackTrace) {
-      print('BİLDİRİM PLANLAMA HATASI: $e');
-      print('STACK: $stackTrace');
-    }
+    await NotificationService.instance.scheduleNotification(
+      id: task.id,
+      category: NotificationCategory.taskReminder,
+      title: task.title,
+      body: 'Görev zamanı geldi',
+      dateTime: task.scheduledTime!,
+    );
   }
 
   Future<void> _cancelReminder(String taskId) async {
