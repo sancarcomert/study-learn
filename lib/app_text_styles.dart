@@ -5,13 +5,6 @@ import 'app_colors.dart';
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle display = GoogleFonts.plusJakartaSans(
-    fontSize: 34,
-    fontWeight: FontWeight.w800,
-    color: AppColors.textPrimary,
-    letterSpacing: -1.2,
-  );
-
   static TextStyle heading1 = GoogleFonts.plusJakartaSans(
     fontSize: 28,
     fontWeight: FontWeight.w800,
@@ -55,17 +48,5 @@ class AppTextStyles {
     fontSize: 12,
     fontWeight: FontWeight.w600,
     color: AppColors.textMuted,
-  );
-
-  static TextStyle numberLarge = GoogleFonts.plusJakartaSans(
-    fontSize: 42,
-    fontWeight: FontWeight.w800,
-    color: AppColors.textPrimary,
-  );
-
-  static TextStyle numberMedium = GoogleFonts.plusJakartaSans(
-    fontSize: 28,
-    fontWeight: FontWeight.w800,
-    color: AppColors.primary,
   );
 }

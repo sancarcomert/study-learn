@@ -89,6 +89,7 @@ class StatsScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.softShadow,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -216,6 +217,7 @@ const SizedBox(height: 20), // DERS BAZLI DAĞILIM
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppColors.softShadow,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,6 +274,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
+        boxShadow: AppColors.softShadow,
       ),
       child: Column(
         children: [

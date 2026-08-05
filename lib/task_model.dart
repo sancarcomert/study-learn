@@ -61,6 +61,22 @@ class TaskModel extends HiveObject {
   @HiveField(10)
   TopicDifficulty difficulty;
 
+  // Tekrarlayan görev altyapısı (V1: günlük/haftalık).
+  // İkisi de nullable — mevcut kayıtlarda otomatik null okunur,
+  // "bu görev tekrarlı değil" anlamına gelir. Migration gerekmez.
+
+  // Aynı seriye ait tüm örnekleri birbirine bağlayan kimlik.
+  // V1'de sadece kayıt amaçlı tutuluyor — seri düzenleme/silme
+  // henüz bu alanı kullanmıyor (bilinçli olarak V1 dışı).
+  @HiveField(11)
+  String? recurringGroupId;
+
+  // null: tekrarsız, "daily": her gün, "weekly": haftanın bu günü.
+  // Haftanın hangi günü olduğu ayrıca tutulmuyor — bu bilgi zaten
+  // her örneğin kendi dueDate.weekday değerinde var.
+  @HiveField(12)
+  String? recurrenceRule;
+
   TaskModel({
     required this.id,
     required this.title,
@@ -73,5 +89,7 @@ class TaskModel extends HiveObject {
     this.scheduledTime,
     this.estimatedMinutes,
     this.difficulty = TopicDifficulty.medium,
+    this.recurringGroupId,
+    this.recurrenceRule,
   });
 }

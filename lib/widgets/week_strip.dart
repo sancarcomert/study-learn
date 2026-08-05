@@ -35,7 +35,11 @@ class WeekStrip extends StatelessWidget {
   onTap: () {
     onDaySelected?.call(day);
   },
-  child: Column(
+  child: Container(
+    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+    alignment: Alignment.center,
+    child: Column(
+    mainAxisSize: MainAxisSize.min,
     children: [
       Text(dayLabels[index], style: AppTextStyles.caption),
       const SizedBox(height: 6),
@@ -70,6 +74,7 @@ class WeekStrip extends StatelessWidget {
         ),
       ),
     ],
+    ),
   ),
 );
          }),

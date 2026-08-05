@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -68,6 +69,80 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     state = [..._repository.getAllTasks()];
 
     _scheduleReminder(newTask);
+  }
+
+
+  // Tekrarlayan görev — V1: sadece "daily" ve "weekly" destekleniyor.
+  // Her tekrar, bağımsız bir TaskModel kaydı olarak üretilir (sanal
+  // genişletme değil) — bu sayede tamamlama, düzenleme, silme, bildirim
+  // gibi mevcut hiçbir mekanizma değişmeden çalışmaya devam eder.
+  // Seri düzenleme/silme V1 kapsamı dışıdır; recurringGroupId sadece
+  // ileride bu amaçla kullanılmak üzere kaydediliyor.
+  void addRecurringTask({
+    required String title,
+    String? subjectId,
+    required DateTime startDate,
+    required String recurrenceRule, // "daily" veya "weekly"
+    TaskPriority priority = TaskPriority.medium,
+    TopicDifficulty difficulty = TopicDifficulty.medium,
+    TimeOfDay? scheduledTimeOfDay,
+    int? estimatedMinutes,
+  }) {
+    final groupId = _uuidTask.v4();
+
+    final int occurrenceCount;
+    final int stepDays;
+
+    if (recurrenceRule == 'weekly') {
+      occurrenceCount = 12;
+      stepDays = 7;
+    } else {
+      // "daily"
+      occurrenceCount = 30;
+      stepDays = 1;
+    }
+
+    final newTasks = <TaskModel>[];
+
+    for (int i = 0; i < occurrenceCount; i++) {
+      final occurrenceDate = startDate.add(Duration(days: stepDays * i));
+
+      final scheduledTime = scheduledTimeOfDay == null
+          ? null
+          : DateTime(
+              occurrenceDate.year,
+              occurrenceDate.month,
+              occurrenceDate.day,
+              scheduledTimeOfDay.hour,
+              scheduledTimeOfDay.minute,
+            );
+
+      newTasks.add(
+        TaskModel(
+          id: _uuidTask.v4(),
+          title: title,
+          subjectId: subjectId,
+          dueDate: occurrenceDate,
+          priority: priority,
+          difficulty: difficulty,
+          createdAt: DateTime.now(),
+          scheduledTime: scheduledTime,
+          estimatedMinutes: estimatedMinutes,
+          recurringGroupId: groupId,
+          recurrenceRule: recurrenceRule,
+        ),
+      );
+    }
+
+    for (final task in newTasks) {
+      _repository.addTask(task);
+    }
+
+    state = [..._repository.getAllTasks()];
+
+    for (final task in newTasks) {
+      _scheduleReminder(task);
+    }
   }
 
 

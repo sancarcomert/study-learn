@@ -34,9 +34,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final ConfettiController _goalConfetti =
       ConfettiController(duration: const Duration(seconds: 1));
 
-  // Sadece zamana bağlı metinleri (örn. "X dakika sonra başlayacak")
-  // canlı tutmak için periyodik olarak ekranı yeniler. Görev verisine
-  // veya mantığa dokunmaz, sadece görsel yenileme tetikler.
   Timer? _liveClockTicker;
 
   @override
@@ -71,6 +68,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (hour < 12) return 'Güne güzel bir başlangıç yapalım.';
     if (hour < 18) return 'Bugün çalışmaya hazır mısın?';
     return 'Günü kapatmadan son bir tur atalım mı?';
+  }
+
+  // Görevleri scheduledTime'a göre sıralar: dolu olanlar saate göre artan
+  // sırada önce gelir, null olanlar (saatsiz görevler) sona atılır ve
+  // kendi aralarındaki mevcut sırayı korur. Provider/model'e dokunmadan
+  // sadece bu ekranın gösterim sırasını belirler.
+  List<TaskModel> _sortedBySchedule(List<TaskModel> tasks) {
+    final withTime = tasks.where((t) => t.scheduledTime != null).toList()
+      ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
+
+    final withoutTime = tasks.where((t) => t.scheduledTime == null).toList();
+
+    return [...withTime, ...withoutTime];
   }
 
  void _showGoalCelebration() {
@@ -142,7 +152,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
  Widget build(BuildContext context) {
-    final todayTasks = ref.watch(todayTasksProvider);
+    final todayTasksRaw = ref.watch(todayTasksProvider);
+    final todayTasks = _sortedBySchedule(todayTasksRaw);
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);

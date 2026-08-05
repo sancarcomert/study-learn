@@ -1,8 +1,11 @@
+// lib/widgets/next_task_card.dart
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../app_text_styles.dart';
 import '../task_model.dart';
 import '../subject_model.dart';
+import '../add_task_screen.dart';
+import '../tap_scale.dart';
 
 class NextTaskCard extends StatelessWidget {
   final TaskModel? task;
@@ -77,108 +80,128 @@ for (final s in subjects) {
       status = "Başlama zamanı geldi";
     }
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.schedule_rounded,
-                  color: AppColors.primary,
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Text(
-                "Sıradaki Görev",
-                style: AppTextStyles.heading2,
-              ),
-            ],
+    // Kartın tamamı, TaskTile'da zaten kullanılan aynı düzenleme
+    // ekranına (AddTaskScreen, taskToEdit ile) götürür. Yeni bir akış
+    // oluşturulmadı, mevcut edit yolu tekrar kullanıldı.
+    return TapScale(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AddTaskScreen(taskToEdit: task!),
           ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
 
-          const SizedBox(height: 22),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.schedule_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
 
-          if (subject != null)
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Text(
+                    "Sıradaki Görev",
+                    style: AppTextStyles.heading3,
+                  ),
+                ),
+
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 22),
+
+            if (subject != null)
+              Text(
+                subject.name,
+                style: AppTextStyles.bodySecondary.copyWith(
+                  color: Color(subject.colorValue),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+            const SizedBox(height: 6),
+
             Text(
-              subject.name,
-              style: AppTextStyles.bodySecondary.copyWith(
-                color: Color(subject.colorValue),
-                fontWeight: FontWeight.bold,
-              ),
+              task!.title,
+              style: AppTextStyles.heading2,
             ),
 
-          const SizedBox(height: 6),
+            const SizedBox(height: 20),
 
-          Text(
-            task!.title,
-            style: AppTextStyles.heading1,
-          ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
 
-          const SizedBox(height: 20),
+                const SizedBox(width: 6),
 
-          Row(
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
+                Text(
+                  "${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}",
+                  style: AppTextStyles.body,
+                ),
 
-              const SizedBox(width: 6),
+                const SizedBox(width: 20),
 
-              Text(
-                "${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}",
-                style: AppTextStyles.body,
-              ),
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
 
-              const SizedBox(width: 20),
+                const SizedBox(width: 6),
 
-              const Icon(
-                Icons.timer_outlined,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
-
-              const SizedBox(width: 6),
-
-              Text(
-                "${task!.estimatedMinutes ?? 0} dk",
-                style: AppTextStyles.body,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          Text(
-            "Bitiş: ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}",
-            style: AppTextStyles.bodySecondary,
-          ),
-
-          const SizedBox(height: 14),
-
-          Text(
-            status,
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.w600,
+                Text(
+                  "${task!.estimatedMinutes ?? 0} dk",
+                  style: AppTextStyles.body,
+                ),
+              ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 14),
+
+            Text(
+              "Bitiş: ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}",
+              style: AppTextStyles.bodySecondary,
+            ),
+
+            const SizedBox(height: 14),
+
+            Text(
+              status,
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

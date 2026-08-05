@@ -45,12 +45,20 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
   TopicDifficulty _selectedDifficulty = TopicDifficulty.medium;
 
+  // 'none' / 'daily' / 'weekly' — sadece yeni görev eklerken kullanılır,
+  // düzenleme modunda hiç gösterilmez (V1: seri yönetimi kapsam dışı).
+  String _recurrence = 'none';
+
   static const List<int> _durationOptions = [15, 30, 45, 60, 90];
 
 
   bool get _isEditing =>
       widget.taskToEdit != null;
 
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
 
   @override
@@ -91,6 +99,12 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
       }
 
+      _detailsExpanded = task.scheduledTime != null ||
+          !_isSameDay(task.dueDate, DateTime.now()) ||
+          task.priority != TaskPriority.medium ||
+          task.difficulty != TopicDifficulty.medium ||
+          (task.estimatedMinutes != null && task.estimatedMinutes != 30);
+
     }
 
 
@@ -118,6 +132,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
   }
 
 
+  bool _detailsExpanded = false;
 
 
   @override
@@ -180,6 +195,15 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
     ];
 
     return "${date.day} ${months[date.month - 1]} ${date.year}";
+  }
+
+
+  String _weekdayName(DateTime date) {
+    const names = [
+      "Pazartesi", "Salı", "Çarşamba", "Perşembe",
+      "Cuma", "Cumartesi", "Pazar",
+    ];
+    return names[date.weekday - 1];
   }
 
 
@@ -305,6 +329,19 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
           );
 
 
+    } else if (_recurrence != 'none') {
+
+      ref.read(taskProvider.notifier).addRecurringTask(
+            title: title,
+            subjectId: _selectedSubjectId,
+            startDate: _selectedDate,
+            recurrenceRule: _recurrence,
+            priority: _selectedPriority,
+            difficulty: _selectedDifficulty,
+            scheduledTimeOfDay: _selectedTime,
+            estimatedMinutes: _selectedDuration,
+          );
+
     } else {
 
 
@@ -371,10 +408,6 @@ Widget build(BuildContext context) {
           Expanded(
             child: ListView(
               children: [
-
-                const _SectionHeader(title: "Temel Bilgiler"),
-
-                const SizedBox(height: 12),
 
                 TextField(
 
@@ -530,48 +563,35 @@ Widget build(BuildContext context) {
                 ),
 
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
 
-                const _SectionHeader(title: "Planlama"),
-
-                const SizedBox(height: 16),
-
-
-                Text(
-                  "Tarih",
-                  style: AppTextStyles.bodySecondary,
-                ),
-
-                const SizedBox(height: 10),
-
-                GestureDetector(
-                  onTap: _pickDate,
-
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    setState(() {
+                      _detailsExpanded = !_detailsExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.calendar_today_rounded,
-                          size: 16,
-                          color: AppColors.primary,
+                        AnimatedRotation(
+                          turns: _detailsExpanded ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOut,
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
                         ),
-
-                        const SizedBox(width: 8),
-
+                        const SizedBox(width: 4),
                         Text(
-                          _formatDate(_selectedDate),
-                          style: AppTextStyles.body.copyWith(
+                          _detailsExpanded
+                              ? "Detayları Gizle"
+                              : "Detayları Ekle",
+                          style: AppTextStyles.bodySecondary.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -581,160 +601,275 @@ Widget build(BuildContext context) {
                   ),
                 ),
 
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.topCenter,
+                  child: !_detailsExpanded
+                      ? const SizedBox(width: double.infinity)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
 
-                const SizedBox(height: 24),
+                            const SizedBox(height: 16),
+
+                            const _SectionHeader(title: "Planlama"),
+
+                            const SizedBox(height: 16),
 
 
-                Text(
-                  "Saat (opsiyonel)",
-                  style: AppTextStyles.bodySecondary,
-                ),
-
-                const SizedBox(height: 10),
-
-                GestureDetector(
-                  onTap: _pickTime,
-
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: _selectedTime != null
-                          ? AppColors.primary.withOpacity(0.12)
-                          : AppColors.primary.withOpacity(0.06),
-
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.schedule_rounded,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        Text(
-                          _selectedTime == null
-                              ? "Saat seç"
-                              : _selectedTime!.format(context),
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        if (_selectedTime != null) ...[
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedTime = null;
-                              });
-                            },
-                            child: Icon(
-                              Icons.close_rounded,
-                              size: 16,
-                              color: AppColors.primary,
+                            Text(
+                              "Tarih",
+                              style: AppTextStyles.bodySecondary,
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
+
+                            const SizedBox(height: 10),
+
+                            GestureDetector(
+                              onTap: _pickDate,
+
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
+
+                                    const SizedBox(width: 8),
+
+                                    Text(
+                                      _formatDate(_selectedDate),
+                                      style: AppTextStyles.body.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
 
 
-                const SizedBox(height: 24),
+                            const SizedBox(height: 24),
 
 
-                Text(
-                  "Süre",
-                  style: AppTextStyles.bodySecondary,
-                ),
+                            Text(
+                              "Saat (opsiyonel)",
+                              style: AppTextStyles.bodySecondary,
+                            ),
 
-                const SizedBox(height: 10),
+                            const SizedBox(height: 10),
 
-                Wrap(
-                  spacing: 8,
-                  children: _durationOptions.map((minutes) {
-                    final isSelected = _selectedDuration == minutes;
+                            GestureDetector(
+                              onTap: _pickTime,
 
-                    return _SubjectChip(
-                      label: "$minutes dk",
-                      color: AppColors.primary,
-                      isSelected: isSelected,
-                      onTap: () {
-                        setState(() {
-                          _selectedDuration = minutes;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+
+                                decoration: BoxDecoration(
+                                  color: _selectedTime != null
+                                      ? AppColors.primary.withOpacity(0.12)
+                                      : AppColors.primary.withOpacity(0.06),
+
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.schedule_rounded,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+
+                                    const SizedBox(width: 8),
+
+                                    Text(
+                                      _selectedTime == null
+                                          ? "Saat seç"
+                                          : _selectedTime!.format(context),
+                                      style: AppTextStyles.body.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+
+                                    if (_selectedTime != null) ...[
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTime = null;
+                                          });
+                                        },
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
 
 
-                const SizedBox(height: 24),
+                            const SizedBox(height: 24),
 
 
-                Text(
-                  "Öncelik",
-                  style: AppTextStyles.bodySecondary,
-                ),
+                            Text(
+                              "Süre",
+                              style: AppTextStyles.bodySecondary,
+                            ),
 
-                const SizedBox(height: 10),
+                            const SizedBox(height: 10),
 
-                Wrap(
-                  spacing: 8,
-                  children: TaskPriority.values.map((priority) {
-                    final isSelected = _selectedPriority == priority;
+                            Wrap(
+                              spacing: 8,
+                              children: _durationOptions.map((minutes) {
+                                final isSelected = _selectedDuration == minutes;
 
-                    return _SubjectChip(
-                      label: _priorityLabel(priority),
-                      color: _priorityColor(priority),
-                      isSelected: isSelected,
-                      onTap: () {
-                        setState(() {
-                          _selectedPriority = priority;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-
-
-                const SizedBox(height: 24),
+                                return _SubjectChip(
+                                  label: "$minutes dk",
+                                  color: AppColors.primary,
+                                  isSelected: isSelected,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedDuration = minutes;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
 
 
-                Text(
-                  "Zorluk",
-                  style: AppTextStyles.bodySecondary,
-                ),
+                            const SizedBox(height: 24),
 
-                const SizedBox(height: 10),
 
-                Wrap(
-                  spacing: 8,
-                  children: TopicDifficulty.values.map((difficulty) {
-                    final isSelected = _selectedDifficulty == difficulty;
+                            Text(
+                              "Öncelik",
+                              style: AppTextStyles.bodySecondary,
+                            ),
 
-                    return _SubjectChip(
-                      label: _difficultyLabel(difficulty),
-                      color: _difficultyColor(difficulty),
-                      isSelected: isSelected,
-                      onTap: () {
-                        setState(() {
-                          _selectedDifficulty = difficulty;
-                        });
-                      },
-                    );
-                  }).toList(),
+                            const SizedBox(height: 10),
+
+                            Wrap(
+                              spacing: 8,
+                              children: TaskPriority.values.map((priority) {
+                                final isSelected = _selectedPriority == priority;
+
+                                return _SubjectChip(
+                                  label: _priorityLabel(priority),
+                                  color: _priorityColor(priority),
+                                  isSelected: isSelected,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedPriority = priority;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+
+
+                            const SizedBox(height: 24),
+
+
+                            Text(
+                              "Zorluk",
+                              style: AppTextStyles.bodySecondary,
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            Wrap(
+                              spacing: 8,
+                              children: TopicDifficulty.values.map((difficulty) {
+                                final isSelected = _selectedDifficulty == difficulty;
+
+                                return _SubjectChip(
+                                  label: _difficultyLabel(difficulty),
+                                  color: _difficultyColor(difficulty),
+                                  isSelected: isSelected,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedDifficulty = difficulty;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+
+                            // Tekrar seçimi — sadece yeni görev eklerken
+                            // gösterilir, düzenleme modunda hiç görünmez.
+                            if (!_isEditing) ...[
+                              const SizedBox(height: 24),
+
+                              Text(
+                                "Tekrar",
+                                style: AppTextStyles.bodySecondary,
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  _SubjectChip(
+                                    label: "Tek seferlik",
+                                    color: AppColors.textSecondary,
+                                    isSelected: _recurrence == 'none',
+                                    onTap: () {
+                                      setState(() {
+                                        _recurrence = 'none';
+                                      });
+                                    },
+                                  ),
+                                  _SubjectChip(
+                                    label: "Her gün",
+                                    color: AppColors.primary,
+                                    isSelected: _recurrence == 'daily',
+                                    onTap: () {
+                                      setState(() {
+                                        _recurrence = 'daily';
+                                      });
+                                    },
+                                  ),
+                                  _SubjectChip(
+                                    label: "Her ${_weekdayName(_selectedDate)}",
+                                    color: AppColors.primary,
+                                    isSelected: _recurrence == 'weekly',
+                                    onTap: () {
+                                      setState(() {
+                                        _recurrence = 'weekly';
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            const SizedBox(height: 4),
+                          ],
+                        ),
                 ),
 
                 const SizedBox(height: 20),
@@ -800,7 +935,7 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: AppTextStyles.heading2,
+          style: AppTextStyles.heading3,
         ),
 
         const SizedBox(width: 12),
