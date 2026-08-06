@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'hive_boxes.dart';
@@ -9,5 +10,9 @@ void main() async {
   await HiveBoxes.init();
   await NotificationService.instance.initialize();
   await initializeDateFormatting('tr_TR', null);
-  runApp(const StudyPlannerApp());
+  runApp(
+    const ProviderScope(
+      child: StudyPlannerApp(),
+    ),
+  );
 }

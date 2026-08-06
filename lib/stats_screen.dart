@@ -55,30 +55,32 @@ class StatsScreen extends ConsumerWidget {
               ),
             ],
           ),
-            if (stats.freezesAvailable > 0) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.ac_unit_rounded, color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${stats.freezesAvailable} dondurma hakkın var — bir günü kaçırsan bile serin bozulmaz',
-                      style: AppTextStyles.bodySecondary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
+
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(14),
             ),
-          ],
+            child: Row(
+              children: [
+                const Icon(Icons.ac_unit_rounded, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    stats.freezesAvailable > 0
+                        ? '${stats.freezesAvailable} dondurma hakkın var — bir günü kaçırsan bile serin bozulmaz'
+                        : 'Dondurma hakkın kalmadı — bir gün kaçırırsan serin sıfırlanır',
+                    style: AppTextStyles.bodySecondary,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 28),
 
           // GÜNLÜK HEDEF AYARI

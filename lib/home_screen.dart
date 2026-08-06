@@ -8,6 +8,7 @@ import 'widgets/week_strip.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/next_task_card.dart';
+import 'widgets/smart_plan_banner.dart';
 import 'task_model.dart';
 import 'subject_model.dart';
 import 'day_detail_screen.dart';
@@ -29,8 +30,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _searchQuery = '';
+  bool _searchExpanded = false;
 
- 
   late final ConfettiController _goalConfetti =
       ConfettiController(duration: const Duration(seconds: 1));
 
@@ -50,7 +51,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
-   
     _goalConfetti.dispose();
     _liveClockTicker?.cancel();
     super.dispose();
@@ -70,10 +70,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return 'Günü kapatmadan son bir tur atalım mı?';
   }
 
-  // Görevleri scheduledTime'a göre sıralar: dolu olanlar saate göre artan
-  // sırada önce gelir, null olanlar (saatsiz görevler) sona atılır ve
-  // kendi aralarındaki mevcut sırayı korur. Provider/model'e dokunmadan
-  // sadece bu ekranın gösterim sırasını belirler.
   List<TaskModel> _sortedBySchedule(List<TaskModel> tasks) {
     final withTime = tasks.where((t) => t.scheduledTime != null).toList()
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
@@ -83,100 +79,97 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return [...withTime, ...withoutTime];
   }
 
- void _showGoalCelebration() {
-  showDialog(
-    context: context,
-    barrierColor: Colors.black26,
-    barrierDismissible: true,
-    builder: (dialogContext) {
+  void _showGoalCelebration() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black26,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (Navigator.canPop(dialogContext)) {
+            Navigator.pop(dialogContext);
+          }
+        });
 
-      Future.delayed(const Duration(seconds: 2), () {
-        if (Navigator.canPop(dialogContext)) {
-          Navigator.pop(dialogContext);
-        }
-      });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _goalConfetti.play();
+          }
+        });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _goalConfetti.play();
-        }
-      });
-
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Stack(
-          alignment: Alignment.topCenter,
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              top: -40,
-              child: ConfettiWidget(
-                confettiController: _goalConfetti,
-                blastDirectionality: BlastDirectionality.explosive,
-                shouldLoop: false,
-                numberOfParticles: 24,
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: -40,
+                child: ConfettiWidget(
+                  confettiController: _goalConfetti,
+                  blastDirectionality: BlastDirectionality.explosive,
+                  shouldLoop: false,
+                  numberOfParticles: 24,
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "🎉",
-                    style: TextStyle(fontSize: 40),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    "Günlük hedef tamamlandı!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "🎉",
+                      style: TextStyle(fontSize: 40),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 12),
+                    Text(
+                      "Günlük hedef tamamlandı!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
- Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     final todayTasksRaw = ref.watch(todayTasksProvider);
     final todayTasks = _sortedBySchedule(todayTasksRaw);
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);
 
-final nextTask = allTasks
-    .where((task) =>
-        task.scheduledTime != null &&
-        !task.isCompleted)
-    .toList()
-  ..sort((a, b) =>
-      a.scheduledTime!.compareTo(b.scheduledTime!));
+    final nextTask = allTasks
+        .where((task) => task.scheduledTime != null && !task.isCompleted)
+        .toList()
+      ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
 
-final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
-   ref.listen<int>(taskCompletionEventProvider, (previous, next) {
-  if (previous != null && next > previous) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("✅ Görev tamamlandı!"),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-});
+    final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
+
+    ref.listen<int>(taskCompletionEventProvider, (previous, next) {
+      if (previous != null && next > previous) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ Görev tamamlandı!"),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    });
 
     ref.listen<int>(goalReachedEventProvider, (previous, next) {
       if (previous != null && next > previous) {
@@ -192,7 +185,9 @@ final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
 
     final filteredTasks = _searchQuery.isEmpty
         ? todayTasks
-        : todayTasks.where((t) => t.title.toLowerCase().contains(_searchQuery)).toList();
+        : todayTasks
+            .where((t) => t.title.toLowerCase().contains(_searchQuery))
+            .toList();
 
     return Scaffold(
       body: Stack(
@@ -210,7 +205,8 @@ final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
                         children: [
                           Text(_greeting(), style: AppTextStyles.heading1),
                           const SizedBox(height: 4),
-                          Text(_subGreeting(), style: AppTextStyles.bodySecondary),
+                          Text(_subGreeting(),
+                              style: AppTextStyles.bodySecondary),
                         ],
                       ),
                     ),
@@ -234,46 +230,52 @@ final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-HeroProgressCard(
-  progress: progress,
-  completedCount: completedCount,
-  totalCount: totalCount,
-  streak: stats.currentStreak,
-),
 
-const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-NextTaskCard(
-  task: upcomingTask,
-  subjects: subjects,
-),
+                HeroProgressCard(
+                  progress: progress,
+                  completedCount: completedCount,
+                  totalCount: totalCount,
+                  streak: stats.currentStreak,
+                   longestStreak: stats.longestStreak,
+                ),
 
-const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-WeekStrip(
-  allTasks: allTasks,
-  onDaySelected: (date) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => DayDetailScreen(date: date),
-      ),
-    );
-  },
-),
-const SizedBox(height: 28),
+                NextTaskCard(
+                  task: upcomingTask,
+                  subjects: subjects,
+                ),
 
-Row(
-              
+                const SizedBox(height: 12),
 
-               
+                const SmartPlanBanner(),
+
+                const SizedBox(height: 16),
+
+                WeekStrip(
+                  allTasks: allTasks,
+                  onDaySelected: (date) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DayDetailScreen(date: date),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 28),
+
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Derslerim', style: AppTextStyles.heading2),
                     TapScale(
                       onTap: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const SubjectsScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const SubjectsScreen()),
                         );
                       },
                       child: Text(
@@ -293,7 +295,8 @@ Row(
                         message: 'Henüz ders eklemedin.\nHadi ilk dersini ekle!',
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SubjectsScreen()),
+                            MaterialPageRoute(
+                                builder: (_) => const SubjectsScreen()),
                           );
                         },
                       )
@@ -314,20 +317,63 @@ Row(
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Bugünkü Görevler', style: AppTextStyles.heading2),
-                    SizedBox(
-                      width: 140,
-                      height: 36,
-                      child: TextField(
-                        style: AppTextStyles.bodySecondary,
-                        decoration: const InputDecoration(
-                          hintText: 'Ara...',
-                          prefixIcon: Icon(Icons.search, size: 18),
-                          contentPadding: EdgeInsets.symmetric(vertical: 0),
-                        ),
-                        onChanged: (value) =>
-                            setState(() => _searchQuery = value.toLowerCase()),
+                    Expanded(
+                      child: Text(
+                        'Bugünkü Görevler',
+                        style: AppTextStyles.heading2,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+
+                    // Arama: varsayılan kapalı, ikonla açılıp genişleyen
+                    // bir alana dönüşür. AnimatedContainer kullanılıyor
+                    // (AnimatedSize değil) çünkü genişliği kendisi
+                    // belirliyor, ebeveyn constraint zincirine bağımlı
+                    // değil — bu, flex/unbounded-width çakışmasını önler.
+                    // _searchQuery ve filtreleme mantığı değişmedi.
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOut,
+                          width: _searchExpanded ? 110 : 0,
+                          height: 36,
+                          child: _searchExpanded
+                              ? TextField(
+                                  autofocus: true,
+                                  style: AppTextStyles.bodySecondary,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Ara...',
+                                    contentPadding:
+                                        EdgeInsets.symmetric(vertical: 0),
+                                  ),
+                                  onChanged: (value) => setState(
+                                      () => _searchQuery = value.toLowerCase()),
+                                )
+                              : null,
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _searchExpanded
+                                ? Icons.close_rounded
+                                : Icons.search_rounded,
+                            size: 20,
+                            color: AppColors.textSecondary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              if (_searchExpanded) {
+                                _searchExpanded = false;
+                                _searchQuery = '';
+                              } else {
+                                _searchExpanded = true;
+                              }
+                            });
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -336,14 +382,16 @@ Row(
                     ? (_searchQuery.isEmpty
                         ? const _EmptyStateCard(
                             icon: Icons.task_alt_rounded,
-                            message: 'Bugün için görev yok.\nSağ alttaki butonla ekleyebilirsin.',
+                            message:
+                                'Bugün için görev yok.\nSağ alttaki butonla ekleyebilirsin.',
                           )
-                        : Text('Sonuç bulunamadı', style: AppTextStyles.bodySecondary))
+                        : Text('Sonuç bulunamadı',
+                            style: AppTextStyles.bodySecondary))
                     : Column(
                         children: filteredTasks
                             .map((task) => _AnimatedTaskEntry(
                                   key: ValueKey(task.id),
-                                 child: TaskTile(task: task, subjects: subjects),
+                                  child: TaskTile(task: task, subjects: subjects),
                                 ))
                             .toList(),
                       ),
@@ -351,9 +399,8 @@ Row(
               ],
             ),
           ),
-           ],
+        ],
       ),
-       
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -423,9 +470,6 @@ class _AnimatedTaskEntryState extends State<_AnimatedTaskEntry>
   }
 }
 
-
-
-
 class _SubjectPill extends StatelessWidget {
   final SubjectModel subject;
 
@@ -463,7 +507,6 @@ class _SubjectPill extends StatelessWidget {
   }
 }
 
-
 class _EmptyStateCard extends StatelessWidget {
   final IconData icon;
   final String message;
@@ -472,7 +515,7 @@ class _EmptyStateCard extends StatelessWidget {
   const _EmptyStateCard({required this.icon, required this.message, this.onTap});
 
   @override
- Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     final content = Container(
       padding: const EdgeInsets.all(24),
       alignment: Alignment.center,

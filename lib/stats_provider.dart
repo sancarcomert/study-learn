@@ -26,6 +26,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
     freezesAvailable: _stats.freezesAvailable,
     totalCompletedTasks: _stats.totalCompletedTasks,
     totalStudyMinutes: _stats.totalStudyMinutes,
+    hasCompletedOnboarding: _stats.hasCompletedOnboarding,
   );
 }
   void markGoalCompletedToday() {
@@ -95,6 +96,12 @@ void checkStreakBroken() {
   void updateDailyGoal(int newGoal) {
     if (newGoal < 1) return;
     _stats.dailyGoal = newGoal;
+    _stats.save();
+    _emit();
+  }
+
+  void markOnboardingCompleted() {
+    _stats.hasCompletedOnboarding = true;
     _stats.save();
     _emit();
   }

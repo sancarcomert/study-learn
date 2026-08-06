@@ -8,6 +8,7 @@ class HeroProgressCard extends StatelessWidget {
   final int completedCount;
   final int totalCount;
   final int streak;
+  final int longestStreak;
 
   const HeroProgressCard({
     super.key,
@@ -15,9 +16,18 @@ class HeroProgressCard extends StatelessWidget {
     required this.completedCount,
     required this.totalCount,
     required this.streak,
+    required this.longestStreak,
   });
 
   String _message() {
+    // Comeback: kullanıcının daha önce bir serisi vardı (longestStreak > 0)
+    // ama şu an sıfır (currentStreak == 0) — bu, "hiç seri yapmamış yeni
+    // kullanıcı" değil "serisi kırılmış kullanıcı" demektir. Bu iki durum
+    // farklı bir mesajı hak ediyor; kayıp değil, geleceğe odaklı bir ton.
+    if (streak == 0 && longestStreak > 0) {
+      return "Yeniden başlıyoruz, sorun değil 🌱";
+    }
+
     if (progress == 0) {
       return "Başlamak için küçük bir adım yeterli 🚀";
     }
@@ -38,7 +48,7 @@ class HeroProgressCard extends StatelessWidget {
     final percentage = (progress * 100).round();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -48,12 +58,12 @@ class HeroProgressCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -61,17 +71,52 @@ class HeroProgressCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Bugünkü durumun 👋",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 4,
+                        backgroundColor: Colors.white24,
+                        valueColor: const AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    ),
+                    Text(
+                      '$percentage%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (streak > 0)
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  "$completedCount / $totalCount görev tamamlandı",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              if (streak > 0) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -84,10 +129,10 @@ class HeroProgressCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text("🔥", style: TextStyle(fontSize: 14)),
+                      const Text("🔥", style: TextStyle(fontSize: 13)),
                       const SizedBox(width: 4),
                       Text(
-                        "$streak gün",
+                        "$streak",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -97,49 +142,19 @@ class HeroProgressCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
 
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
 
           Text(
             _message(),
             style: AppTextStyles.bodySecondary.copyWith(
               color: Colors.white70,
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          Text(
-            "$completedCount / $totalCount görev",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation(Colors.white),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            "%$percentage tamamlandı",
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
