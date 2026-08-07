@@ -19,11 +19,11 @@ class UserStatsModel extends HiveObject {
   @HiveField(4)
   int freezesAvailable;
 
-@HiveField(5)
-int totalCompletedTasks;
+  @HiveField(5)
+  int totalCompletedTasks;
 
-@HiveField(6)
-int totalStudyMinutes;
+  @HiveField(6)
+  int totalStudyMinutes;
 
   // Onboarding akışının gösterilip gösterilmediğini işaretler.
   // Nullable: mevcut (bu alan eklenmeden önce oluşturulmuş) kayıtlarda
@@ -34,6 +34,13 @@ int totalStudyMinutes;
   @HiveField(7)
   bool? hasCompletedOnboarding;
 
+  // Kullanıcının kendi girdiği isim — Profile ekranındaki sabit
+  // "Öğrenci" yerine kişiselleştirme için eklendi. Nullable: bu alan
+  // eklenmeden önce oluşturulmuş kayıtlarda null gelir, UI tarafında
+  // null ise "Öğrenci" varsayılanı gösterilir.
+  @HiveField(8)
+  String? userName;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -43,5 +50,6 @@ int totalStudyMinutes;
     this.totalCompletedTasks = 0,
     this.totalStudyMinutes = 0,
     this.hasCompletedOnboarding = false,
+    this.userName,
   });
 }

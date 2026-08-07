@@ -1,3 +1,4 @@
+// lib/smart_plan_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,10 @@ import 'task_provider.dart';
 import 'task_model.dart';
 import 'add_subject_sheet.dart';
 import 'tap_scale.dart';
+import 'widgets/eyebrow.dart';
+import 'widgets/app_buttons.dart';
+import 'widgets/animated_progress_ring.dart';
+import 'widgets/app_snackbar.dart';
 
 enum _PlanEntryStep { choose, form, result }
 
@@ -32,8 +37,6 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
 
   bool _detailsExpanded = false;
 
-  // Sonuç ekranı için tutulan veriler — üretim mantığı bunları doldurur,
-  // sadece gösterim amaçlı, hesaplama burada yapılmıyor.
   int _resultTaskCount = 0;
   int _resultPlannedMinutes = 0;
   int _resultRemainingMinutes = 0;
@@ -97,9 +100,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
   void _generate() {
     final subjects = ref.read(subjectProvider);
     if (subjects.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Önce en az bir ders eklemelisin')),
-      );
+      AppSnackBar.error(context, 'Önce en az bir ders eklemelisin');
       return;
     }
 
@@ -120,13 +121,10 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
     }
   }
 
-  // Sınav modu: konuları bugünden sınav tarihine kadar olan günlere dağıtır
   void _generateExamPlan(List targetSubjects, List<String> topics) {
     final examName = _examNameController.text.trim();
     if (examName.isEmpty || topics.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sınav adı ve en az bir konu girmelisin')),
-      );
+      AppSnackBar.error(context, 'Sınav adı ve en az bir konu girmelisin');
       return;
     }
 
@@ -164,41 +162,35 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
     });
   }
 
-  // Normal mod: bugün için, saat/enerjiye göre plan oluşturur.
-  // _hoursAvailable gerçek bir kapasite kısıtı olarak kullanılıyor:
-  // toplam planlanan süre bu limiti aşamaz. Sığmayan görevler atlanır,
-  // döngü durmadan devam eder ve kullanıcıya ayrıca listelenir.
   void _generateDailyPlan(List targetSubjects, List<String> topics) {
- TaskPriority priority;
+    TaskPriority priority;
 
-if (_examPressure) {
-  priority = TaskPriority.high;
-} else if (_energy == 'yüksek') {
-  priority = TaskPriority.high;
-} else if (_energy == 'düşük') {
-  priority = TaskPriority.low;
-} else {
-  priority = TaskPriority.medium;
-}
+    if (_examPressure) {
+      priority = TaskPriority.high;
+    } else if (_energy == 'yüksek') {
+      priority = TaskPriority.high;
+    } else if (_energy == 'düşük') {
+      priority = TaskPriority.low;
+    } else {
+      priority = TaskPriority.medium;
+    }
     final today = DateTime.now();
-    // Akıllı sıralama: sınav varsa veya enerji düşükse dersleri düzenle
-List sortedSubjects = [...targetSubjects];
 
-if (_examPressure) {
-  sortedSubjects.shuffle();
-} else if (_energy == 'düşük') {
-  sortedSubjects = sortedSubjects.reversed.toList();
-}
-DateTime startTime = DateTime.now();
+    List sortedSubjects = [...targetSubjects];
+
+    if (_examPressure) {
+      sortedSubjects.shuffle();
+    } else if (_energy == 'düşük') {
+      sortedSubjects = sortedSubjects.reversed.toList();
+    }
+    DateTime startTime = DateTime.now();
     int taskCount;
-if (topics.isNotEmpty) {
-  // Kullanıcı konu seçtiyse her konu için 1 görev
-  taskCount = topics.length;
-} else {
-  // Kullanıcı sadece ders seçtiyse her ders için 1 görev
-  taskCount = targetSubjects.length;
-}
-DateTime currentTime = startTime;
+    if (topics.isNotEmpty) {
+      taskCount = topics.length;
+    } else {
+      taskCount = targetSubjects.length;
+    }
+    DateTime currentTime = startTime;
 
     final duration = _energy == 'yüksek'
         ? 60
@@ -213,36 +205,33 @@ DateTime currentTime = startTime;
     final List<String> unfitTitles = [];
 
     for (int i = 0; i < taskCount; i++) {
-  final subject = sortedSubjects[i % sortedSubjects.length];
+      final subject = sortedSubjects[i % sortedSubjects.length];
 
-  final title = topics.isNotEmpty
-      ? '${subject.name}: ${topics[i]}'
-      : subject.name;
+      final title = topics.isNotEmpty
+          ? '${subject.name}: ${topics[i]}'
+          : subject.name;
 
-  if (duration > remainingMinutes) {
-    unfitTitles.add(title);
-    continue;
-  }
+      if (duration > remainingMinutes) {
+        unfitTitles.add(title);
+        continue;
+      }
 
-  ref.read(taskProvider.notifier).addTask(
-    title: title,
-    subjectId: subject.id,
-    dueDate: today,
-    priority: priority,
-    scheduledTime: currentTime,
-    estimatedMinutes: duration,
-    difficulty: TopicDifficulty.medium,
-  );
+      ref.read(taskProvider.notifier).addTask(
+            title: title,
+            subjectId: subject.id,
+            dueDate: today,
+            priority: priority,
+            scheduledTime: currentTime,
+            estimatedMinutes: duration,
+            difficulty: TopicDifficulty.medium,
+          );
 
-  currentTime = currentTime.add(
-    Duration(minutes: duration),
-  );
+      currentTime = currentTime.add(Duration(minutes: duration));
 
-  remainingMinutes -= duration;
-  plannedMinutes += duration;
-  plannedCount++;
-}
-
+      remainingMinutes -= duration;
+      plannedMinutes += duration;
+      plannedCount++;
+    }
 
     String reason = '';
 
@@ -271,11 +260,10 @@ DateTime currentTime = startTime;
     final subjects = ref.watch(subjectProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        // Sadece 'form' adımında geri ok gösterilir. 'result' adımında
-        // BİLEREK gösterilmiyor — geri gidip formu tekrar göndermek,
-        // aynı görevlerin ikinci kez üretilmesine (mükerrer kayıt) yol
-        // açar. Kullanıcı sadece "Tamam" butonuyla çıkabilir.
+        backgroundColor: AppColors.background,
+        elevation: 0,
         leading: _step == _PlanEntryStep.form
             ? IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -283,12 +271,12 @@ DateTime currentTime = startTime;
                 tooltip: 'Modu değiştir',
               )
             : _step == _PlanEntryStep.result
-               ? IconButton(
-                   icon: const Icon(Icons.close_rounded),
-                   onPressed: () => Navigator.of(context).pop(),
-                   tooltip: 'Kapat',
-                 )
-               : null,
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Kapat',
+                  )
+                : null,
         title: Text(
           _step == _PlanEntryStep.choose
               ? 'Akıllı Plan'
@@ -329,13 +317,20 @@ DateTime currentTime = startTime;
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Bugün ne planlamak istiyorsun?', style: AppTextStyles.heading2),
-          const SizedBox(height: 20),
+          const Eyebrow(text: 'AI ÇALIŞMA KOÇUN'),
+          const SizedBox(height: 6),
+          Text('Bugün ne planlayalım?', style: AppTextStyles.heading1),
+          const SizedBox(height: 4),
+          Text(
+            'Sana uygun, gerçekçi bir plan hazırlayalım.',
+            style: AppTextStyles.bodySecondary,
+          ),
+          const SizedBox(height: 24),
 
           _PlanOptionCard(
             emoji: '📅',
             title: 'Günümü Planla',
-            iconColor: AppColors.primary,
+            tintColor: AppColors.primary,
             bullets: const [
               'Bugünkü çalışma hedeflerini oluşturur',
               'Enerji durumuna göre ayarlar',
@@ -343,12 +338,12 @@ DateTime currentTime = startTime;
             onTap: () => _selectMode(false),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           _PlanOptionCard(
             emoji: '🎯',
             title: 'Sınava Hazırlan',
-            iconColor: AppColors.warning,
+            tintColor: AppColors.warning,
             bullets: const [
               'Sınav tarihine göre çalışma planı oluşturur',
               'Konu dağılımı yapar',
@@ -371,6 +366,8 @@ DateTime currentTime = startTime;
             child: ListView(
               children: [
                 if (_isExamMode) ...[
+                  const Eyebrow(text: 'SINAV BİLGİSİ'),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: _examNameController,
                     decoration: const InputDecoration(
@@ -385,21 +382,28 @@ DateTime currentTime = startTime;
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(14),
+                        color: AppColors.tonal(AppColors.secondary),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Text(
-                        DateFormat('dd MMMM yyyy', 'tr_TR').format(_examDate),
-                        style: AppTextStyles.body,
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded,
+                              size: 16, color: AppColors.secondary),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat('dd MMMM yyyy', 'tr_TR').format(_examDate),
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  Text(
-                    'Konular (virgülle ayır)',
-                    style: AppTextStyles.body,
-                  ),
+                  Text('Konular (virgülle ayır)', style: AppTextStyles.body),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _topicsController,
@@ -408,8 +412,8 @@ DateTime currentTime = startTime;
                     ),
                   ),
                 ] else ...[
-                  Text('Enerjin nasıl?', style: AppTextStyles.body),
-                  const SizedBox(height: 12),
+                  const Eyebrow(text: 'ENERJİN NASIL'),
+                  const SizedBox(height: 10),
 
                   ...['düşük', 'orta', 'yüksek'].map((level) {
                     final isSelected = _energy == level;
@@ -425,9 +429,9 @@ DateTime currentTime = startTime;
                     );
                   }),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
 
-                  Text('Hangi ders? (opsiyonel)', style: AppTextStyles.body),
+                  const Eyebrow(text: 'DERS (OPSİYONEL)'),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
@@ -435,17 +439,15 @@ DateTime currentTime = startTime;
                     children: [
                       ...subjects.map((s) {
                         final isSelected = _selectedSubjectId == s.id;
-                        return ChoiceChip(
-                          label: Text(s.name),
-                          selected: isSelected,
-                          onSelected: (_) => setState(
+                        return _SubjectChip(
+                          label: s.name,
+                          isSelected: isSelected,
+                          onTap: () => setState(
                               () => _selectedSubjectId = isSelected ? null : s.id),
                         );
                       }),
-                      ActionChip(
-                        avatar: const Icon(Icons.add, size: 16, color: AppColors.primary),
-                        label: const Text('Yeni Ders', style: TextStyle(color: AppColors.primary)),
-                        onPressed: () {
+                      TapScale(
+                        onTap: () {
                           showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
@@ -453,15 +455,33 @@ DateTime currentTime = startTime;
                             builder: (_) => const AddSubjectSheet(),
                           );
                         },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.tonal(AppColors.textSecondary),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_rounded,
+                                  size: 16, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text('Yeni Ders',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  )),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
 
-                  Text(
-                    'Konular (opsiyonel, virgülle ayır)',
-                    style: AppTextStyles.body,
-                  ),
+                  const Eyebrow(text: 'KONULAR (OPSİYONEL)'),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _topicsController,
@@ -518,42 +538,31 @@ DateTime currentTime = startTime;
                           children: _isExamMode
                               ? [
                                   const SizedBox(height: 16),
-                                  Text('Hangi ders? (opsiyonel)', style: AppTextStyles.body),
+                                  const Eyebrow(text: 'DERS (OPSİYONEL)'),
                                   const SizedBox(height: 10),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,
                                     children: [
                                       ...subjects.map((s) {
-                                        final isSelected = _selectedSubjectId == s.id;
-                                        return ChoiceChip(
-                                          label: Text(s.name),
-                                          selected: isSelected,
-                                          onSelected: (_) => setState(() =>
-                                              _selectedSubjectId = isSelected ? null : s.id),
+                                        final isSelected =
+                                            _selectedSubjectId == s.id;
+                                        return _SubjectChip(
+                                          label: s.name,
+                                          isSelected: isSelected,
+                                          onTap: () => setState(() =>
+                                              _selectedSubjectId =
+                                                  isSelected ? null : s.id),
                                         );
                                       }),
-                                      ActionChip(
-                                        avatar: const Icon(Icons.add,
-                                            size: 16, color: AppColors.primary),
-                                        label: const Text('Yeni Ders',
-                                            style: TextStyle(color: AppColors.primary)),
-                                        onPressed: () {
-                                          showModalBottomSheet(
-                                            context: context,
-                                            isScrollControlled: true,
-                                            backgroundColor: Colors.transparent,
-                                            builder: (_) => const AddSubjectSheet(),
-                                          );
-                                        },
-                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
                                 ]
                               : [
                                   const SizedBox(height: 16),
-                                  Text('Bugün kaç saatin var?', style: AppTextStyles.body),
+                                  Text('Bugün kaç saatin var?',
+                                      style: AppTextStyles.body),
                                   const SizedBox(height: 10),
                                   Slider(
                                     value: _hoursAvailable.toDouble(),
@@ -562,8 +571,8 @@ DateTime currentTime = startTime;
                                     divisions: 7,
                                     label: '$_hoursAvailable saat',
                                     activeColor: AppColors.primary,
-                                    onChanged: (v) =>
-                                        setState(() => _hoursAvailable = v.round()),
+                                    onChanged: (v) => setState(
+                                        () => _hoursAvailable = v.round()),
                                   ),
                                   const SizedBox(height: 12),
                                   SwitchListTile(
@@ -586,12 +595,10 @@ DateTime currentTime = startTime;
           ),
 
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _generate,
-              child: const Text('Planımı Oluştur'),
-            ),
+          PrimaryButton(
+            label: 'Planımı Oluştur',
+            icon: Icons.auto_awesome_rounded,
+            onPressed: _generate,
           ),
         ],
       ),
@@ -599,6 +606,11 @@ DateTime currentTime = startTime;
   }
 
   Widget _buildResultStep(BuildContext context) {
+    final capacityMinutes = _hoursAvailable * 60;
+    final usedRatio = _isExamMode || capacityMinutes == 0
+        ? 1.0
+        : (_resultPlannedMinutes / capacityMinutes).clamp(0.0, 1.0);
+
     final plannedHours = _resultPlannedMinutes ~/ 60;
     final plannedMins = _resultPlannedMinutes % 60;
     final remainingHours = _resultRemainingMinutes ~/ 60;
@@ -612,106 +624,129 @@ DateTime currentTime = startTime;
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: AppColors.cardShadow,
+              color: AppColors.tonal(AppColors.primary),
+              borderRadius: BorderRadius.circular(24),
             ),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Eyebrow(text: 'PLANIN HAZIR', color: AppColors.primary),
+                      const SizedBox(height: 8),
+                      Text(
                         '$_resultTaskCount görev hazırlandı',
-                        style: AppTextStyles.heading3,
+                        style: AppTextStyles.heading2,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        _isExamMode
+                            ? '$_resultDaysUsed güne dağıtıldı'
+                            : (_resultReason.isNotEmpty
+                                ? _resultReason
+                                : 'Planın hazır'),
+                        style: AppTextStyles.bodySecondary,
+                      ),
+                    ],
+                  ),
                 ),
-
-                const SizedBox(height: 16),
-
                 if (!_isExamMode) ...[
-                  if (_resultReason.isNotEmpty)
-                    Text(_resultReason, style: AppTextStyles.bodySecondary),
-
-                  const SizedBox(height: 12),
-
-                  _ResultInfoRow(
-                    icon: Icons.timer_outlined,
-                    label: 'Plan süresi',
-                    value: '${plannedHours}s ${plannedMins}dk',
-                  ),
-                  const SizedBox(height: 8),
-                  _ResultInfoRow(
-                    icon: Icons.hourglass_bottom_rounded,
-                    label: 'Kalan kapasite',
-                    value: '${remainingHours}s ${remainingMins}dk',
-                  ),
-
-                  if (_resultUnfitTitles.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${_resultUnfitTitles.length} konu bu sefer sığmadı',
-                            style: AppTextStyles.body.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _resultUnfitTitles.join(', '),
-                            style: AppTextStyles.bodySecondary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ] else ...[
-                  _ResultInfoRow(
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Dağıtılan gün sayısı',
-                    value: '$_resultDaysUsed gün',
-                  ),
+                  const SizedBox(width: 12),
+                  _CapacityRing(ratio: usedRatio),
                 ],
               ],
             ),
           ),
 
+          const SizedBox(height: 20),
+
+          if (!_isExamMode) ...[
+            _ResultInfoRow(
+              icon: Icons.timer_outlined,
+              label: 'Plan süresi',
+              value: '${plannedHours}s ${plannedMins}dk',
+            ),
+            const SizedBox(height: 10),
+            _ResultInfoRow(
+              icon: Icons.hourglass_bottom_rounded,
+              label: 'Kalan kapasite',
+              value: '${remainingHours}s ${remainingMins}dk',
+            ),
+            if (_resultUnfitTitles.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.tonal(AppColors.warning),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 16, color: AppColors.warning),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_resultUnfitTitles.length} konu bu sefer sığmadı',
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _resultUnfitTitles.join(', '),
+                      style: AppTextStyles.bodySecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ] else ...[
+            _ResultInfoRow(
+              icon: Icons.calendar_today_rounded,
+              label: 'Dağıtılan gün sayısı',
+              value: '$_resultDaysUsed gün',
+            ),
+          ],
+
           const Spacer(),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tamam, Ana Ekrana Dön'),
-            ),
+          DarkButton(
+            label: 'Tamam, Ana Ekrana Dön',
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CapacityRing extends StatelessWidget {
+  final double ratio;
+
+  const _CapacityRing({required this.ratio});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedProgressRing(
+      value: ratio,
+      color: AppColors.primary,
+      backgroundColor: AppColors.primary.withOpacity(0.15),
+      center: Text(
+        '${(ratio * 100).round()}%',
+        style: AppTextStyles.caption.copyWith(
+          fontWeight: FontWeight.w800,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
@@ -720,14 +755,14 @@ DateTime currentTime = startTime;
 class _PlanOptionCard extends StatelessWidget {
   final String emoji;
   final String title;
-  final Color iconColor;
+  final Color tintColor;
   final List<String> bullets;
   final VoidCallback onTap;
 
   const _PlanOptionCard({
     required this.emoji,
     required this.title,
-    required this.iconColor,
+    required this.tintColor,
     required this.bullets,
     required this.onTap,
   });
@@ -738,45 +773,38 @@ class _PlanOptionCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.tonal(tintColor),
           borderRadius: BorderRadius.circular(22),
-          boxShadow: AppColors.cardShadow,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 46,
+              height: 46,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
+                color: tintColor.withOpacity(0.16),
                 shape: BoxShape.circle,
               ),
-              child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              child: Text(emoji, style: const TextStyle(fontSize: 20)),
             ),
-
-            const SizedBox(width: 16),
-
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: AppTextStyles.heading3),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   ...bullets.map(
                     (b) => Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.only(top: 3),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.circle,
-                            size: 5,
-                            color: AppColors.textSecondary,
-                          ),
+                          Icon(Icons.circle, size: 4, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(b, style: AppTextStyles.bodySecondary),
@@ -788,11 +816,7 @@ class _PlanOptionCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
-            ),
+            Icon(Icons.chevron_right_rounded, color: tintColor),
           ],
         ),
       ),
@@ -824,15 +848,10 @@ class _EnergyOptionCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.tonal(AppColors.primary)
               : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : AppColors.textSecondary.withOpacity(0.15),
-            width: isSelected ? 1.5 : 1,
-          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: isSelected ? null : AppColors.softShadow,
         ),
         child: Row(
           children: [
@@ -850,9 +869,7 @@ class _EnergyOptionCard extends StatelessWidget {
                     label,
                     style: AppTextStyles.body.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textPrimary,
+                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -861,12 +878,42 @@ class _EnergyOptionCard extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.primary, size: 20),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubjectChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _SubjectChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.tonal(AppColors.primary),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.primary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -886,17 +933,25 @@ class _ResultInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
-        const SizedBox(width: 8),
-        Text(label, style: AppTextStyles.bodySecondary),
-        const Spacer(),
-        Text(
-          value,
-          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Text(label, style: AppTextStyles.bodySecondary),
+          const Spacer(),
+          Text(
+            value,
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
     );
   }
 }

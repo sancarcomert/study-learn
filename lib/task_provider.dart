@@ -176,6 +176,10 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
       ref.read(taskCompletionEventProvider.notifier).state++;
 
+      ref
+          .read(statsProvider.notifier)
+          .adjustStudyMinutes(taskAfter.estimatedMinutes ?? 0);
+
 
       final completedToday =
           state.where(
@@ -202,6 +206,10 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
       }
     } else if (wasCompleted && !taskAfter.isCompleted) {
 
+      ref
+          .read(statsProvider.notifier)
+          .adjustStudyMinutes(-(taskAfter.estimatedMinutes ?? 0));
+
       await _scheduleReminder(taskAfter);
     }
   }
@@ -212,6 +220,22 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     _cancelReminder(id);
 
     _repository.deleteTask(id);
+
+    state = [..._repository.getAllTasks()];
+  }
+
+
+  // Bir tekrar serisindeki TÜM örnekleri (geçmiş + gelecek) tek seferde
+  // siler. Kullanıcı "her gün" gibi bir seçim yapıp pişman olduğunda,
+  // 30 görevi tek tek silmek zorunda kalmasın diye eklendi.
+  void deleteRecurringGroup(String groupId) {
+    final tasksInGroup =
+        state.where((task) => task.recurringGroupId == groupId).toList();
+
+    for (final task in tasksInGroup) {
+      _cancelReminder(task.id);
+      _repository.deleteTask(task.id);
+    }
 
     state = [..._repository.getAllTasks()];
   }

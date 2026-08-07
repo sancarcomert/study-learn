@@ -17,20 +17,21 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   // _stats'ı Hive'a kaydettikten sonra, Riverpod'un değişikliği fark etmesi
   // için state'e YENİ bir kopya atıyoruz (aynı referansı verirsek Riverpod
   // "değişiklik yok" sanıp ekranı güncellemez).
- void _emit() {
-  state = UserStatsModel(
-    currentStreak: _stats.currentStreak,
-    longestStreak: _stats.longestStreak,
-    lastCompletedDate: _stats.lastCompletedDate,
-    dailyGoal: _stats.dailyGoal,
-    freezesAvailable: _stats.freezesAvailable,
-    totalCompletedTasks: _stats.totalCompletedTasks,
-    totalStudyMinutes: _stats.totalStudyMinutes,
-    hasCompletedOnboarding: _stats.hasCompletedOnboarding,
-  );
-}
+  void _emit() {
+    state = UserStatsModel(
+      currentStreak: _stats.currentStreak,
+      longestStreak: _stats.longestStreak,
+      lastCompletedDate: _stats.lastCompletedDate,
+      dailyGoal: _stats.dailyGoal,
+      freezesAvailable: _stats.freezesAvailable,
+      totalCompletedTasks: _stats.totalCompletedTasks,
+      totalStudyMinutes: _stats.totalStudyMinutes,
+      hasCompletedOnboarding: _stats.hasCompletedOnboarding,
+      userName: _stats.userName,
+    );
+  }
+
   void markGoalCompletedToday() {
-    print("STREAK GÜNCELLENİYOR");
     final today = DateTime.now();
     final todayDateOnly = DateTime(today.year, today.month, today.day);
 
@@ -65,7 +66,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
     _emit();
   }
 
-void checkStreakBroken() {
+  void checkStreakBroken() {
     final lastDate = _stats.lastCompletedDate;
     if (lastDate == null) return;
 
@@ -102,6 +103,27 @@ void checkStreakBroken() {
 
   void markOnboardingCompleted() {
     _stats.hasCompletedOnboarding = true;
+    _stats.save();
+    _emit();
+  }
+
+  // Bir görev tamamlanıp geri alındığında toplam çalışma süresini günceller.
+  // delta pozitifse ekler (görev tamamlandı), negatifse çıkarır (tamamlama
+  // geri alındı). Sonuç asla negatife düşmez.
+  void adjustStudyMinutes(int delta) {
+    if (delta == 0) return;
+    final updated = _stats.totalStudyMinutes + delta;
+    _stats.totalStudyMinutes = updated < 0 ? 0 : updated;
+    _stats.save();
+    _emit();
+  }
+
+  // Kullanıcının Profile ekranında girdiği ismi kaydeder. Boş string
+  // gelirse null'a çevrilir, böylece UI tarafında "Öğrenci" varsayılanı
+  // devreye girer.
+  void updateUserName(String name) {
+    final trimmed = name.trim();
+    _stats.userName = trimmed.isEmpty ? null : trimmed;
     _stats.save();
     _emit();
   }

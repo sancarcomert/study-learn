@@ -25,13 +25,14 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       totalCompletedTasks: fields[5] as int,
       totalStudyMinutes: fields[6] as int,
       hasCompletedOnboarding: fields[7] as bool?,
+      userName: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserStatsModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.currentStreak)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       ..writeByte(6)
       ..write(obj.totalStudyMinutes)
       ..writeByte(7)
-      ..write(obj.hasCompletedOnboarding);
+      ..write(obj.hasCompletedOnboarding)
+      ..writeByte(8)
+      ..write(obj.userName);
   }
 
   @override

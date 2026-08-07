@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../app_text_styles.dart';
+import 'eyebrow.dart';
+import 'animated_progress_ring.dart';
 
 class HeroProgressCard extends StatelessWidget {
   final double progress;
@@ -9,6 +11,7 @@ class HeroProgressCard extends StatelessWidget {
   final int totalCount;
   final int streak;
   final int longestStreak;
+  final String? nextBlockText;
 
   const HeroProgressCard({
     super.key,
@@ -17,29 +20,22 @@ class HeroProgressCard extends StatelessWidget {
     required this.totalCount,
     required this.streak,
     required this.longestStreak,
+    this.nextBlockText,
   });
 
   String _message() {
-    // Comeback: kullanıcının daha önce bir serisi vardı (longestStreak > 0)
-    // ama şu an sıfır (currentStreak == 0) — bu, "hiç seri yapmamış yeni
-    // kullanıcı" değil "serisi kırılmış kullanıcı" demektir. Bu iki durum
-    // farklı bir mesajı hak ediyor; kayıp değil, geleceğe odaklı bir ton.
     if (streak == 0 && longestStreak > 0) {
       return "Yeniden başlıyoruz, sorun değil 🌱";
     }
-
     if (progress == 0) {
       return "Başlamak için küçük bir adım yeterli 🚀";
     }
-
     if (progress >= 1) {
       return "Harika! Bugünkü hedef tamamlandı 🎉";
     }
-
     if (progress >= 0.5) {
       return "Güzel gidiyorsun, devam et 💪";
     }
-
     return "Bugün için güzel bir başlangıç yapalım.";
   }
 
@@ -48,114 +44,76 @@ class HeroProgressCard extends StatelessWidget {
     final percentage = (progress * 100).round();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primary.withOpacity(0.75),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.tonal(AppColors.primary),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: Stack(
-                  alignment: Alignment.center,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 4,
-                        backgroundColor: Colors.white24,
-                        valueColor: const AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    ),
+                    const Eyebrow(text: 'BUGÜNÜN ODAĞI', color: AppColors.primary),
+                    const SizedBox(height: 8),
                     Text(
-                      '$percentage%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      '$completedCount / $totalCount görev tamamlandı',
+                      style: AppTextStyles.heading3,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      nextBlockText ?? _message(),
+                      style: AppTextStyles.bodySecondary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  "$completedCount / $totalCount görev tamamlandı",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+              const SizedBox(width: 14),
+              AnimatedProgressRing(
+                value: progress,
+                color: AppColors.primary,
+                backgroundColor: AppColors.primary.withOpacity(0.15),
+                center: Text(
+                  '$percentage%',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-
-              if (streak > 0) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text("🔥", style: TextStyle(fontSize: 13)),
-                      const SizedBox(width: 4),
-                      Text(
-                        "$streak",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            _message(),
-            style: AppTextStyles.bodySecondary.copyWith(
-              color: Colors.white70,
+          if (streak > 0) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("🔥", style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text(
+                    "$streak gün",
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          ],
         ],
       ),
     );

@@ -24,7 +24,7 @@ class NextTaskCard extends StatelessWidget {
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: AppColors.cardShadow,
         ),
         child: Row(
@@ -96,7 +96,7 @@ for (final s in subjects) {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: AppColors.cardShadow,
         ),
         child: Column(
@@ -108,12 +108,12 @@ for (final s in subjects) {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.12),
+                    color: AppColors.secondary.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.schedule_rounded,
-                    color: AppColors.primary,
+                    color: AppColors.secondary,
                   ),
                 ),
 

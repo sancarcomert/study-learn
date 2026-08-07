@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'subject_model.dart';
 import 'subject_provider.dart';
+import 'widgets/app_buttons.dart';
+import 'widgets/app_snackbar.dart';
 
 class AddSubjectSheet extends ConsumerStatefulWidget {
-  const AddSubjectSheet({super.key});
+  final SubjectModel? subjectToEdit;
+
+  const AddSubjectSheet({super.key, this.subjectToEdit});
 
   @override
   ConsumerState<AddSubjectSheet> createState() => _AddSubjectSheetState();
@@ -15,28 +20,44 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
   final _controller = TextEditingController();
   Color _selectedColor = AppColors.subjectPalette.first;
 
+  bool get _isEditing => widget.subjectToEdit != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final subject = widget.subjectToEdit!;
+      _controller.text = subject.name;
+      _selectedColor = Color(subject.colorValue);
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
- void _submit() {
+  void _submit() {
     final name = _controller.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ders adı boş olamaz')),
-      );
+      AppSnackBar.error(context, 'Ders adı boş olamaz');
       return;
     }
     if (name.length > 30) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ders adı çok uzun (max 30 karakter)')),
-      );
+      AppSnackBar.error(context, 'Ders adı çok uzun (max 30 karakter)');
       return;
     } // boş isimle ders eklenmesin
 
-    ref.read(subjectProvider.notifier).addSubject(name, _selectedColor.value);
+    if (_isEditing) {
+      ref.read(subjectProvider.notifier).updateSubject(
+            widget.subjectToEdit!.id,
+            name,
+            _selectedColor.value,
+          );
+    } else {
+      ref.read(subjectProvider.notifier).addSubject(name, _selectedColor.value);
+    }
     Navigator.of(context).pop();
   }
 
@@ -57,7 +78,10 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Yeni Ders', style: AppTextStyles.heading2),
+            Text(
+              _isEditing ? 'Dersi Düzenle' : 'Yeni Ders',
+              style: AppTextStyles.heading2,
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _controller,
@@ -88,12 +112,9 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submit,
-                child: const Text('Dersi Ekle'),
-              ),
+            PrimaryButton(
+              label: _isEditing ? 'Kaydet' : 'Dersi Ekle',
+              onPressed: _submit,
             ),
           ],
         ),

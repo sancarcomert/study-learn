@@ -1,33 +1,323 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProfileScreen extends StatelessWidget {
+import 'app_colors.dart';
+import 'app_text_styles.dart';
+import 'stats_provider.dart';
+import 'subject_provider.dart';
+import 'task_provider.dart';
+import 'stats_screen.dart';
+import 'tap_scale.dart';
+import 'widgets/eyebrow.dart';
+
+void _showEditNameDialog(BuildContext context, WidgetRef ref, String? currentName) {
+  final controller = TextEditingController(text: currentName ?? '');
+
+  showDialog(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('İsmini düzenle'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 30,
+        decoration: const InputDecoration(hintText: 'Örn. Ahmet'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Vazgeç'),
+        ),
+        TextButton(
+          onPressed: () {
+            ref.read(statsProvider.notifier).updateUserName(controller.text);
+            Navigator.pop(dialogContext);
+          },
+          child: const Text('Kaydet'),
+        ),
+      ],
+    ),
+  );
+}
+
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(statsProvider);
+    final subjects = ref.watch(subjectProvider);
+    final allTasks = ref.watch(taskProvider);
+
+    final completedCount = allTasks.where((t) => t.isCompleted).length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Profil"),
+        title: Text('Profil', style: AppTextStyles.heading2),
       ),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "🔥 Streak",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Üst kimlik kartı
+          TapScale(
+            onTap: () => _showEditNameDialog(context, ref, stats.userName),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppColors.cardShadow,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.tonal(AppColors.primary),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: AppColors.primary,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stats.userName ?? 'Öğrenci',
+                          style: AppTextStyles.heading2,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${subjects.length} ders • $completedCount görev tamamlandı',
+                          style: AppTextStyles.bodySecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.edit_outlined,
+                    color: AppColors.textSecondary,
+                    size: 18,
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 20),
-            Text(
-              "Günlük hedeflerin ve istatistiklerin burada olacak.",
-              style: TextStyle(fontSize: 16),
+          ),
+
+          const SizedBox(height: 28),
+
+          const Eyebrow(text: 'SERİN'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _ProfileStatCard(
+                  icon: Icons.local_fire_department_rounded,
+                  iconColor: AppColors.warning,
+                  value: '${stats.currentStreak}',
+                  label: 'Mevcut Seri',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ProfileStatCard(
+                  icon: Icons.emoji_events_rounded,
+                  iconColor: AppColors.primary,
+                  value: '${stats.longestStreak}',
+                  label: 'En Uzun Seri',
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.tonal(AppColors.primary),
+              borderRadius: BorderRadius.circular(14),
             ),
-          ],
-        ),
+            child: Row(
+              children: [
+                const Icon(Icons.ac_unit_rounded,
+                    color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    stats.freezesAvailable > 0
+                        ? '${stats.freezesAvailable} dondurma hakkın var'
+                        : 'Dondurma hakkın kalmadı',
+                    style: AppTextStyles.bodySecondary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          const Eyebrow(text: 'HEDEF'),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.softShadow,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Günlük hedef',
+                    style: AppTextStyles.body,
+                  ),
+                ),
+                Text(
+                  '${stats.dailyGoal} görev',
+                  style: AppTextStyles.heading3,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          const Eyebrow(text: 'TOPLAM ÇALIŞMA'),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.softShadow,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.tonal(AppColors.secondary),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.timer_outlined,
+                    color: AppColors.secondary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    'Tamamlanan görevlerle geçirilen süre',
+                    style: AppTextStyles.bodySecondary,
+                  ),
+                ),
+                Text(
+                  '${stats.totalStudyMinutes ~/ 60}s ${stats.totalStudyMinutes % 60}dk',
+                  style: AppTextStyles.heading3,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          TapScale(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StatsScreen()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppColors.softShadow,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.tonal(AppColors.primary),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.bar_chart_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      'Tüm İstatistikleri Gör',
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileStatCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+
+  const _ProfileStatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: iconColor, size: 26),
+          const SizedBox(height: 8),
+          Text(value, style: AppTextStyles.heading2),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.caption,
+          ),
+        ],
       ),
     );
   }

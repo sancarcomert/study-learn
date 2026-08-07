@@ -6,6 +6,8 @@ import 'subject_provider.dart';
 import 'subject_model.dart';
 import 'add_subject_sheet.dart';
 import 'add_task_screen.dart';
+import 'tap_scale.dart';
+import 'widgets/empty_state_card.dart';
 
 class SubjectsScreen extends ConsumerWidget {
   const SubjectsScreen({super.key});
@@ -32,34 +34,9 @@ class SubjectsScreen extends ConsumerWidget {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: AppColors.cardShadow,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.menu_book_rounded,
-                            color: AppColors.primary, size: 28),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Henüz ders eklemedin.\nAşağıdaki + butonuna dokun.',
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.bodySecondary,
-                      ),
-                    ],
-                  ),
+                child: EmptyStateCard(
+                  icon: Icons.menu_book_rounded,
+                  message: 'Henüz ders eklemedin.\nAşağıdaki + butonuna dokun.',
                 ),
               ),
             )
@@ -96,6 +73,15 @@ class _SubjectCard extends StatelessWidget {
 
   const _SubjectCard({required this.subject, required this.ref});
 
+  void _showEditSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddSubjectSheet(subjectToEdit: subject),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dismissible(
@@ -110,31 +96,63 @@ class _SubjectCard extends StatelessWidget {
         ),
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text("Ders silinsin mi?"),
+                content: const Text(
+                  "Bu derse bağlı görevler ders bilgisi olmadan kalmaya devam eder. Bu işlem geri alınamaz.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("Vazgeç"),
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("Sil"),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+      },
       onDismissed: (_) {
         ref.read(subjectProvider.notifier).deleteSubject(subject.id);
       },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color(subject.colorValue),
-                borderRadius: BorderRadius.circular(6),
+      child: TapScale(
+        onTap: () => _showEditSheet(context),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: AppColors.cardShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Color(subject.colorValue),
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(subject.name, style: AppTextStyles.body),
-            ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(subject.name, style: AppTextStyles.body),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );

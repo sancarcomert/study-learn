@@ -104,6 +104,39 @@ class AppTheme {
         thickness: .8,
         color: Color(0xFFE5E7EB),
       ),
+
+      // Silme onayı gibi dialoglar artık kartlarla aynı dile konuşuyor:
+      // yuvarlak köşe, surface arka plan, sıfır elevation.
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        titleTextStyle: AppTextStyles.heading3,
+        contentTextStyle: AppTextStyles.bodySecondary,
+      ),
+
+      // SnackBar artık koyu "ink" zemin + yuvarlak köşe + floating —
+      // varsayılan Material gri kutusu yerine marka diline uygun.
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.ink,
+        contentTextStyle: AppTextStyles.body.copyWith(color: Colors.white),
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+
+      // Dialog içindeki TextButton'lar (Vazgeç/Sil gibi) artık
+      // ColorScheme'in ürettiği rastgele tona değil, marka rengine bağlı.
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+        ),
+      ),
     );
   }
 }

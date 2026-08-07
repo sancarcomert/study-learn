@@ -19,7 +19,7 @@ class SmartPlanBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.success.withOpacity(0.08),
+          color: AppColors.tonal(AppColors.success),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: AppColors.success.withOpacity(0.2),

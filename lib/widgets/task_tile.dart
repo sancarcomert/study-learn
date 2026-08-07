@@ -70,6 +70,9 @@ class TaskTile extends ConsumerWidget {
                     child: const Text("Vazgeç"),
                   ),
                   TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                    ),
                     onPressed: () => Navigator.pop(context, true),
                     child: const Text("Sil"),
                   ),
@@ -113,6 +116,55 @@ class TaskTile extends ConsumerWidget {
                       ref.read(taskProvider.notifier).deleteTask(task.id);
                     },
                   ),
+                  // Tekrarlayan bir görevse, tüm seriyi tek seferde
+                  // silme seçeneği sunuyoruz — aksi halde kullanıcı
+                  // 30 örneği tek tek silmek zorunda kalır.
+                  if (task.recurringGroupId != null)
+                    ListTile(
+                      leading: const Icon(
+                        Icons.delete_sweep_outlined,
+                        color: AppColors.danger,
+                      ),
+                      title: const Text(
+                        "Seriyi Sil (Tüm Tekrarlar)",
+                        style: TextStyle(color: AppColors.danger),
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+
+                        final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text("Seri tamamen silinsin mi?"),
+                                content: const Text(
+                                  "Bu görevin tüm tekrarları (geçmiş ve gelecek) silinecek. Bu işlem geri alınamaz.",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text("Vazgeç"),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.danger,
+                                    ),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text("Seriyi Sil"),
+                                  ),
+                                ],
+                              ),
+                            ) ??
+                            false;
+
+                        if (confirmed) {
+                          ref
+                              .read(taskProvider.notifier)
+                              .deleteRecurringGroup(task.recurringGroupId!);
+                        }
+                      },
+                    ),
                 ],
               ),
             ),
@@ -160,16 +212,26 @@ class TaskTile extends ConsumerWidget {
                                   );
                             },
 
-                            child: Icon(
-                              task.isCompleted
-                                  ? Icons.check_circle_rounded
-                                  : Icons.radio_button_unchecked_rounded,
-
-                              color: task.isCompleted
-                                  ? AppColors.success
-                                  : AppColors.textSecondary,
-
-                              size: 26,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 350),
+                              transitionBuilder: (child, animation) =>
+                                  ScaleTransition(
+                                scale: CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeOutBack,
+                                ),
+                                child: child,
+                              ),
+                              child: Icon(
+                                task.isCompleted
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                key: ValueKey(task.isCompleted),
+                                color: task.isCompleted
+                                    ? AppColors.success
+                                    : AppColors.textSecondary,
+                                size: 26,
+                              ),
                             ),
                           ),
 
@@ -191,9 +253,8 @@ class TaskTile extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    task.title,
-
+                                  AnimatedDefaultTextStyle(
+                                    duration: const Duration(milliseconds: 250),
                                     style: AppTextStyles.body.copyWith(
                                       fontSize: 16,
                                       height: 1.25,
@@ -209,11 +270,13 @@ class TaskTile extends ConsumerWidget {
                                           ? AppColors.textSecondary
                                           : AppColors.textPrimary,
                                     ),
+                                    child: Text(task.title),
                                   ),
 
                                   if (subject != null ||
                                       task.scheduledTime != null ||
-                                      task.estimatedMinutes != null) ...[
+                                      task.estimatedMinutes != null ||
+                                      task.recurringGroupId != null) ...[
                                     const SizedBox(height: 10),
 
                                     Wrap(
@@ -226,6 +289,7 @@ class TaskTile extends ConsumerWidget {
                                         if (task.scheduledTime != null)
                                           _InfoChip(
                                             icon: Icons.schedule_rounded,
+                                            color: AppColors.secondary,
                                             text:
                                                 '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
                                           ),
@@ -234,6 +298,19 @@ class TaskTile extends ConsumerWidget {
                                           _InfoChip(
                                             icon: Icons.timer_outlined,
                                             text: '${task.estimatedMinutes} dk',
+                                          ),
+
+                                        // Bu görevin bir tekrar serisinin
+                                        // parçası olduğunu görsel olarak
+                                        // belli ediyor — uzun basmadan da
+                                        // fark edilsin diye.
+                                        if (task.recurringGroupId != null)
+                                          _InfoChip(
+                                            icon: Icons.repeat_rounded,
+                                            text: task.recurrenceRule ==
+                                                    'weekly'
+                                                ? 'Haftalık'
+                                                : 'Günlük',
                                           ),
                                       ],
                                     ),
@@ -303,10 +380,12 @@ class _SubjectChip extends StatelessWidget {
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
+  final Color color;
 
   const _InfoChip({
     required this.icon,
     required this.text,
+    this.color = AppColors.primary,
   });
 
   @override
@@ -318,7 +397,7 @@ class _InfoChip extends StatelessWidget {
       ),
 
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.08),
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
       ),
 
@@ -328,7 +407,7 @@ class _InfoChip extends StatelessWidget {
           Icon(
             icon,
             size: 14,
-            color: AppColors.primary,
+            color: color,
           ),
 
           const SizedBox(width: 5),

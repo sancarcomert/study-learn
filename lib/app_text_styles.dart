@@ -49,4 +49,14 @@ class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.textMuted,
   );
+
+  // "BUGÜNÜN ODAĞI" / "BU HAFTA" gibi üst etiketler için tek stil
+  // kaynağı — artık her ekranın kendi .copyWith() ile taklit etmesine
+  // gerek yok.
+  static TextStyle eyebrow = GoogleFonts.plusJakartaSans(
+    fontSize: 12,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textSecondary,
+    letterSpacing: 1.1,
+  );
 }

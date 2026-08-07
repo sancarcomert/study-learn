@@ -1,3 +1,4 @@
+// lib/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
@@ -9,6 +10,7 @@ import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/next_task_card.dart';
 import 'widgets/smart_plan_banner.dart';
+import 'widgets/eyebrow.dart';
 import 'task_model.dart';
 import 'subject_model.dart';
 import 'day_detail_screen.dart';
@@ -16,9 +18,11 @@ import 'subjects_screen.dart';
 import 'add_task_screen.dart';
 import 'widgets/task_tile.dart';
 import 'stats_screen.dart';
-import 'smart_plan_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/hero_progress_card.dart';
+import 'widgets/animated_progress_bar.dart';
+import 'widgets/empty_state_card.dart';
+import 'widgets/app_snackbar.dart';
 import 'dart:async';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -77,6 +81,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final withoutTime = tasks.where((t) => t.scheduledTime == null).toList();
 
     return [...withTime, ...withoutTime];
+  }
+
+  String? _nextBlockText(TaskModel? upcomingTask) {
+    if (upcomingTask == null || upcomingTask.scheduledTime == null) {
+      return null;
+    }
+
+    final diff = upcomingTask.scheduledTime!.difference(DateTime.now());
+
+    if (diff.inMinutes > 0) {
+      return 'Bir sonraki çalışma bloğuna kadar ${diff.inMinutes} dakikan var.';
+    }
+
+    return 'Bir görevin başlama zamanı geldi.';
   }
 
   void _showGoalCelebration() {
@@ -162,11 +180,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     ref.listen<int>(taskCompletionEventProvider, (previous, next) {
       if (previous != null && next > previous) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("✅ Görev tamamlandı!"),
-            duration: Duration(seconds: 1),
-          ),
+        AppSnackBar.success(
+          context,
+          "Görev tamamlandı!",
+          duration: const Duration(seconds: 1),
         );
       }
     });
@@ -190,6 +207,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .toList();
 
     return Scaffold(
+      // Artık ham hex yok — AppColors.background zaten sıcak beyaz,
+      // tema (scaffoldBackgroundColor) bunu otomatik uyguluyor.
       body: Stack(
         children: [
           SafeArea(
@@ -238,7 +257,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   completedCount: completedCount,
                   totalCount: totalCount,
                   streak: stats.currentStreak,
-                   longestStreak: stats.longestStreak,
+                  longestStreak: stats.longestStreak,
+                  nextBlockText: _nextBlockText(upcomingTask),
                 ),
 
                 const SizedBox(height: 16),
@@ -252,6 +272,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SmartPlanBanner(),
 
+                const SizedBox(height: 28),
+
+                const Eyebrow(text: 'BU HAFTA'),
+                const SizedBox(height: 6),
+                Text('Çalışma ritmin', style: AppTextStyles.heading3),
                 const SizedBox(height: 16),
 
                 WeekStrip(
@@ -267,10 +292,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SizedBox(height: 28),
 
+                const Eyebrow(text: 'DERSLERİN'),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Derslerim', style: AppTextStyles.heading2),
+                    Text('Bugünkü dağılım', style: AppTextStyles.heading3),
                     TapScale(
                       onTap: () {
                         Navigator.of(context).push(
@@ -290,7 +317,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 subjects.isEmpty
-                    ? _EmptyStateCard(
+                    ? EmptyStateCard(
                         icon: Icons.menu_book_rounded,
                         message: 'Henüz ders eklemedin.\nHadi ilk dersini ekle!',
                         onTap: () {
@@ -300,134 +327,143 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         },
                       )
-                    : SizedBox(
-                        height: 40,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: subjects.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final subject = subjects[index];
-                            return _SubjectPill(subject: subject);
-                          },
-                        ),
+                    : Column(
+                        children: subjects.map((subject) {
+                          final subjectTasks = todayTasks
+                              .where((t) => t.subjectId == subject.id)
+                              .toList();
+                          final completed = subjectTasks
+                              .where((t) => t.isCompleted)
+                              .length;
+                          final total = subjectTasks.length;
+                          final minutes = subjectTasks.fold<int>(
+                            0,
+                            (sum, t) => sum + (t.estimatedMinutes ?? 0),
+                          );
+
+                          return _SubjectProgressRow(
+                            subject: subject,
+                            completed: completed,
+                            total: total,
+                            minutes: minutes,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const SubjectsScreen()),
+                              );
+                            },
+                          );
+                        }).toList(),
                       ),
+
                 const SizedBox(height: 28),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Bugünkü Görevler',
-                        style: AppTextStyles.heading2,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-
-                    // Arama: varsayılan kapalı, ikonla açılıp genişleyen
-                    // bir alana dönüşür. AnimatedContainer kullanılıyor
-                    // (AnimatedSize değil) çünkü genişliği kendisi
-                    // belirliyor, ebeveyn constraint zincirine bağımlı
-                    // değil — bu, flex/unbounded-width çakışmasını önler.
-                    // _searchQuery ve filtreleme mantığı değişmedi.
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeOut,
-                          width: _searchExpanded ? 110 : 0,
-                          height: 36,
-                          child: _searchExpanded
-                              ? TextField(
-                                  autofocus: true,
-                                  style: AppTextStyles.bodySecondary,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Ara...',
-                                    contentPadding:
-                                        EdgeInsets.symmetric(vertical: 0),
-                                  ),
-                                  onChanged: (value) => setState(
-                                      () => _searchQuery = value.toLowerCase()),
-                                )
-                              : null,
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            _searchExpanded
-                                ? Icons.close_rounded
-                                : Icons.search_rounded,
-                            size: 20,
-                            color: AppColors.textSecondary,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Bugünkü Görevler',
+                              style: AppTextStyles.heading2,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          onPressed: () {
-                            setState(() {
-                              if (_searchExpanded) {
-                                _searchExpanded = false;
-                                _searchQuery = '';
-                              } else {
-                                _searchExpanded = true;
-                              }
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                filteredTasks.isEmpty
-                    ? (_searchQuery.isEmpty
-                        ? const _EmptyStateCard(
-                            icon: Icons.task_alt_rounded,
-                            message:
-                                'Bugün için görev yok.\nSağ alttaki butonla ekleyebilirsin.',
-                          )
-                        : Text('Sonuç bulunamadı',
-                            style: AppTextStyles.bodySecondary))
-                    : Column(
-                        children: filteredTasks
-                            .map((task) => _AnimatedTaskEntry(
-                                  key: ValueKey(task.id),
-                                  child: TaskTile(task: task, subjects: subjects),
-                                ))
-                            .toList(),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOut,
+                                width: _searchExpanded ? 110 : 0,
+                                height: 36,
+                                child: _searchExpanded
+                                    ? TextField(
+                                        autofocus: true,
+                                        style: AppTextStyles.bodySecondary,
+                                        decoration: const InputDecoration(
+                                          hintText: 'Ara...',
+                                          contentPadding:
+                                              EdgeInsets.symmetric(vertical: 0),
+                                        ),
+                                        onChanged: (value) => setState(
+                                            () => _searchQuery = value.toLowerCase()),
+                                      )
+                                    : null,
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  _searchExpanded
+                                      ? Icons.close_rounded
+                                      : Icons.search_rounded,
+                                  size: 20,
+                                  color: AppColors.textSecondary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    if (_searchExpanded) {
+                                      _searchExpanded = false;
+                                      _searchQuery = '';
+                                    } else {
+                                      _searchExpanded = true;
+                                    }
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 12),
+                      filteredTasks.isEmpty
+                          ? (_searchQuery.isEmpty
+                              ? const EmptyStateCard(
+                                  icon: Icons.task_alt_rounded,
+                                  message:
+                                      'Bugün için görev yok.\nSağ alttaki butonla ekleyebilirsin.',
+                                )
+                              : Text('Sonuç bulunamadı',
+                                  style: AppTextStyles.bodySecondary))
+                          : Column(
+                              children: filteredTasks
+                                  .map((task) => _AnimatedTaskEntry(
+                                        key: ValueKey(task.id),
+                                        child: TaskTile(task: task, subjects: subjects),
+                                      ))
+                                  .toList(),
+                            ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 80),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'smart',
-            backgroundColor: AppColors.success,
-            icon: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
-            label: const Text('Akıllı Plan', style: TextStyle(color: Colors.white)),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SmartPlanScreen()),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'task',
-            backgroundColor: AppColors.primary,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('Görev Ekle', style: TextStyle(color: Colors.white)),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AddTaskScreen()),
-              );
-            },
-          ),
-        ],
+      // Home'da tek FAB kalıyor: "Görev Ekle" (birincil, günlük eylem).
+      // "Akıllı Plan" FAB'ı kaldırıldı — o özelliğe erişim artık sadece
+      // aşağıdaki SmartPlanBanner üzerinden. Plan sekmesi ileride tam bir
+      // "Planning Hub" olacağı için Home'un bu özelliği FAB gibi kalıcı/
+      // baskın bir şekilde sahiplenmesi doğru değil.
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Görev Ekle', style: TextStyle(color: Colors.white)),
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AddTaskScreen()),
+          );
+        },
       ),
     );
   }
@@ -470,81 +506,93 @@ class _AnimatedTaskEntryState extends State<_AnimatedTaskEntry>
   }
 }
 
-class _SubjectPill extends StatelessWidget {
+class _SubjectProgressRow extends StatelessWidget {
   final SubjectModel subject;
+  final int completed;
+  final int total;
+  final int minutes;
+  final VoidCallback onTap;
 
-  const _SubjectPill({required this.subject});
+  const _SubjectProgressRow({
+    required this.subject,
+    required this.completed,
+    required this.total,
+    required this.minutes,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final color = Color(subject.colorValue);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            subject.name,
-            style: AppTextStyles.bodySecondary.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
+    final ratio = total == 0 ? 0.0 : completed / total;
+
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppColors.softShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                subject.name.isNotEmpty ? subject.name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subject.name, style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  )),
+                  const SizedBox(height: 2),
+                  Text(
+                    total == 0
+                        ? 'Bugün görev yok'
+                        : '$total görev, $minutes dakika',
+                    style: AppTextStyles.caption,
+                  ),
+                  if (total > 0) ...[
+                    const SizedBox(height: 8),
+                    AnimatedProgressBar(
+                      value: ratio,
+                      color: color,
+                      backgroundColor: color.withOpacity(0.12),
+                      height: 6,
+                      borderRadius: 6,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            if (total > 0)
+              Text(
+                '$completed/$total',
+                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+              ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
-  }
-}
-
-class _EmptyStateCard extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  final VoidCallback? onTap;
-
-  const _EmptyStateCard({required this.icon, required this.message, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Container(
-      padding: const EdgeInsets.all(24),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 28),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySecondary,
-          ),
-        ],
-      ),
-    );
-
-    return onTap != null ? TapScale(onTap: onTap, child: content) : content;
   }
 }

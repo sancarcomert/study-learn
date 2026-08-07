@@ -7,6 +7,8 @@ import 'subject_ai.dart';
 import 'subject_provider.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
+import 'widgets/app_buttons.dart';
+import 'widgets/app_snackbar.dart';
 
 
 class AddTaskScreen extends ConsumerStatefulWidget {
@@ -266,17 +268,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
     if (title.isEmpty) {
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
-        const SnackBar(
-          content:
-              Text(
-                "Görev adı boş olamaz",
-              ),
-        ),
-
-      );
+      AppSnackBar.error(context, "Görev adı boş olamaz");
 
       return;
 
@@ -563,6 +555,87 @@ Widget build(BuildContext context) {
                 ),
 
 
+                // Tekrar seçimi artık gizli akordeon içinde değil, ders
+                // seçiminin hemen altında her zaman görünür — çünkü bu,
+                // geri dönüşü olmayan bir karar (birden fazla görev
+                // oluşturuyor), gözden kaçmaması gerekiyor.
+                if (!_isEditing) ...[
+                  const SizedBox(height: 20),
+
+                  Text(
+                    "Tekrar",
+                    style: AppTextStyles.bodySecondary,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _SubjectChip(
+                        label: "Tek seferlik",
+                        color: AppColors.textSecondary,
+                        isSelected: _recurrence == 'none',
+                        onTap: () {
+                          setState(() {
+                            _recurrence = 'none';
+                          });
+                        },
+                      ),
+                      _SubjectChip(
+                        label: "Her gün",
+                        color: AppColors.secondary,
+                        isSelected: _recurrence == 'daily',
+                        onTap: () {
+                          setState(() {
+                            _recurrence = 'daily';
+                          });
+                        },
+                      ),
+                      _SubjectChip(
+                        label: "Her ${_weekdayName(_selectedDate)}",
+                        color: AppColors.secondary,
+                        isSelected: _recurrence == 'weekly',
+                        onTap: () {
+                          setState(() {
+                            _recurrence = 'weekly';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+
+                  if (_recurrence != 'none') ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.tonal(AppColors.warning),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                            color: AppColors.warning,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _recurrence == 'weekly'
+                                  ? "Bu, önümüzdeki 12 hafta için ayrı ayrı görev oluşturur. Seriyi daha sonra topluca silebilirsin."
+                                  : "Bu, önümüzdeki 30 gün için ayrı ayrı görev oluşturur. Seriyi daha sonra topluca silebilirsin.",
+                              style: AppTextStyles.caption,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+
                 const SizedBox(height: 20),
 
                 InkWell(
@@ -635,7 +708,7 @@ Widget build(BuildContext context) {
                                 ),
 
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.08),
+                                  color: AppColors.secondary.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
 
@@ -645,7 +718,7 @@ Widget build(BuildContext context) {
                                     Icon(
                                       Icons.calendar_today_rounded,
                                       size: 16,
-                                      color: AppColors.primary,
+                                      color: AppColors.secondary,
                                     ),
 
                                     const SizedBox(width: 8),
@@ -653,7 +726,7 @@ Widget build(BuildContext context) {
                                     Text(
                                       _formatDate(_selectedDate),
                                       style: AppTextStyles.body.copyWith(
-                                        color: AppColors.primary,
+                                        color: AppColors.secondary,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -684,8 +757,8 @@ Widget build(BuildContext context) {
 
                                 decoration: BoxDecoration(
                                   color: _selectedTime != null
-                                      ? AppColors.primary.withOpacity(0.12)
-                                      : AppColors.primary.withOpacity(0.06),
+                                      ? AppColors.secondary.withOpacity(0.12)
+                                      : AppColors.secondary.withOpacity(0.06),
 
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -696,7 +769,7 @@ Widget build(BuildContext context) {
                                     Icon(
                                       Icons.schedule_rounded,
                                       size: 18,
-                                      color: AppColors.primary,
+                                      color: AppColors.secondary,
                                     ),
 
                                     const SizedBox(width: 8),
@@ -706,7 +779,7 @@ Widget build(BuildContext context) {
                                           ? "Saat seç"
                                           : _selectedTime!.format(context),
                                       style: AppTextStyles.body.copyWith(
-                                        color: AppColors.primary,
+                                        color: AppColors.secondary,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -722,7 +795,7 @@ Widget build(BuildContext context) {
                                         child: Icon(
                                           Icons.close_rounded,
                                           size: 16,
-                                          color: AppColors.primary,
+                                          color: AppColors.secondary,
                                         ),
                                       ),
                                     ],
@@ -818,54 +891,6 @@ Widget build(BuildContext context) {
                               }).toList(),
                             ),
 
-                            // Tekrar seçimi — sadece yeni görev eklerken
-                            // gösterilir, düzenleme modunda hiç görünmez.
-                            if (!_isEditing) ...[
-                              const SizedBox(height: 24),
-
-                              Text(
-                                "Tekrar",
-                                style: AppTextStyles.bodySecondary,
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  _SubjectChip(
-                                    label: "Tek seferlik",
-                                    color: AppColors.textSecondary,
-                                    isSelected: _recurrence == 'none',
-                                    onTap: () {
-                                      setState(() {
-                                        _recurrence = 'none';
-                                      });
-                                    },
-                                  ),
-                                  _SubjectChip(
-                                    label: "Her gün",
-                                    color: AppColors.primary,
-                                    isSelected: _recurrence == 'daily',
-                                    onTap: () {
-                                      setState(() {
-                                        _recurrence = 'daily';
-                                      });
-                                    },
-                                  ),
-                                  _SubjectChip(
-                                    label: "Her ${_weekdayName(_selectedDate)}",
-                                    color: AppColors.primary,
-                                    isSelected: _recurrence == 'weekly',
-                                    onTap: () {
-                                      setState(() {
-                                        _recurrence = 'weekly';
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
 
                             const SizedBox(height: 4),
                           ],
@@ -882,30 +907,9 @@ Widget build(BuildContext context) {
           const SizedBox(height: 12),
 
 
-          SizedBox(
-
-            width:
-                double.infinity,
-
-
-            child:
-                ElevatedButton(
-
-              onPressed:
-                  _submit,
-
-
-              child:
-                  Text(
-
-                _isEditing
-                    ? "Kaydet"
-                    : "Görevi Ekle",
-
-              ),
-
-            ),
-
+          PrimaryButton(
+            label: _isEditing ? "Kaydet" : "Görevi Ekle",
+            onPressed: _submit,
           ),
 
 

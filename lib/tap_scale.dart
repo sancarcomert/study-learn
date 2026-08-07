@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Herhangi bir widget'ı bununla sarmalarsan, dokunulduğunda hafifçe
 // küçülüp bırakınca geri büyür - "premium" dokunuş hissi verir.
+// Ayrıca hafif bir haptic feedback tetikler - uygulamanın önceden hiç
+// dokunsal geri bildirimi yoktu, artık her TapScale kullanan yerde var.
 class TapScale extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -20,7 +23,12 @@ class _TapScaleState extends State<TapScale> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: widget.onTap == null
+          ? null
+          : () {
+              HapticFeedback.lightImpact();
+              widget.onTap!();
+            },
       onTapDown: (_) => _setScale(0.96),
       onTapUp: (_) => _setScale(1.0),
       onTapCancel: () => _setScale(1.0),

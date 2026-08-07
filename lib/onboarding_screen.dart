@@ -8,6 +8,7 @@ import 'main_shell.dart';
 import 'subject_provider.dart';
 import 'task_provider.dart';
 import 'stats_provider.dart';
+import 'widgets/app_buttons.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -132,12 +133,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppColors.primary
-                              : AppColors.primary.withOpacity(0.1),
+                              : AppColors.tonal(AppColors.primary),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           subject,
-                          style: TextStyle(
+                          style: AppTextStyles.body.copyWith(
                             color: isSelected ? Colors.white : AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -165,12 +166,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const SizedBox(height: 32),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: hasSubject ? _startWithSubject : null,
-                    child: const Text('Başlayalım'),
-                  ),
+                PrimaryButton(
+                  label: 'Başlayalım',
+                  onPressed: hasSubject ? _startWithSubject : null,
                 ),
 
                 const SizedBox(height: 10),

@@ -7,6 +7,7 @@ import 'task_provider.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'widgets/animated_progress_bar.dart';
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
 
@@ -60,7 +61,7 @@ class StatsScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
+              color: AppColors.tonal(AppColors.primary),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -170,6 +171,8 @@ class StatsScreen extends ConsumerWidget {
                   ]);
                 }),
               ),
+              swapAnimationDuration: const Duration(milliseconds: 700),
+              swapAnimationCurve: Curves.easeOutCubic,
             ),
           ),
           
@@ -235,16 +238,10 @@ const SizedBox(height: 20), // DERS BAZLI DAĞILIM
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: ratio,
-                        minHeight: 8,
-                        backgroundColor: AppColors.background,
-                        valueColor: AlwaysStoppedAnimation(
-                          Color(subject.colorValue),
-                        ),
-                      ),
+                    AnimatedProgressBar(
+                      value: ratio,
+                      color: Color(subject.colorValue),
+                      backgroundColor: AppColors.background,
                     ),
                   ],
                 ),

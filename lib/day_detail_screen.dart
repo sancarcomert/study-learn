@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'task_provider.dart';
+import 'widgets/animated_progress_bar.dart';
 
 class DayDetailScreen extends ConsumerWidget {
   final DateTime date;
@@ -65,16 +66,12 @@ class DayDetailScreen extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    backgroundColor: AppColors.background,
-                    valueColor: const AlwaysStoppedAnimation(
-                      AppColors.success,
-                    ),
-                  ),
+                AnimatedProgressBar(
+                  value: progress,
+                  color: AppColors.success,
+                  backgroundColor: AppColors.background,
+                  height: 10,
+                  borderRadius: 10,
                 ),
               ],
             ),
@@ -137,16 +134,19 @@ class DayDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
+                        runSpacing: 8,
                         children: [
                           if (task.scheduledTime != null)
-                            Text(
-                              '⏰ ${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
-                              style: AppTextStyles.caption,
+                            _InfoChip(
+                              icon: Icons.schedule_rounded,
+                              color: AppColors.secondary,
+                              text:
+                                  '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
                             ),
                           if (task.estimatedMinutes != null)
-                            Text(
-                              '⏱ ${task.estimatedMinutes} dk',
-                              style: AppTextStyles.caption,
+                            _InfoChip(
+                              icon: Icons.timer_outlined,
+                              text: '${task.estimatedMinutes} dk',
                             ),
                         ],
                       ),
@@ -155,6 +155,49 @@ class DayDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  const _InfoChip({
+    required this.icon,
+    required this.text,
+    this.color = AppColors.primary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.tonal(color),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

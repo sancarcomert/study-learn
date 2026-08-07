@@ -2,14 +2,9 @@ import 'hive_boxes.dart';
 import 'subject_model.dart';
 
 class SubjectRepository {
- List<SubjectModel> getAllSubjects() {
-  final list = HiveBoxes.subjects.values.toList();
-
-  print("HIVE SUBJECT SAYISI: ${list.length}");
-  print("HIVE SUBJECTLAR: ${list.map((e) => e.name).toList()}");
-
-  return list;
-}
+  List<SubjectModel> getAllSubjects() {
+    return HiveBoxes.subjects.values.toList();
+  }
 
   Future<void> addSubject(SubjectModel subject) async {
     // Hive'da her kayıt bir "key" (anahtar) ile saklanır, biz subject'in
@@ -19,5 +14,11 @@ class SubjectRepository {
 
   Future<void> deleteSubject(String id) async {
     await HiveBoxes.subjects.delete(id);
+  }
+
+  Future<void> updateSubject(SubjectModel subject) async {
+    // SubjectModel bir HiveObject olduğu için doğrudan .save() ile
+    // güncellenebilir (task_repository.updateTask ile aynı desen).
+    await subject.save();
   }
 }

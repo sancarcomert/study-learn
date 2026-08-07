@@ -1,22 +1,112 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'add_task_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class TasksScreen extends StatelessWidget {
+import 'app_colors.dart';
+import 'app_text_styles.dart';
+import 'task_provider.dart';
+import 'subject_provider.dart';
+import 'subject_model.dart';
+import 'task_model.dart';
+import 'add_task_screen.dart';
+import 'widgets/empty_state_card.dart';
+import 'tap_scale.dart';
+
+class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
 
   @override
+  ConsumerState<TasksScreen> createState() => _TasksScreenState();
+}
+
+class _TasksScreenState extends ConsumerState<TasksScreen> {
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
   Widget build(BuildContext context) {
+    final allTasks = ref.watch(taskProvider);
+    final subjects = ref.watch(subjectProvider);
+
+    final dayTasks =
+        allTasks.where((t) => _isSameDay(t.dueDate, _selectedDate)).toList();
+
+    final scheduled = dayTasks.where((t) => t.scheduledTime != null).toList()
+      ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
+    final unscheduled =
+        dayTasks.where((t) => t.scheduledTime == null).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Görevler"),
+        title: Text('Görevler', style: AppTextStyles.heading2),
       ),
-      body: const Center(
-        child: Text(
-          "Görevlerin burada görünecek",
-          style: TextStyle(fontSize: 18),
-        ),
+      body: Column(
+        children: [
+          const SizedBox(height: 4),
+          _DaySelectorStrip(
+            selectedDate: _selectedDate,
+            onDaySelected: (day) => setState(() => _selectedDate = day),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: dayTasks.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: EmptyStateCard(
+                        icon: Icons.event_available_rounded,
+                        message: 'Bu gün için görev yok.',
+                      ),
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                    children: [
+                      if (scheduled.isNotEmpty)
+                        ...List.generate(scheduled.length, (index) {
+                          final task = scheduled[index];
+                          final subject = task.subjectId == null
+                              ? null
+                              : subjects
+                                  .where((s) => s.id == task.subjectId)
+                                  .firstOrNull;
+                          return _TimelineRow(
+                            task: task,
+                            subject: subject,
+                            isLast: index == scheduled.length - 1,
+                          );
+                        }),
+                      if (unscheduled.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text('Saatsiz Görevler',
+                            style: AppTextStyles.bodySecondary),
+                        const SizedBox(height: 12),
+                        ...unscheduled.map((task) {
+                          final subject = task.subjectId == null
+                              ? null
+                              : subjects
+                                  .where((s) => s.id == task.subjectId)
+                                  .firstOrNull;
+                          return _UnscheduledTaskRow(
+                              task: task, subject: subject);
+                        }),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
         onPressed: () {
           Navigator.push(
             context,
@@ -25,7 +115,272 @@ class TasksScreen extends StatelessWidget {
             ),
           );
         },
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+}
+
+// Üstteki gün seçici şerit — WeekStrip'ten farklı olarak tıklayınca
+// başka ekrana gitmiyor, bu ekranın içeriğini yerinde değiştiriyor.
+class _DaySelectorStrip extends StatelessWidget {
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDaySelected;
+
+  const _DaySelectorStrip({
+    required this.selectedDate,
+    required this.onDaySelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final dayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
+    return SizedBox(
+      height: 72,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(7, (index) {
+          final day = DateTime(monday.year, monday.month, monday.day + index);
+          final isSelected = _isSame(day, selectedDate);
+
+          return TapScale(
+            onTap: () => onDaySelected(day),
+            child: SizedBox(
+              width: 42,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(dayLabels[index], style: AppTextStyles.caption),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected ? AppColors.primary : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${day.day}',
+                      style: AppTextStyles.body.copyWith(
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  bool _isSame(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+// Dikey zaman çizelgesindeki tek satır: saat etiketi + bağlantı
+// noktası/çizgisi + rengi dersine bağlı görev kartı.
+class _TimelineRow extends StatelessWidget {
+  final TaskModel task;
+  final SubjectModel? subject;
+  final bool isLast;
+
+  const _TimelineRow({
+    required this.task,
+    required this.subject,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        subject != null ? Color(subject!.colorValue) : AppColors.primary;
+    final scheduled = task.scheduledTime!;
+    final endTime =
+        scheduled.add(Duration(minutes: task.estimatedMinutes ?? 30));
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 44,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}',
+                style:
+                    AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 20,
+            child: Column(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: color.withOpacity(0.25),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: TapScale(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddTaskScreen(taskToEdit: task),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.tonal(color),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              task.title,
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w700,
+                                decoration: task.isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color: task.isCompleted
+                                    ? AppColors.textSecondary
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (task.isCompleted)
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.success,
+                              size: 18,
+                            ),
+                        ],
+                      ),
+                      if (subject != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subject!.name,
+                          style: AppTextStyles.caption.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')} - ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Saati belirtilmemiş görevler için zaman çizelgesinin altına, sade
+// bir liste olarak eklenen satır.
+class _UnscheduledTaskRow extends StatelessWidget {
+  final TaskModel task;
+  final SubjectModel? subject;
+
+  const _UnscheduledTaskRow({required this.task, required this.subject});
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        subject != null ? Color(subject!.colorValue) : AppColors.textSecondary;
+
+    return TapScale(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AddTaskScreen(taskToEdit: task),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.softShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                task.title,
+                style: AppTextStyles.body.copyWith(
+                  decoration:
+                      task.isCompleted ? TextDecoration.lineThrough : null,
+                  color: task.isCompleted
+                      ? AppColors.textSecondary
+                      : AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
