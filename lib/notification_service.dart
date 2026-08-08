@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -21,7 +22,7 @@ class NotificationService {
 
   bool _initialized = false;
 
-  bool get _isSupportedPlatform => Platform.isAndroid;
+  bool get _isSupportedPlatform => Platform.isAndroid || Platform.isIOS;
 
   Future<void> initialize() async {
     if (!_isSupportedPlatform) return;
@@ -31,12 +32,36 @@ class NotificationService {
 
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidSettings);
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
     await _plugin.initialize(initSettings);
 
     _initialized = true;
+
+    await _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    if (Platform.isIOS) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+    } else if (Platform.isAndroid) {
+      // Android 13 (API 33) ve üzeri: POST_NOTIFICATIONS runtime izni
+      // istenmezse zamanlanan bildirimler sessizce gösterilmez.
+      // Eski sürümlerde bu çağrı no-op'tur.
+      await Permission.notification.request();
+    }
   }
 
   int _notificationIdFor(String entityId, NotificationCategory category) {
@@ -66,8 +91,16 @@ class NotificationService {
       priority: Priority.high,
     );
 
-    final NotificationDetails details =
-        NotificationDetails(android: androidDetails);
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _plugin.zonedSchedule(
       notificationId,
