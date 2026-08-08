@@ -8,6 +8,7 @@ import 'add_subject_sheet.dart';
 import 'add_task_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/app_snackbar.dart';
 
 class SubjectsScreen extends ConsumerWidget {
   const SubjectsScreen({super.key});
@@ -102,7 +103,7 @@ class _SubjectCard extends StatelessWidget {
               builder: (_) => AlertDialog(
                 title: const Text("Ders silinsin mi?"),
                 content: const Text(
-                  "Bu derse bağlı görevler ders bilgisi olmadan kalmaya devam eder. Bu işlem geri alınamaz.",
+                  "Bu derse bağlı görevler ders bilgisi olmadan kalmaya devam eder. Silindikten sonra kısa süreliğine geri alabilirsin.",
                 ),
                 actions: [
                   TextButton(
@@ -122,7 +123,16 @@ class _SubjectCard extends StatelessWidget {
             false;
       },
       onDismissed: (_) {
-        ref.read(subjectProvider.notifier).deleteSubject(subject.id);
+        final deleted =
+            ref.read(subjectProvider.notifier).deleteSubject(subject.id);
+        if (deleted != null) {
+          AppSnackBar.undo(
+            context,
+            '"${deleted.name}" silindi',
+            onUndo: () =>
+                ref.read(subjectProvider.notifier).restoreSubject(deleted),
+          );
+        }
       },
       child: TapScale(
         onTap: () => _showEditSheet(context),

@@ -14,6 +14,11 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   StatsNotifier(this._stats) : super(_stats);
   final UserStatsModel _stats;
 
+  // Dondurma hakkı sınırsız birikmesin diye üst sınır.
+  static const int _maxFreezes = 3;
+  // Kaç günlük kesintisiz seri bir dondurma hakkı kazandırır.
+  static const int _freezeEarnIntervalDays = 7;
+
   // _stats'ı Hive'a kaydettikten sonra, Riverpod'un değişikliği fark etmesi
   // için state'e YENİ bir kopya atıyoruz (aynı referansı verirsek Riverpod
   // "değişiklik yok" sanıp ekranı güncellemez).
@@ -28,6 +33,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       totalStudyMinutes: _stats.totalStudyMinutes,
       hasCompletedOnboarding: _stats.hasCompletedOnboarding,
       userName: _stats.userName,
+      hasSeenNotificationPrompt: _stats.hasSeenNotificationPrompt,
     );
   }
 
@@ -58,6 +64,14 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
 
     if (_stats.currentStreak > _stats.longestStreak) {
       _stats.longestStreak = _stats.currentStreak;
+    }
+
+    // Her 7 günlük kesintisiz seride +1 dondurma hakkı — Duolingo'daki
+    // aşırı serbest af mekanizmasının aksine, hakkı kazanılabilir ama
+    // nadir tutuyoruz (üst sınır _maxFreezes).
+    if (_stats.currentStreak % _freezeEarnIntervalDays == 0 &&
+        _stats.freezesAvailable < _maxFreezes) {
+      _stats.freezesAvailable += 1;
     }
 
     _stats.lastCompletedDate = todayDateOnly;
@@ -103,6 +117,12 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
 
   void markOnboardingCompleted() {
     _stats.hasCompletedOnboarding = true;
+    _stats.save();
+    _emit();
+  }
+
+  void markNotificationPromptSeen() {
+    _stats.hasSeenNotificationPrompt = true;
     _stats.save();
     _emit();
   }

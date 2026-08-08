@@ -31,8 +31,29 @@ class SubjectNotifier extends StateNotifier<List<SubjectModel>> {
     state = _repository.getAllSubjects();
   }
 
-  void deleteSubject(String id) {
+  // Geri Al akışı için: silmeden önce bağımsız bir kopya döndürür (bkz.
+  // TaskNotifier.deleteTask'taki aynı gerekçe). null dönerse ders zaten yok.
+  SubjectModel? deleteSubject(String id) {
+    final index = state.indexWhere((s) => s.id == id);
+    if (index == -1) return null;
+
+    final original = state[index];
+    final snapshot = SubjectModel(
+      id: original.id,
+      name: original.name,
+      colorValue: original.colorValue,
+      createdAt: original.createdAt,
+    );
+
     _repository.deleteSubject(id);
+    state = _repository.getAllSubjects();
+
+    return snapshot;
+  }
+
+  // "Geri Al" ile deleteSubject'ın döndürdüğü kopyayı aynı id ile geri ekler.
+  void restoreSubject(SubjectModel subject) {
+    _repository.addSubject(subject);
     state = _repository.getAllSubjects();
   }
 

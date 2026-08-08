@@ -8,6 +8,7 @@ import '../subject_model.dart';
 import '../task_model.dart';
 import '../task_provider.dart';
 import '../tap_scale.dart';
+import 'app_snackbar.dart';
 
 class TaskTile extends ConsumerWidget {
   final TaskModel task;
@@ -40,9 +41,26 @@ class TaskTile extends ConsumerWidget {
 
     return Dismissible(
       key: Key(task.id),
-      direction: DismissDirection.endToStart,
+      direction: DismissDirection.horizontal,
 
+      // Sağa kaydırma (startToEnd): ertele — silme değil, sadece dueDate
+      // güncellemesi olduğu için kart listeden kalıcı olarak kalkmamalı.
       background: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        decoration: BoxDecoration(
+          color: AppColors.warning,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: const Icon(
+          Icons.update_rounded,
+          color: Colors.white,
+        ),
+      ),
+
+      // Sola kaydırma (endToStart): sil.
+      secondaryBackground: Container(
         margin: const EdgeInsets.only(bottom: 14),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
@@ -56,13 +74,22 @@ class TaskTile extends ConsumerWidget {
         ),
       ),
 
-      confirmDismiss: (_) async {
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          ref.read(taskProvider.notifier).postponeTask(task.id);
+          AppSnackBar.success(context, '"${task.title}" yarına ertelendi');
+          // false: kart listede kalır, sadece dueDate değişti — bir
+          // sonraki state güncellemesinde ait olduğu güne göre zaten
+          // doğru yerde görünür/kaybolur.
+          return false;
+        }
+
         return await showDialog<bool>(
               context: context,
               builder: (_) => AlertDialog(
                 title: const Text("Görev silinsin mi?"),
                 content: const Text(
-                  "Bu işlem geri alınamaz.",
+                  "Silindikten sonra kısa süreliğine geri alabilirsin.",
                 ),
                 actions: [
                   TextButton(
@@ -83,7 +110,14 @@ class TaskTile extends ConsumerWidget {
       },
 
       onDismissed: (_) {
-        ref.read(taskProvider.notifier).deleteTask(task.id);
+        final deleted = ref.read(taskProvider.notifier).deleteTask(task.id);
+        if (deleted != null) {
+          AppSnackBar.undo(
+            context,
+            '"${deleted.title}" silindi',
+            onUndo: () => ref.read(taskProvider.notifier).restoreTask(deleted),
+          );
+        }
       },
 
       child: GestureDetector(
@@ -113,7 +147,17 @@ class TaskTile extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
 
-                      ref.read(taskProvider.notifier).deleteTask(task.id);
+                      final deleted =
+                          ref.read(taskProvider.notifier).deleteTask(task.id);
+                      if (deleted != null) {
+                        AppSnackBar.undo(
+                          context,
+                          '"${deleted.title}" silindi',
+                          onUndo: () => ref
+                              .read(taskProvider.notifier)
+                              .restoreTask(deleted),
+                        );
+                      }
                     },
                   ),
                   // Tekrarlayan bir görevse, tüm seriyi tek seferde

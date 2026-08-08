@@ -215,13 +215,81 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   }
 
 
-  void deleteTask(String id) {
+  // Geri Al akışı için: silmeden önce alanların bağımsız bir kopyasını
+  // döndürür (silinen HiveObject'in kendisi kullanılamaz — box'tan
+  // silindikten sonra artık geçerli değildir). null dönerse görev zaten
+  // yok demektir.
+  TaskModel? deleteTask(String id) {
+    final index = state.indexWhere((task) => task.id == id);
+    if (index == -1) return null;
+
+    final original = state[index];
+    final snapshot = TaskModel(
+      id: original.id,
+      title: original.title,
+      subjectId: original.subjectId,
+      dueDate: original.dueDate,
+      isCompleted: original.isCompleted,
+      priority: original.priority,
+      createdAt: original.createdAt,
+      completedAt: original.completedAt,
+      scheduledTime: original.scheduledTime,
+      estimatedMinutes: original.estimatedMinutes,
+      difficulty: original.difficulty,
+      recurringGroupId: original.recurringGroupId,
+      recurrenceRule: original.recurrenceRule,
+    );
 
     _cancelReminder(id);
 
     _repository.deleteTask(id);
 
     state = [..._repository.getAllTasks()];
+
+    return snapshot;
+  }
+
+  // "Geri Al" ile deleteTask'ın döndürdüğü kopyayı aynı id ile geri ekler.
+  void restoreTask(TaskModel task) {
+    _repository.addTask(task);
+
+    state = [..._repository.getAllTasks()];
+
+    _scheduleReminder(task);
+  }
+
+  // Görevi bir sonraki güne taşır — TaskTile'da sola kaydırma aksiyonu.
+  void postponeTask(String id) {
+    final task = state.firstWhere((t) => t.id == id);
+
+    final newDueDate = DateTime(
+      task.dueDate.year,
+      task.dueDate.month,
+      task.dueDate.day + 1,
+      task.dueDate.hour,
+      task.dueDate.minute,
+    );
+
+    final newScheduledTime = task.scheduledTime == null
+        ? null
+        : DateTime(
+            task.scheduledTime!.year,
+            task.scheduledTime!.month,
+            task.scheduledTime!.day + 1,
+            task.scheduledTime!.hour,
+            task.scheduledTime!.minute,
+          );
+
+    updateTask(
+      task,
+      title: task.title,
+      subjectId: task.subjectId,
+      dueDate: newDueDate,
+      priority: task.priority,
+      scheduledTime: newScheduledTime,
+      estimatedMinutes: task.estimatedMinutes,
+      difficulty: task.difficulty,
+    );
   }
 
 

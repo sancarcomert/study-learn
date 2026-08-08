@@ -41,6 +41,13 @@ class UserStatsModel extends HiveObject {
   @HiveField(8)
   String? userName;
 
+  // Bildirim izni açıklama ekranının gösterilip gösterilmediğini işaretler.
+  // hasCompletedOnboarding ile aynı desen: nullable, çünkü bu alan
+  // eklenmeden önce oluşturulmuş kayıtlarda null okunur — bu da "henüz
+  // gösterilmedi" anlamına gelir, mevcut kullanıcılar da bir kere görür.
+  @HiveField(9)
+  bool? hasSeenNotificationPrompt;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -51,5 +58,6 @@ class UserStatsModel extends HiveObject {
     this.totalStudyMinutes = 0,
     this.hasCompletedOnboarding = false,
     this.userName,
+    this.hasSeenNotificationPrompt = false,
   });
 }

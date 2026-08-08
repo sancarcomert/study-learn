@@ -46,11 +46,14 @@ class NotificationService {
     await _plugin.initialize(initSettings);
 
     _initialized = true;
-
-    await _requestPermissions();
   }
 
-  Future<void> _requestPermissions() async {
+  // Sistem izin popup'ı artık burada otomatik tetiklenmiyor — kullanıcıya
+  // önce neden izin istendiğini açıklayan bir ekran/dialog gösterildikten
+  // sonra bu metod açıkça çağrılmalı (bkz. HomeScreen).
+  Future<void> requestPermissions() async {
+    if (!_isSupportedPlatform || !_initialized) return;
+
     if (Platform.isIOS) {
       await _plugin
           .resolvePlatformSpecificImplementation<

@@ -23,6 +23,7 @@ import 'widgets/hero_progress_card.dart';
 import 'widgets/animated_progress_bar.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_snackbar.dart';
+import 'notification_service.dart';
 import 'dart:async';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -46,6 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(statsProvider.notifier).checkStreakBroken();
+      _maybeShowNotificationPermissionPrompt();
     });
 
     _liveClockTicker = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -58,6 +60,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _goalConfetti.dispose();
     _liveClockTicker?.cancel();
     super.dispose();
+  }
+
+  // Sistem bildirim izni popup'ı artık direkt çıkmıyor — önce kullanıcıya
+  // neden istendiğini açıklıyoruz, "Devam Et" derse asıl sistem isteği
+  // tetikleniyor. Sadece Home ilk açıldığında, kullanıcı başına bir kere.
+  Future<void> _maybeShowNotificationPermissionPrompt() async {
+    final alreadySeen =
+        ref.read(statsProvider).hasSeenNotificationPrompt == true;
+    if (alreadySeen) return;
+
+    if (!mounted) return;
+
+    final continueRequested = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        icon: const Icon(
+          Icons.notifications_active_rounded,
+          color: AppColors.primary,
+          size: 32,
+        ),
+        title: const Text('Hatırlatmalara izin ver'),
+        content: const Text(
+          'Hatırlatmalar için bildirim izni gerekiyor, kaçırdığın görevleri sana hatırlatabilelim.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Şimdi Değil'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Devam Et'),
+          ),
+        ],
+      ),
+    );
+
+    ref.read(statsProvider.notifier).markNotificationPromptSeen();
+
+    if (continueRequested == true) {
+      await NotificationService.instance.requestPermissions();
+    }
   }
 
   String _greeting() {
