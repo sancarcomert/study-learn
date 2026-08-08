@@ -10,7 +10,7 @@ class AppColors {
 
   // İkincil marka rengi — referans paletteki yeşil.
   static const Color secondary = Color(0xFF49B583);
-  static const Color accent = Color(0xFFFFBD69);
+  static const Color accent = Color(0xFFF5A94E);
 
   // Backgrounds
   // Sıcak, hafif kırık beyaz — Home/Smart Plan'da kullanılan referans
@@ -30,35 +30,31 @@ class AppColors {
 
   // Status
   static const Color success = Color(0xFF49B583);
-  static const Color warning = Color(0xFFFFBD69);
-  // NOT: Referans palette 4 renk (violet/yeşil/amber/pembe-kırmızı)
-  // veriyor ama sistemde bundan fazla anlam var (primary, danger,
-  // priorityHigh hepsi ayrı ayrı net olmalı). Danger'ı bilinçli olarak
-  // bu 4'ün dışında, koyu/net bir kırmızıda tuttum — "sil" gibi geri
-  // dönüşü olmayan bir aksiyonun rengi asla başka bir anlamla
-  // karışmamalı. Referansın pembe-kırmızısı (#FF4171) priorityHigh'a
-  // verildi (aşağıda).
+  // warning/info artık priorityMedium/priorityLow ile aynı token'ı
+  // paylaşıyor — aynı anlam için iki farklı ton tanımlamak, yan yana
+  // geldiklerinde göze çakışma/gürültü olarak görünüyordu.
+  static const Color warning = Color(0xFFF5A94E);
+  // Danger, priorityHigh'ın koyu akrabası: ikisi de aynı kırmızı
+  // ailesinden ama "sil" gibi geri dönüşü olmayan bir aksiyon hâlâ
+  // daha koyu, ayrı bir tonda kalıyor.
   static const Color danger = Color(0xFFB91C1C);
-  static const Color info = Color(0xFF3B82F6);
+  static const Color info = Color(0xFF5B8DEF);
 
-  // Priorities
-  static const Color priorityLow = Color(0xFF60A5FA);
-  static const Color priorityMedium = Color(0xFFFBBF24);
-  // Referans paletteki pembe-kırmızı — primary(violet)'ten ve
-  // danger(koyu kırmızı)'dan net ayrışıyor.
+  // Priorities — info/warning ile aynı token'ları paylaşır (bkz. yukarı).
+  static const Color priorityLow = info;
+  static const Color priorityMedium = warning;
   static const Color priorityHigh = Color(0xFFFF4171);
 
-  // Subject colors — ilk 4'ü referans paletin ta kendisi, kalanlar
-  // aynı canlılıkta çeşitlilik için.
+  // Subject colors — 8 yerine 6: pembe/mor/camgöbeği, sırasıyla
+  // priorityHigh/primary/teal ile neredeyse aynı tondaydı, gürültü
+  // yapmadan çıkarıldı.
   static const List<Color> subjectPalette = [
     Color(0xFF7F86FF),
-    Color(0xFFFF4171),
-    Color(0xFFFFBD69),
     Color(0xFF49B583),
-    Color(0xFFEC4899),
-    Color(0xFF8B5CF6),
+    Color(0xFF5B8DEF),
+    Color(0xFFF5A94E),
+    Color(0xFFFF4171),
     Color(0xFF14B8A6),
-    Color(0xFF06B6D4),
   ];
 
   static List<BoxShadow> get cardShadow => [
