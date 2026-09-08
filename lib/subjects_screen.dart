@@ -123,14 +123,17 @@ class _SubjectCard extends StatelessWidget {
             false;
       },
       onDismissed: (_) {
-        final deleted =
-            ref.read(subjectProvider.notifier).deleteSubject(subject.id);
+        // Notifier'ı burada, ref hâlâ geçerliyken yakalayıp doğrudan
+        // kullanıyoruz — "GERİ AL" gecikmeli çalıştığı için ref'i
+        // closure içinde tekrar okumak, ait olduğu widget dispose
+        // olduğunda Riverpod hatasına yol açabilir (bkz. task_tile.dart).
+        final notifier = ref.read(subjectProvider.notifier);
+        final deleted = notifier.deleteSubject(subject.id);
         if (deleted != null) {
           AppSnackBar.undo(
             context,
             '"${deleted.name}" silindi',
-            onUndo: () =>
-                ref.read(subjectProvider.notifier).restoreSubject(deleted),
+            onUndo: () => notifier.restoreSubject(deleted),
           );
         }
       },

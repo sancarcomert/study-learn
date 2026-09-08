@@ -110,12 +110,21 @@ class TaskTile extends ConsumerWidget {
       },
 
       onDismissed: (_) {
-        final deleted = ref.read(taskProvider.notifier).deleteTask(task.id);
+        // Notifier'ı burada, widget hâlâ mount'luyken yakalıyoruz.
+        // "GERİ AL" onUndo'su gecikmeli çalışıyor (kullanıcı ne zaman
+        // basarsa) — o ana kadar bu TaskTile zaten dispose olmuş oluyor,
+        // dolayısıyla `ref`i doğrudan closure'da kullanmak Riverpod'da
+        // "Cannot use ref after widget was disposed" hatasına yol açıp
+        // geri alma işlemini sessizce başarısız kılıyordu. Notifier'ın
+        // kendisi widget yaşam döngüsünden bağımsız olduğu için sorun
+        // çözülüyor.
+        final notifier = ref.read(taskProvider.notifier);
+        final deleted = notifier.deleteTask(task.id);
         if (deleted != null) {
           AppSnackBar.undo(
             context,
             '"${deleted.title}" silindi',
-            onUndo: () => ref.read(taskProvider.notifier).restoreTask(deleted),
+            onUndo: () => notifier.restoreTask(deleted),
           );
         }
       },
@@ -147,15 +156,16 @@ class TaskTile extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
 
-                      final deleted =
-                          ref.read(taskProvider.notifier).deleteTask(task.id);
+                      // bkz. Dismissible.onDismissed'teki not: notifier'ı
+                      // ref üzerinden değil, doğrudan yakalanmış referansla
+                      // kullanıyoruz (widget o ana kadar dispose olmuş olur).
+                      final notifier = ref.read(taskProvider.notifier);
+                      final deleted = notifier.deleteTask(task.id);
                       if (deleted != null) {
                         AppSnackBar.undo(
                           context,
                           '"${deleted.title}" silindi',
-                          onUndo: () => ref
-                              .read(taskProvider.notifier)
-                              .restoreTask(deleted),
+                          onUndo: () => notifier.restoreTask(deleted),
                         );
                       }
                     },
