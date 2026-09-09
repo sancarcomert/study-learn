@@ -8,8 +8,10 @@ import 'widgets/exam_countdown.dart';
 import 'task_provider.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
+import 'topic_provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'widgets/animated_progress_bar.dart';
+import 'widgets/coverage_bar_chart.dart';
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
 
@@ -18,6 +20,17 @@ class StatsScreen extends ConsumerWidget {
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);
+    final coverage = ref.watch(coverageBySubjectProvider);
+
+    final coverageBars = [
+      for (final s in subjects)
+        if ((coverage[s.id]?.hasTopics ?? false))
+          CoverageBar(
+            label: s.name,
+            ratio: coverage[s.id]!.ratio,
+            color: Color(s.colorValue),
+          ),
+    ];
 
     // Tüm zamanlardaki (sadece bugün değil) tamamlanan görev sayısı
     final totalCompleted = allTasks.where((t) => t.isCompleted).length;
@@ -229,6 +242,13 @@ AchievementCard(
   icon: Icons.workspace_premium_outlined,
   unlocked: totalCompleted >= 100,
 ),
+
+          if (coverageBars.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Eyebrow(text: 'KONU KAPSAMASI'),
+            const SizedBox(height: 16),
+            CoverageBarChart(bars: coverageBars),
+          ],
 
 const SizedBox(height: 20), // DERS BAZLI DAĞILIM
           const Eyebrow(text: 'DERS BAZLI İLERLEME'),
