@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Study Planner';
+  static const String appName = 'Pusula';
   static const int defaultDailyGoal = 3;
 
   static const List<String> motivationMessages = [

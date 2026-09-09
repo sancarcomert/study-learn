@@ -93,7 +93,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 const SizedBox(height: 6),
 
                 Text(
-                  'Study Planner\'a hoş geldin 👋',
+                  'Pusula\'ya hoş geldin 👋',
                   style: AppTextStyles.heading1,
                 ),
 
