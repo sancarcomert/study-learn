@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'widgets/achievement_card.dart';
+import 'widgets/eyebrow.dart';
 import 'task_provider.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
@@ -30,7 +31,7 @@ class StatsScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: _StatCard(
-                  icon: Icons.local_fire_department_rounded,
+                  icon: Icons.local_fire_department_outlined,
                   iconColor: AppColors.warning,
                   value: '${stats.currentStreak}',
                   label: 'Mevcut Seri',
@@ -39,7 +40,7 @@ class StatsScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatCard(
-                  icon: Icons.emoji_events_rounded,
+                  icon: Icons.emoji_events_outlined,
                   iconColor: AppColors.primary,
                   value: '${stats.longestStreak}',
                   label: 'En Uzun Seri',
@@ -48,7 +49,7 @@ class StatsScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatCard(
-                  icon: Icons.task_alt_rounded,
+                  icon: Icons.task_alt,
                   iconColor: AppColors.success,
                   value: '$totalCompleted',
                   label: 'Tamamlanan',
@@ -66,7 +67,7 @@ class StatsScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.ac_unit_rounded, color: AppColors.primary, size: 18),
+                const Icon(Icons.ac_unit, color: AppColors.primary, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -85,7 +86,7 @@ class StatsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
 
           // GÜNLÜK HEDEF AYARI
-          Text('Günlük Hedef', style: AppTextStyles.heading2),
+          const Eyebrow(text: 'GÜNLÜK HEDEF'),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -130,7 +131,7 @@ class StatsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 28),
-  Text('Son 7 Gün', style: AppTextStyles.heading2),
+          const Eyebrow(text: 'SON 7 GÜN'),
           const SizedBox(height: 12),
           SizedBox(
             height: 140,
@@ -176,32 +177,32 @@ class StatsScreen extends ConsumerWidget {
             ),
           ),
           
-         Text('Başarılar', style: AppTextStyles.heading2),
+         const Eyebrow(text: 'BAŞARILAR'),
 const SizedBox(height: 12),
 
 AchievementCard(
   title: 'İlk Adım',
   description: 'İlk görevini tamamladın',
-  icon: Icons.flag_rounded,
+  icon: Icons.flag_outlined,
   unlocked: totalCompleted >= 1,
 ),
 
 AchievementCard(
   title: 'Çalışkan Öğrenci',
   description: '50 görevi tamamla',
-  icon: Icons.star_rounded,
+  icon: Icons.star_outline,
   unlocked: totalCompleted >= 50,
 ),
 
 AchievementCard(
   title: 'Usta Planlayıcı',
   description: '100 görevi tamamla',
-  icon: Icons.workspace_premium_rounded,
+  icon: Icons.workspace_premium_outlined,
   unlocked: totalCompleted >= 100,
 ),
 
 const SizedBox(height: 20), // DERS BAZLI DAĞILIM
-          Text('Ders Bazlı İlerleme', style: AppTextStyles.heading2),
+          const Eyebrow(text: 'DERS BAZLI İLERLEME'),
           const SizedBox(height: 12),
           if (subjects.isEmpty)
             Text(
@@ -305,8 +306,8 @@ class _GoalButton extends StatelessWidget {
       child: Container(
         width: 32,
         height: 32,
-        decoration: BoxDecoration(
-          color: AppColors.background,
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceVariant,
           shape: BoxShape.circle,
         ),
         child: Icon(icon, size: 18, color: AppColors.primary),

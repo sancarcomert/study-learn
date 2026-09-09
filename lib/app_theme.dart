@@ -8,7 +8,7 @@ class AppTheme {
   static ThemeData get lightTheme {
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
     );
 
     return ThemeData(
@@ -38,30 +38,27 @@ class AppTheme {
         ),
       ),
 
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        height: 74,
-        indicatorColor: AppColors.primary.withOpacity(.12),
-        labelTextStyle: WidgetStateProperty.all(
-          AppTextStyles.caption,
-        ),
-      ),
+      // NOT: stock NavigationBar teması burada tanımlı değil artık —
+      // MainShell kendi özel alt nav bar'ını (ince outline ikon + altın
+      // nokta göstergesi) doğrudan stilliyor, referans görseldeki
+      // Material "pill indicator" değil bu desen (bkz. main_shell.dart).
 
+      // Altın zemin üzerinde beyaz değil koyu (ink) metin/ikon — referans
+      // görseldeki "Resume lesson" butonuyla aynı kontrast mantığı.
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.ink,
         elevation: 0,
       ),
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.ink,
           minimumSize: const Size(double.infinity, 56),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
       ),
@@ -102,7 +99,7 @@ class AppTheme {
 
       dividerTheme: const DividerThemeData(
         thickness: .8,
-        color: Color(0xFFE5E7EB),
+        color: Color(0xFF2C2E36),
       ),
 
       // Silme onayı gibi dialoglar artık kartlarla aynı dile konuşuyor:
@@ -118,11 +115,12 @@ class AppTheme {
         contentTextStyle: AppTextStyles.bodySecondary,
       ),
 
-      // SnackBar artık koyu "ink" zemin + yuvarlak köşe + floating —
-      // varsayılan Material gri kutusu yerine marka diline uygun.
+      // SnackBar floating + yuvarlak köşe. Zemin: koyu tema pivotunda "ink"
+      // artık neredeyse siyah (sayfa zeminiyle ayırt edilemez), bu yüzden
+      // yüzeyden bariz ayrışan surfaceVariant tonu kullanılıyor (karar C).
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.ink,
-        contentTextStyle: AppTextStyles.body.copyWith(color: Colors.white),
+        backgroundColor: AppColors.surfaceVariant,
+        contentTextStyle: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
         behavior: SnackBarBehavior.floating,
         elevation: 0,
         shape: RoundedRectangleBorder(

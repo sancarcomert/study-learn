@@ -36,7 +36,7 @@ class NextTaskCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.event_available_rounded,
+                Icons.event_available,
                 color: AppColors.primary,
               ),
             ),
@@ -112,7 +112,7 @@ for (final s in subjects) {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.schedule_rounded,
+                    Icons.schedule,
                     color: AppColors.secondary,
                   ),
                 ),
@@ -127,7 +127,7 @@ for (final s in subjects) {
                 ),
 
                 Icon(
-                  Icons.chevron_right_rounded,
+                  Icons.chevron_right,
                   color: AppColors.textSecondary,
                 ),
               ],
@@ -156,7 +156,7 @@ for (final s in subjects) {
             Row(
               children: [
                 const Icon(
-                  Icons.access_time_rounded,
+                  Icons.access_time,
                   size: 18,
                   color: AppColors.textSecondary,
                 ),

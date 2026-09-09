@@ -4,6 +4,7 @@ import 'tasks_screen.dart';
 import 'plan_screen.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
+import 'widgets/app_bottom_nav.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -30,37 +31,37 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+        items: const [
+          AppBottomNavItem(
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home,
             label: "Ana",
           ),
-          NavigationDestination(
-            icon: Icon(Icons.check_circle_outline),
-            selectedIcon: Icon(Icons.check_circle),
+          AppBottomNavItem(
+            icon: Icons.check_circle_outline,
+            selectedIcon: Icons.check_circle,
             label: "Görevler",
           ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome),
+          AppBottomNavItem(
+            icon: Icons.auto_awesome_outlined,
+            selectedIcon: Icons.auto_awesome,
             label: "Plan",
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
+          AppBottomNavItem(
+            icon: Icons.bar_chart_outlined,
+            selectedIcon: Icons.bar_chart,
             label: "İstatistik",
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+          AppBottomNavItem(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
             label: "Profil",
           ),
         ],

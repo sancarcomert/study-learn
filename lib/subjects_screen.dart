@@ -36,7 +36,7 @@ class SubjectsScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: EmptyStateCard(
-                  icon: Icons.menu_book_rounded,
+                  icon: Icons.menu_book_outlined,
                   message: 'Henüz ders eklemedin.\nAşağıdaki + butonuna dokun.',
                 ),
               ),
@@ -53,7 +53,7 @@ class SubjectsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
         onPressed: () => _showAddSubjectSheet(context),
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: AppColors.ink),
       ),
     );
   }
@@ -161,7 +161,7 @@ class _SubjectCard extends StatelessWidget {
                 child: Text(subject.name, style: AppTextStyles.body),
               ),
               Icon(
-                Icons.chevron_right_rounded,
+                Icons.chevron_right,
                 color: AppColors.textSecondary,
               ),
             ],

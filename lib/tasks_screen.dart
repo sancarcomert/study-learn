@@ -10,6 +10,7 @@ import 'subject_model.dart';
 import 'task_model.dart';
 import 'add_task_screen.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/eyebrow.dart';
 import 'tap_scale.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
@@ -63,7 +64,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: EmptyStateCard(
-                        icon: Icons.event_available_rounded,
+                        icon: Icons.event_available,
                         message: 'Bu gün için görev yok.',
                       ),
                     ),
@@ -87,8 +88,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         }),
                       if (unscheduled.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text('Saatsiz Görevler',
-                            style: AppTextStyles.bodySecondary),
+                        const Eyebrow(text: 'SAATSİZ GÖREVLER'),
                         const SizedBox(height: 12),
                         ...unscheduled.map((task) {
                           final subject = task.subjectId == null
@@ -115,7 +115,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             ),
           );
         },
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: AppColors.ink),
       ),
     );
   }
@@ -168,7 +168,7 @@ class _DaySelectorStrip extends StatelessWidget {
                       '${day.day}',
                       style: AppTextStyles.body.copyWith(
                         color: isSelected
-                            ? Colors.white
+                            ? AppColors.ink
                             : AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
@@ -286,7 +286,7 @@ class _TimelineRow extends StatelessWidget {
                           ),
                           if (task.isCompleted)
                             Icon(
-                              Icons.check_circle_rounded,
+                              Icons.check_circle_outline,
                               color: AppColors.success,
                               size: 18,
                             ),

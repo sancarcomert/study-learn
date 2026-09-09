@@ -54,7 +54,7 @@ class TaskTile extends ConsumerWidget {
           borderRadius: BorderRadius.circular(22),
         ),
         child: const Icon(
-          Icons.update_rounded,
+          Icons.update,
           color: Colors.white,
         ),
       ),
@@ -278,8 +278,8 @@ class TaskTile extends ConsumerWidget {
                               ),
                               child: Icon(
                                 task.isCompleted
-                                    ? Icons.check_circle_rounded
-                                    : Icons.radio_button_unchecked_rounded,
+                                    ? Icons.check_circle_outline
+                                    : Icons.radio_button_unchecked,
                                 key: ValueKey(task.isCompleted),
                                 color: task.isCompleted
                                     ? AppColors.success
@@ -342,7 +342,7 @@ class TaskTile extends ConsumerWidget {
 
                                         if (task.scheduledTime != null)
                                           _InfoChip(
-                                            icon: Icons.schedule_rounded,
+                                            icon: Icons.schedule,
                                             color: AppColors.secondary,
                                             text:
                                                 '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
@@ -360,7 +360,7 @@ class TaskTile extends ConsumerWidget {
                                         // fark edilsin diye.
                                         if (task.recurringGroupId != null)
                                           _InfoChip(
-                                            icon: Icons.repeat_rounded,
+                                            icon: Icons.repeat,
                                             text: task.recurrenceRule ==
                                                     'weekly'
                                                 ? 'Haftalık'
@@ -411,7 +411,7 @@ class _SubjectChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.menu_book_rounded,
+            Icons.menu_book_outlined,
             size: 14,
             color: color,
           ),

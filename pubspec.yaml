@@ -37,6 +37,11 @@ flutter:
 
   assets:
     - assets/icon/icon.png
+    # Lora + Plus Jakarta Sans TTF'leri asset olarak gömülü. google_fonts
+    # eşleşen dosya adlarını (Lora-SemiBold.ttf, PlusJakartaSans-Medium.ttf …)
+    # bulunca HTTP ile indirmiyor — offline'da (zayıf mobil veri) çalışır.
+    # Dosya adlarını DEĞİŞTİRME: google_fonts bunları isimle eşleştiriyor.
+    - assets/fonts/
 
 flutter_launcher_icons:
   android: true

@@ -67,8 +67,8 @@ class AchievementCard extends StatelessWidget {
 
           Icon(
             unlocked
-                ? Icons.check_circle_rounded
-                : Icons.lock_rounded,
+                ? Icons.check_circle_outline
+                : Icons.lock_outline,
             color: unlocked ? AppColors.success : Colors.grey,
           ),
         ],

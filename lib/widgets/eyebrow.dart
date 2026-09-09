@@ -16,7 +16,9 @@ class Eyebrow extends StatelessWidget {
     return Text(
       text,
       style: AppTextStyles.eyebrow.copyWith(
-        color: color ?? AppColors.textSecondary,
+        // Referans görselde eyebrow etiketleri hep vurgu renginde —
+        // varsayılan artık altın, ama ekranlar hâlâ kendi rengini geçebilir.
+        color: color ?? AppColors.primary,
       ),
     );
   }

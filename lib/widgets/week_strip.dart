@@ -56,14 +56,14 @@ class WeekStrip extends StatelessWidget {
                       height: 36,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isToday ? AppColors.ink : AppColors.surface,
+                        color: isToday ? AppColors.primary : AppColors.surface,
                         shape: BoxShape.circle,
                         boxShadow: isToday ? null : AppColors.softShadow,
                       ),
                       child: Text(
                         '${day.day}',
                         style: AppTextStyles.body.copyWith(
-                          color: isToday ? Colors.white : AppColors.textPrimary,
+                          color: isToday ? AppColors.ink : AppColors.textPrimary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

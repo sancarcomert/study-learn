@@ -9,6 +9,7 @@ import 'task_model.dart';
 import 'task_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
+import 'widgets/eyebrow.dart';
 
 
 class AddTaskScreen extends ConsumerStatefulWidget {
@@ -474,11 +475,7 @@ Widget build(BuildContext context) {
 
 
 
-                Text(
-                  "Ders",
-                  style:
-                      AppTextStyles.bodySecondary,
-                ),
+                const Eyebrow(text: "DERS"),
 
 
 
@@ -562,10 +559,7 @@ Widget build(BuildContext context) {
                 if (!_isEditing) ...[
                   const SizedBox(height: 20),
 
-                  Text(
-                    "Tekrar",
-                    style: AppTextStyles.bodySecondary,
-                  ),
+                  const Eyebrow(text: "TEKRAR"),
 
                   const SizedBox(height: 10),
 
@@ -617,7 +611,7 @@ Widget build(BuildContext context) {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
-                            Icons.info_outline_rounded,
+                            Icons.info_outline,
                             size: 16,
                             color: AppColors.warning,
                           ),
@@ -654,7 +648,7 @@ Widget build(BuildContext context) {
                           duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOut,
                           child: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
+                            Icons.keyboard_arrow_down,
                             color: AppColors.primary,
                             size: 20,
                           ),
@@ -691,10 +685,7 @@ Widget build(BuildContext context) {
                             const SizedBox(height: 16),
 
 
-                            Text(
-                              "Tarih",
-                              style: AppTextStyles.bodySecondary,
-                            ),
+                            const Eyebrow(text: "TARİH"),
 
                             const SizedBox(height: 10),
 
@@ -716,7 +707,7 @@ Widget build(BuildContext context) {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.calendar_today_rounded,
+                                      Icons.calendar_today,
                                       size: 16,
                                       color: AppColors.secondary,
                                     ),
@@ -739,10 +730,7 @@ Widget build(BuildContext context) {
                             const SizedBox(height: 24),
 
 
-                            Text(
-                              "Saat (opsiyonel)",
-                              style: AppTextStyles.bodySecondary,
-                            ),
+                            const Eyebrow(text: "SAAT (OPSİYONEL)"),
 
                             const SizedBox(height: 10),
 
@@ -767,7 +755,7 @@ Widget build(BuildContext context) {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.schedule_rounded,
+                                      Icons.schedule,
                                       size: 18,
                                       color: AppColors.secondary,
                                     ),
@@ -793,7 +781,7 @@ Widget build(BuildContext context) {
                                           });
                                         },
                                         child: Icon(
-                                          Icons.close_rounded,
+                                          Icons.close,
                                           size: 16,
                                           color: AppColors.secondary,
                                         ),
@@ -808,10 +796,7 @@ Widget build(BuildContext context) {
                             const SizedBox(height: 24),
 
 
-                            Text(
-                              "Süre",
-                              style: AppTextStyles.bodySecondary,
-                            ),
+                            const Eyebrow(text: "SÜRE"),
 
                             const SizedBox(height: 10),
 
@@ -837,10 +822,7 @@ Widget build(BuildContext context) {
                             const SizedBox(height: 24),
 
 
-                            Text(
-                              "Öncelik",
-                              style: AppTextStyles.bodySecondary,
-                            ),
+                            const Eyebrow(text: "ÖNCELİK"),
 
                             const SizedBox(height: 10),
 
@@ -866,10 +848,7 @@ Widget build(BuildContext context) {
                             const SizedBox(height: 24),
 
 
-                            Text(
-                              "Zorluk",
-                              style: AppTextStyles.bodySecondary,
-                            ),
+                            const Eyebrow(text: "ZORLUK"),
 
                             const SizedBox(height: 10),
 
@@ -997,8 +976,14 @@ class _SubjectChip extends StatelessWidget {
           label,
 
           style: TextStyle(
+            // Bu chip birçok farklı renk alıyor (ders, öncelik, zorluk,
+            // süre). computeLuminance() burada güvenilir değildi — altın
+            // ile adaçayı yeşili gibi görsel olarak çok farklı iki ton
+            // matematiksel olarak neredeyse aynı parlaklığa denk geliyor.
+            // Bu yüzden tek gerçek risk olan altını (primary) doğrudan
+            // hedefliyoruz: o zeminde koyu metin, diğer her yerde beyaz.
             color: isSelected
-                ? Colors.white
+                ? (color == AppColors.primary ? AppColors.ink : Colors.white)
                 : color,
 
             fontWeight:

@@ -2,19 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
+// EDİTORYAL REDESIGN (2026-09): Referans görselde büyük/duygusal başlıklar
+// ("Good morning, Maya.", "Your rhythm") her zaman serif; küçük/işlevsel
+// metinler (meta bilgi, nav, buton) her zaman sans. Bu ayrım burada da
+// aynen uygulandı: heading1/heading2 artık Lora (serif) — sayfa/bölüm
+// başlıkları için "sessiz lüks" hissi. heading3 ve altı Plus Jakarta
+// Sans'ta kalıyor — kart içi alt başlıklar, liste satırları, dialoglar
+// referans görselde de kalın-sans okunuyordu, serif değil.
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle heading1 = GoogleFonts.plusJakartaSans(
+  static TextStyle heading1 = GoogleFonts.lora(
     fontSize: 28,
-    fontWeight: FontWeight.w800,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: -0.8,
+    letterSpacing: -0.3,
   );
 
-  static TextStyle heading2 = GoogleFonts.plusJakartaSans(
-    fontSize: 22,
-    fontWeight: FontWeight.w700,
+  static TextStyle heading2 = GoogleFonts.lora(
+    fontSize: 21,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
 
@@ -41,7 +48,7 @@ class AppTextStyles {
   static TextStyle button = GoogleFonts.plusJakartaSans(
     fontSize: 15,
     fontWeight: FontWeight.w700,
-    color: Colors.white,
+    color: AppColors.ink,
   );
 
   static TextStyle caption = GoogleFonts.plusJakartaSans(
@@ -51,12 +58,13 @@ class AppTextStyles {
   );
 
   // "BUGÜNÜN ODAĞI" / "BU HAFTA" gibi üst etiketler için tek stil
-  // kaynağı — artık her ekranın kendi .copyWith() ile taklit etmesine
-  // gerek yok.
+  // kaynağı. Varsayılan renk artık altın vurgu — referans görselde
+  // eyebrow etiketleri ("CRITICAL THINKING") hep vurgu renginde.
+  // Ekranlar hâlâ .copyWith(color: ...) ile override edebilir.
   static TextStyle eyebrow = GoogleFonts.plusJakartaSans(
     fontSize: 12,
     fontWeight: FontWeight.w800,
-    color: AppColors.textSecondary,
+    color: AppColors.primary,
     letterSpacing: 1.1,
   );
 }

@@ -79,7 +79,7 @@ class ProfileScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.person_rounded,
+                      Icons.person_outline,
                       color: AppColors.primary,
                       size: 32,
                     ),
@@ -119,7 +119,7 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: _ProfileStatCard(
-                  icon: Icons.local_fire_department_rounded,
+                  icon: Icons.local_fire_department_outlined,
                   iconColor: AppColors.warning,
                   value: '${stats.currentStreak}',
                   label: 'Mevcut Seri',
@@ -128,7 +128,7 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _ProfileStatCard(
-                  icon: Icons.emoji_events_rounded,
+                  icon: Icons.emoji_events_outlined,
                   iconColor: AppColors.primary,
                   value: '${stats.longestStreak}',
                   label: 'En Uzun Seri',
@@ -147,7 +147,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.ac_unit_rounded,
+                const Icon(Icons.ac_unit,
                     color: AppColors.primary, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
@@ -256,7 +256,7 @@ class ProfileScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.bar_chart_rounded,
+                      Icons.bar_chart,
                       color: AppColors.primary,
                       size: 20,
                     ),
@@ -271,7 +271,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   Icon(
-                    Icons.chevron_right_rounded,
+                    Icons.chevron_right,
                     color: AppColors.textSecondary,
                   ),
                 ],

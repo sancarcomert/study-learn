@@ -49,7 +49,7 @@ class PlanScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.auto_awesome_rounded,
+                      Icons.auto_awesome_outlined,
                       color: AppColors.primary,
                     ),
                   ),
@@ -69,7 +69,7 @@ class PlanScreen extends StatelessWidget {
                     ),
                   ),
                   Icon(
-                    Icons.chevron_right_rounded,
+                    Icons.chevron_right,
                     color: AppColors.textSecondary,
                   ),
                 ],

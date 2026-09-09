@@ -23,6 +23,14 @@ class _TapScaleState extends State<TapScale> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // Varsayılan (deferToChild) davranışta, Column/Row gibi kendi arka
+      // planını boyamayan child'larda GestureDetector SADECE içerideki
+      // çizilen widget'ların (ikon glifi, metin) tam sınırlarını "dokunulur"
+      // sayıyor — aralarındaki SizedBox boşlukları görünmez ama gerçek ölü
+      // bölge oluyor. Nav bar ve chip gibi küçük hedeflerde parmak birkaç
+      // piksel kaysa dokunma hiç algılanmıyordu. opaque, TÜM geometrik
+      // alanı tıklanabilir yapar.
+      behavior: HitTestBehavior.opaque,
       onTap: widget.onTap == null
           ? null
           : () {

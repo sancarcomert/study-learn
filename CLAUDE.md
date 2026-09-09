@@ -1,0 +1,79 @@
+# Pusula (eski adıyla Study Planner) — Proje Talimatları
+
+Bu dosya, projenin genel bağlamını ve şu anki sprint'in kapsamını tanımlar. Her oturumda önce bu dosyayı oku.
+
+## Proje Kimliği
+
+- Flutter + Riverpod + Hive (yerel veri, henüz backend yok)
+- Uzun vadeli hedef: Türkiye YKS kitlesine odaklı, abonelik bazlı bir ürüne ("Pusula") dönüşmek
+- Tüm stratejik/teknik yol haritası `docs/` klasöründe:
+  - `pusula_yol_haritasi.md` — backend/ödeme/yayın fazları (Faz 1-10)
+  - `pusula_uretim_pazarlama_teknik_recete.md` — MVP kapsamı, kapsam disiplini, pazarlama
+  - `ozellik_kullanilabilirlik_analizi.md` — rakip özellik/kullanılabilirlik analizi
+  - `tasarim_sistemi_referans_analizi.md` — mevcut tasarım sistemi analizi (eski)
+
+## ⚠️ Kesin Kapsam Sınırı (asla önerme/ekleme)
+
+- Canlı ders/koçluk — asla
+- Video konu anlatımı/içerik — asla
+- Soru bankası/soru çözme modülü — asla
+
+Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır bütçe gerçeği). Rakip özelliği gördüğünde otomatik "ekleyelim" deme, önce sor.
+
+## 🎯 SPRINT: UI Yeniden Tasarımı — Midnight Dark + Champagne Gold
+
+**Durum:** P0 (saf görsel) **tamamlandı** — 2026-09-09. Palet, tipografi, buton sistemi, ikon taraması, 9 ekran IA, alt nav; cihazda offline test edildi. İş mantığı diff = 0 (kanıtlandı). Kalan: aşağıdaki "Sırada Ne Var".
+
+**Tam spesifikasyon (rakip analizi + 8 ekran IA + buton sistemi + yol haritası):** Artifact — TR YKS pazar analizi, `docs/` yol haritasıyla birlikte okunur.
+
+**2026-09 pivot:** Önceki yön (sıcak parşömen + lacivert hero + tek altın vurgu, açık tema) tamamen terk edildi. Yeni yön: **koyu tema** — Midnight Dark zemin, Muted Indigo ikincil, Champagne Gold vurgu, Soft Cream White metin. Sadece görsel — iş mantığı, provider'lar, repository'ler, model dosyaları değişmeyecek.
+
+### Onaylanmış kararlar
+
+**A) Ders paleti:** 6 rengi silme. Desatüre pastel tonlar, koyu zeminde okunur parlaklıkta (toz eriği, adaçayı, toz mavisi, bronz, toz gülü, deniz köpüğü). Altın hiçbir zaman ders rengi olarak kullanılmayacak — sadece marka/CTA vurgusu.
+
+**B) CTA hiyerarşisi:**
+- Altın (champagne gold) = birincil pozitif aksiyon (Planımı Oluştur, Görevi Ekle, Kaydet, Devam Et) — üzerinde her zaman koyu (ink) metin, beyaz değil
+- Charcoal/koyu gri (ikinci bir "ink" değil, sayfa zemininden görünür ayrışan bir ton) = ikincil/nötr aksiyon (kapatma, iptal) + Geri Al (undo)
+- Kırmızı aile = yıkıcı aksiyonlar (sil) — aynen kalıyor
+
+**C) Dark-mode'a özgü kural:** `AppColors.ink` artık en koyu ton (neredeyse siyah) — koyu zeminde bir öğeyi "öne çıkarmak" için kullanılamaz (görünmez olur). Öne çıkan/aktif öğeler (bugünün günü, aktif nav sekmesi, hero kart zemini) `primary` (altın) ya da bariz daha açık özel bir ton kullanmalı, `ink` değil. `ColorScheme.fromSeed` artık `Brightness.dark`.
+
+### Uygulanan (P0 — tümü bitti)
+
+1. ✅ `app_colors.dart` — token isimleri korundu, değerler koyu temaya çekildi
+2. ✅ `app_text_styles.dart` — **Lora** serif heading'lere, Plus Jakarta Sans body. Her ikisi de `assets/fonts/`'a **gömülü** (`GoogleFonts.config.allowRuntimeFetching = false`) — offline çalışır
+3. ✅ `app_theme.dart` — `Brightness.dark`, buton pill, dialog/snackbar koyu
+4. ✅ Paylaşılan widget'lar — `app_buttons.dart` (kral 64/r32, ikincil surfaceVariant/r18), `eyebrow.dart`, `week_strip`, `next_task_card`, `task_tile`, `achievement_card`, `app_snackbar`, `tap_scale` (`HitTestBehavior.opaque`). **Silindi:** `hero_progress_card.dart`, `smart_plan_banner.dart` (Home sadeleştirmesiyle kullanımdan kalktı)
+5. ✅ `main_shell.dart` → yeni `widgets/app_bottom_nav.dart` (outline ikon + altın nokta indicator)
+6. ✅ 9 ekran: Home (sadeleştirildi — header/hero/kral buton/bento/görev listesi), Onboarding, Smart Plan, Tasks, Day Detail, Add Task, Add Subject, Subjects, Stats, Profil, Plan
+7. ✅ İkon taraması — tüm `_rounded` → `_outlined`/base (13 dosya). Aktif nav ikonu bilinçli dolu
+8. ✅ Cihazda offline test + `flutter analyze` (0 error) + build ✓
+
+**Sprint sırasında düzeltilen bug'lar:** bildirim dialog kilitlenmesi (stale State context), çift MainShell (onboarding `pushReplacement` kaldırıldı), offline font çökmesi, `TapScale` hit-test, aktif nav etiketi `ink`→`textPrimary`.
+
+### Her aşamadan sonra zorunlu doğrulama
+
+- `flutter analyze` çalıştır, hata varsa düzelt (UI kaynaklıysa düzelt, iş mantığı kaynaklıysa dokunma, bana sor)
+- İş mantığına dokunulmadığını `git diff` ile göster — "değiştirmedim" demek yetmez, provider/repository/model dosyalarında diff olmadığını kanıtla
+
+### Sprint sonunda rapor formatı
+
+1. Değişen dosyalar
+2. Değişen UI bileşenleri
+3. Bilerek dokunulmayan şeyler (fonksiyonellik)
+4. `flutter analyze`/build sonucu
+5. Kalan görsel tutarsızlıklar (varsa)
+
+## Sırada Ne Var
+
+**Küçük görsel/temizlik (opsiyonel):**
+- Onboarding başlığı "Study Planner" → "Pusula" (marka kararı, kullanıcı onayı bekliyor)
+- 51 `info` lint (repo geneli `withOpacity` → `.withValues()`, `use_build_context_synchronously`) — hata değil, ayrı temizlik
+
+**Spec yol haritası (P0'dan sonra, her biri ayrı iş, backend gerektirmez):**
+- **P1 — Sınav sayacı:** onboarding'e sınav tarihi, Home'da "YKS'ye X gün" chip, İstatistik'te. Yerel veri.
+- **P2 — Odak/Pomodoro modülü:** yerel kronometre, görev→süre→`TOPLAM ÇALIŞMA`. CLAUDE.md yasağı DEĞİL (yasak: canlı ders/video/soru bankası). Pazar beklentisi yüksek.
+- **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
+
+**Sonra:** `pusula_yol_haritasi.md`'deki Faz 1 (Supabase backend temeli — şema, RLS, Auth). P1–P3 ile Faz 1 paralel yürütülmez.

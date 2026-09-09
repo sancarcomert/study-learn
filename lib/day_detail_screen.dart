@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'task_provider.dart';
 import 'widgets/animated_progress_bar.dart';
+import 'widgets/eyebrow.dart';
 
 class DayDetailScreen extends ConsumerWidget {
   final DateTime date;
@@ -79,10 +80,7 @@ class DayDetailScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          Text(
-            'Görevler',
-            style: AppTextStyles.heading2,
-          ),
+          const Eyebrow(text: 'GÖREVLER'),
 
           const SizedBox(height: 12),
 
@@ -107,7 +105,7 @@ class DayDetailScreen extends ConsumerWidget {
                       children: [
                         Icon(
                           task.isCompleted
-                              ? Icons.check_circle
+                              ? Icons.check_circle_outline
                               : Icons.circle_outlined,
                           color: task.isCompleted
                               ? AppColors.success
@@ -138,7 +136,7 @@ class DayDetailScreen extends ConsumerWidget {
                         children: [
                           if (task.scheduledTime != null)
                             _InfoChip(
-                              icon: Icons.schedule_rounded,
+                              icon: Icons.schedule,
                               color: AppColors.secondary,
                               text:
                                   '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',

@@ -6,6 +6,7 @@ import 'subject_model.dart';
 import 'subject_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
+import 'widgets/eyebrow.dart';
 
 class AddSubjectSheet extends ConsumerStatefulWidget {
   final SubjectModel? subjectToEdit;
@@ -89,7 +90,7 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
               decoration: const InputDecoration(hintText: 'Örn. Matematik'),
             ),
             const SizedBox(height: 20),
-            Text('Renk seç', style: AppTextStyles.bodySecondary),
+            const Eyebrow(text: 'RENK SEÇ'),
             const SizedBox(height: 10),
             Wrap(
               spacing: 12,

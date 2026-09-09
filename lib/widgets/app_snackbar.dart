@@ -15,7 +15,7 @@ class AppSnackBar {
     _show(
       context,
       message,
-      icon: Icons.check_circle_rounded,
+      icon: Icons.check_circle_outline,
       iconColor: AppColors.success,
       duration: duration,
     );
@@ -25,7 +25,7 @@ class AppSnackBar {
     _show(
       context,
       message,
-      icon: Icons.error_rounded,
+      icon: Icons.error_outline,
       iconColor: AppColors.danger,
       duration: duration,
     );
@@ -35,7 +35,7 @@ class AppSnackBar {
     _show(
       context,
       message,
-      icon: Icons.info_rounded,
+      icon: Icons.info_outline,
       iconColor: AppColors.info,
       duration: duration,
     );
@@ -52,7 +52,7 @@ class AppSnackBar {
     _show(
       context,
       message,
-      icon: Icons.delete_outline_rounded,
+      icon: Icons.delete_outline,
       iconColor: AppColors.textSecondary,
       duration: duration,
       action: SnackBarAction(
@@ -82,7 +82,7 @@ class AppSnackBar {
             Expanded(
               child: Text(
                 message,
-                style: AppTextStyles.body.copyWith(color: Colors.white),
+                style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
               ),
             ),
           ],

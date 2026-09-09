@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'tap_scale.dart';
-import 'main_shell.dart';
 import 'subject_provider.dart';
 import 'task_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/app_buttons.dart';
+import 'widgets/eyebrow.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -64,11 +64,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _completeOnboarding() {
+    // MainShell'e geçişi burada elle YAPMIYORUZ: app.dart zaten
+    // statsProvider.hasCompletedOnboarding'i izliyor ve bu flag true
+    // olunca home'u reaktif olarak MainShell'e çeviriyor. Elle
+    // pushReplacement eklemek ikinci bir MainShell (çift IndexedStack,
+    // çift timer, ölü State context) yaratıyordu.
     ref.read(statsProvider.notifier).markOnboardingCompleted();
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
   }
 
   @override
@@ -88,6 +89,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               children: [
                 const SizedBox(height: 24),
 
+                const Eyebrow(text: 'BAŞLANGIÇ'),
+                const SizedBox(height: 6),
+
                 Text(
                   'Study Planner\'a hoş geldin 👋',
                   style: AppTextStyles.heading1,
@@ -101,6 +105,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
 
                 const SizedBox(height: 32),
+
+                const Eyebrow(text: 'HANGİ DERS'),
+                const SizedBox(height: 10),
 
                 Text(
                   'Şu an hangi derse çalışıyorsun?',
@@ -139,7 +146,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         child: Text(
                           subject,
                           style: AppTextStyles.body.copyWith(
-                            color: isSelected ? Colors.white : AppColors.primary,
+                            // Altın zeminde beyaz değil koyu metin.
+                            color: isSelected ? AppColors.ink : AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

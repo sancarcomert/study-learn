@@ -5,22 +5,16 @@ import 'package:confetti/confetti.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'task_provider.dart';
-import 'widgets/week_strip.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/next_task_card.dart';
-import 'widgets/smart_plan_banner.dart';
 import 'widgets/eyebrow.dart';
 import 'task_model.dart';
-import 'subject_model.dart';
-import 'day_detail_screen.dart';
-import 'subjects_screen.dart';
 import 'add_task_screen.dart';
+import 'smart_plan_screen.dart';
 import 'widgets/task_tile.dart';
 import 'stats_screen.dart';
 import 'tap_scale.dart';
-import 'widgets/hero_progress_card.dart';
-import 'widgets/animated_progress_bar.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_snackbar.dart';
 import 'notification_service.dart';
@@ -34,9 +28,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String _searchQuery = '';
-  bool _searchExpanded = false;
-
   late final ConfettiController _goalConfetti =
       ConfettiController(duration: const Duration(seconds: 1));
 
@@ -75,9 +66,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final continueRequested = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      // Butonlar dialog'un KENDİ context'iyle pop ediliyor — dış (State)
+      // context'i onboarding→MainShell geçişinde dispose olabiliyor ve o
+      // context üzerinden Navigator.pop çağrısı "Null check operator used
+      // on a null value" fırlatıp dialog'u kilitliyordu.
+      builder: (dialogContext) => AlertDialog(
         icon: const Icon(
-          Icons.notifications_active_rounded,
+          Icons.notifications_active_outlined,
           color: AppColors.primary,
           size: 32,
         ),
@@ -87,16 +82,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Şimdi Değil'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Devam Et'),
           ),
         ],
       ),
     );
+
+    if (!mounted) return;
 
     ref.read(statsProvider.notifier).markNotificationPromptSeen();
 
@@ -142,6 +139,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return 'Bir görevin başlama zamanı geldi.';
   }
 
+  String _fmtDuration(int minutes) {
+    if (minutes <= 0) return '0 dk';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h == 0) return '$m dk';
+    if (m == 0) return '$h sa';
+    return '$h sa $m dk';
+  }
+
   void _showGoalCelebration() {
     showDialog(
       context: context,
@@ -185,18 +191,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      "🎉",
-                      style: TextStyle(fontSize: 40),
-                    ),
+                    Text("🎉", style: TextStyle(fontSize: 40)),
                     SizedBox(height: 12),
                     Text(
                       "Günlük hedef tamamlandı!",
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -214,7 +214,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final todayTasks = _sortedBySchedule(todayTasksRaw);
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
-    final stats = ref.watch(statsProvider);
 
     final nextTask = allTasks
         .where((task) => task.scheduledTime != null && !task.isCompleted)
@@ -243,272 +242,274 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final completedCount = todayTasks.where((t) => t.isCompleted).length;
     final totalCount = todayTasks.length;
-    final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
 
-    final filteredTasks = _searchQuery.isEmpty
-        ? todayTasks
-        : todayTasks
-            .where((t) => t.title.toLowerCase().contains(_searchQuery))
-            .toList();
+    final remainingMin = todayTasks
+        .where((t) => !t.isCompleted)
+        .fold<int>(0, (s, t) => s + (t.estimatedMinutes ?? 0));
 
     return Scaffold(
-      // Artık ham hex yok — AppColors.background zaten sıcak beyaz,
-      // tema (scaffoldBackgroundColor) bunu otomatik uyguluyor.
-      body: Stack(
-        children: [
-          SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Row(
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // 1) HEADER — 32dp
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 20, 0),
+              child: SizedBox(
+                height: 32,
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_greeting(), style: AppTextStyles.heading1),
-                          const SizedBox(height: 4),
-                          Text(_subGreeting(),
-                              style: AppTextStyles.bodySecondary),
-                        ],
-                      ),
-                    ),
-                    TapScale(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const StatsScreen()),
-                        );
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          shape: BoxShape.circle,
-                          boxShadow: AppColors.cardShadow,
-                        ),
-                        child: const Icon(Icons.bar_chart_rounded,
-                            color: AppColors.primary, size: 20),
+                    const _BrandMark(),
+                    _ProfileRing(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const StatsScreen()),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
 
-                const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
 
-                HeroProgressCard(
-                  progress: progress,
-                  completedCount: completedCount,
-                  totalCount: totalCount,
-                  streak: stats.currentStreak,
-                  longestStreak: stats.longestStreak,
-                  nextBlockText: _nextBlockText(upcomingTask),
-                ),
-
-                const SizedBox(height: 16),
-
-                NextTaskCard(
-                  task: upcomingTask,
-                  subjects: subjects,
-                ),
-
-                const SizedBox(height: 12),
-
-                const SmartPlanBanner(),
-
-                const SizedBox(height: 28),
-
-                const Eyebrow(text: 'BU HAFTA'),
-                const SizedBox(height: 6),
-                Text('Çalışma ritmin', style: AppTextStyles.heading3),
-                const SizedBox(height: 16),
-
-                WeekStrip(
-                  allTasks: allTasks,
-                  onDaySelected: (date) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => DayDetailScreen(date: date),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 28),
-
-                const Eyebrow(text: 'DERSLERİN'),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Bugünkü dağılım', style: AppTextStyles.heading3),
-                    TapScale(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const SubjectsScreen()),
-                        );
-                      },
-                      child: Text(
-                        'Tümünü Gör',
-                        style: AppTextStyles.bodySecondary.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                subjects.isEmpty
-                    ? EmptyStateCard(
-                        icon: Icons.menu_book_rounded,
-                        message: 'Henüz ders eklemedin.\nHadi ilk dersini ekle!',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const SubjectsScreen()),
-                          );
-                        },
-                      )
-                    : Column(
-                        children: subjects.map((subject) {
-                          final subjectTasks = todayTasks
-                              .where((t) => t.subjectId == subject.id)
-                              .toList();
-                          final completed = subjectTasks
-                              .where((t) => t.isCompleted)
-                              .length;
-                          final total = subjectTasks.length;
-                          final minutes = subjectTasks.fold<int>(
-                            0,
-                            (sum, t) => sum + (t.estimatedMinutes ?? 0),
-                          );
-
-                          return _SubjectProgressRow(
-                            subject: subject,
-                            completed: completed,
-                            total: total,
-                            minutes: minutes,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const SubjectsScreen()),
-                              );
-                            },
-                          );
-                        }).toList(),
-                      ),
-
-                const SizedBox(height: 28),
-
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(24),
+                  // 2) HERO
+                  Text(_greeting(), style: AppTextStyles.heading1),
+                  const SizedBox(height: 8),
+                  Text(
+                    _nextBlockText(upcomingTask) ?? _subGreeting(),
+                    style: AppTextStyles.bodySecondary,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                  const SizedBox(height: 32),
+
+                  // 3) KRAL BUTON
+                  _KingButton(
+                    label: 'Bugünü Planla',
+                    icon: Icons.auto_awesome_outlined,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SmartPlanScreen()),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // 4) BENTO GRID
+                  Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Bugünkü Görevler',
-                              style: AppTextStyles.heading2,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOut,
-                                width: _searchExpanded ? 110 : 0,
-                                height: 36,
-                                child: _searchExpanded
-                                    ? TextField(
-                                        autofocus: true,
-                                        style: AppTextStyles.bodySecondary,
-                                        decoration: const InputDecoration(
-                                          hintText: 'Ara...',
-                                          contentPadding:
-                                              EdgeInsets.symmetric(vertical: 0),
-                                        ),
-                                        onChanged: (value) => setState(
-                                            () => _searchQuery = value.toLowerCase()),
-                                      )
-                                    : null,
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _searchExpanded
-                                      ? Icons.close_rounded
-                                      : Icons.search_rounded,
-                                  size: 20,
-                                  color: AppColors.textSecondary,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    if (_searchExpanded) {
-                                      _searchExpanded = false;
-                                      _searchQuery = '';
-                                    } else {
-                                      _searchExpanded = true;
-                                    }
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
+                      Expanded(
+                        child: _BentoCard(
+                          eyebrow: 'BUGÜN',
+                          value: '$completedCount/$totalCount',
+                          sub: 'görev tamam',
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      filteredTasks.isEmpty
-                          ? (_searchQuery.isEmpty
-                              ? const EmptyStateCard(
-                                  icon: Icons.task_alt_rounded,
-                                  message:
-                                      'Bugün için görev yok.\nSağ alttaki butonla ekleyebilirsin.',
-                                )
-                              : Text('Sonuç bulunamadı',
-                                  style: AppTextStyles.bodySecondary))
-                          : Column(
-                              children: filteredTasks
-                                  .map((task) => _AnimatedTaskEntry(
-                                        key: ValueKey(task.id),
-                                        child: TaskTile(task: task, subjects: subjects),
-                                      ))
-                                  .toList(),
-                            ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _BentoCard(
+                          eyebrow: 'KALAN SÜRE',
+                          value: _fmtDuration(remainingMin),
+                          sub: 'bugün',
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 80),
-              ],
+
+                  if (upcomingTask != null) ...[
+                    const SizedBox(height: 28),
+                    NextTaskCard(task: upcomingTask, subjects: subjects),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // 5) BUGÜNKÜ GÖREVLER
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Eyebrow(text: 'BUGÜNKÜ GÖREVLER'),
+                      if (totalCount > 0)
+                        Text(
+                          '$completedCount/$totalCount',
+                          style: AppTextStyles.caption
+                              .copyWith(fontWeight: FontWeight.w700),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (todayTasks.isEmpty)
+                    const EmptyStateCard(
+                      icon: Icons.task_alt_outlined,
+                      message:
+                          'Bugün için görev yok.\nSağ alttaki + ile ekleyebilirsin.',
+                    )
+                  else
+                    Column(
+                      children: todayTasks
+                          .map((task) => _AnimatedTaskEntry(
+                                key: ValueKey(task.id),
+                                child:
+                                    TaskTile(task: task, subjects: subjects),
+                              ))
+                          .toList(),
+                    ),
+
+                  const SizedBox(height: 96),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      // Home'da tek FAB kalıyor: "Görev Ekle" (birincil, günlük eylem).
-      // "Akıllı Plan" FAB'ı kaldırıldı — o özelliğe erişim artık sadece
-      // aşağıdaki SmartPlanBanner üzerinden. Plan sekmesi ileride tam bir
-      // "Planning Hub" olacağı için Home'un bu özelliği FAB gibi kalıcı/
-      // baskın bir şekilde sahiplenmesi doğru değil.
-      floatingActionButton: FloatingActionButton.extended(
+      // Kral buton "Bugünü Planla" ekranın baskın eylemi; FAB ikincil
+      // kalsın diye dar/dairesel (extended değil).
+      floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Görev Ekle', style: TextStyle(color: Colors.white)),
+        foregroundColor: AppColors.ink,
+        elevation: 0,
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const AddTaskScreen()),
           );
         },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _BrandMark extends StatelessWidget {
+  const _BrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pusula',
+          style: AppTextStyles.heading2.copyWith(
+            fontSize: 18,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Container(width: 22, height: 2, color: AppColors.primary),
+      ],
+    );
+  }
+}
+
+class _ProfileRing extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ProfileRing({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.textMuted, width: 1.4),
+        ),
+        child: const Icon(
+          Icons.person_outline,
+          size: 17,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _KingButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _KingButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        height: 64,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: AppColors.ink),
+            const SizedBox(width: 10),
+            Text(label, style: AppTextStyles.button.copyWith(fontSize: 16)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BentoCard extends StatelessWidget {
+  final String eyebrow;
+  final String value;
+  final String sub;
+
+  const _BentoCard({
+    required this.eyebrow,
+    required this.value,
+    required this.sub,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 110,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.surfaceVariant, width: 1),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Eyebrow(text: eyebrow),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: AppTextStyles.heading2,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(sub, style: AppTextStyles.caption),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -546,97 +547,6 @@ class _AnimatedTaskEntryState extends State<_AnimatedTaskEntry>
           end: Offset.zero,
         ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut)),
         child: widget.child,
-      ),
-    );
-  }
-}
-
-class _SubjectProgressRow extends StatelessWidget {
-  final SubjectModel subject;
-  final int completed;
-  final int total;
-  final int minutes;
-  final VoidCallback onTap;
-
-  const _SubjectProgressRow({
-    required this.subject,
-    required this.completed,
-    required this.total,
-    required this.minutes,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Color(subject.colorValue);
-    final ratio = total == 0 ? 0.0 : completed / total;
-
-    return TapScale(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: AppColors.softShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                subject.name.isNotEmpty ? subject.name[0].toUpperCase() : '?',
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(subject.name, style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  )),
-                  const SizedBox(height: 2),
-                  Text(
-                    total == 0
-                        ? 'Bugün görev yok'
-                        : '$total görev, $minutes dakika',
-                    style: AppTextStyles.caption,
-                  ),
-                  if (total > 0) ...[
-                    const SizedBox(height: 8),
-                    AnimatedProgressBar(
-                      value: ratio,
-                      color: color,
-                      backgroundColor: color.withOpacity(0.12),
-                      height: 6,
-                      borderRadius: 6,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            if (total > 0)
-              Text(
-                '$completed/$total',
-                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
-              ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-          ],
-        ),
       ),
     );
   }

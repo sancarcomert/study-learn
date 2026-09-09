@@ -91,7 +91,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
       case 'düşük':
         return Icons.battery_2_bar_rounded;
       case 'yüksek':
-        return Icons.battery_full_rounded;
+        return Icons.battery_full;
       default:
         return Icons.battery_4_bar_rounded;
     }
@@ -266,13 +266,13 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
         elevation: 0,
         leading: _step == _PlanEntryStep.form
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                icon: const Icon(Icons.arrow_back_ios_new),
                 onPressed: _backToChoice,
                 tooltip: 'Modu değiştir',
               )
             : _step == _PlanEntryStep.result
                 ? IconButton(
-                    icon: const Icon(Icons.close_rounded),
+                    icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Kapat',
                   )
@@ -387,7 +387,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_rounded,
+                          Icon(Icons.calendar_today,
                               size: 16, color: AppColors.secondary),
                           const SizedBox(width: 8),
                           Text(
@@ -465,7 +465,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.add_rounded,
+                              Icon(Icons.add,
                                   size: 16, color: AppColors.textSecondary),
                               const SizedBox(width: 4),
                               Text('Yeni Ders',
@@ -509,7 +509,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
                           duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOut,
                           child: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
+                            Icons.keyboard_arrow_down,
                             color: AppColors.primary,
                             size: 20,
                           ),
@@ -597,7 +597,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
           const SizedBox(height: 12),
           PrimaryButton(
             label: 'Planımı Oluştur',
-            icon: Icons.auto_awesome_rounded,
+            icon: Icons.auto_awesome_outlined,
             onPressed: _generate,
           ),
         ],
@@ -672,7 +672,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
             ),
             const SizedBox(height: 10),
             _ResultInfoRow(
-              icon: Icons.hourglass_bottom_rounded,
+              icon: Icons.hourglass_empty,
               label: 'Kalan kapasite',
               value: '${remainingHours}s ${remainingMins}dk',
             ),
@@ -690,7 +690,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline_rounded,
+                        Icon(Icons.info_outline,
                             size: 16, color: AppColors.warning),
                         const SizedBox(width: 6),
                         Text(
@@ -712,7 +712,7 @@ class _SmartPlanScreenState extends ConsumerState<SmartPlanScreen> {
             ],
           ] else ...[
             _ResultInfoRow(
-              icon: Icons.calendar_today_rounded,
+              icon: Icons.calendar_today,
               label: 'Dağıtılan gün sayısı',
               value: '$_resultDaysUsed gün',
             ),
@@ -816,7 +816,7 @@ class _PlanOptionCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: tintColor),
+            Icon(Icons.chevron_right, color: tintColor),
           ],
         ),
       ),
@@ -878,7 +878,7 @@ class _EnergyOptionCard extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle_rounded,
+              const Icon(Icons.check_circle_outline,
                   color: AppColors.primary, size: 20),
           ],
         ),
@@ -911,7 +911,8 @@ class _SubjectChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.primary,
+            // Altın zeminde beyaz değil koyu metin — kontrast için.
+            color: isSelected ? AppColors.ink : AppColors.primary,
             fontWeight: FontWeight.w600,
           ),
         ),
