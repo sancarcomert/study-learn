@@ -92,12 +92,19 @@ class StatsScreen extends ConsumerWidget {
             onPick: () async {
               final notifier = ref.read(statsProvider.notifier);
               final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              // Kayıtlı tarih geçmişse initialDate < firstDate olur ve
+              // showDatePicker patlar — bu yüzden gelecekteyse onu, değilse
+              // +90 günü başlangıç al.
+              final stored = stats.examDate;
+              final initial = (stored != null && !stored.isBefore(today))
+                  ? stored
+                  : today.add(const Duration(days: 90));
               final picked = await showDatePicker(
                 context: context,
-                initialDate: stats.examDate ??
-                    now.add(const Duration(days: 90)),
-                firstDate: now,
-                lastDate: DateTime(now.year + 3, now.month, now.day),
+                initialDate: initial,
+                firstDate: today,
+                lastDate: DateTime(today.year + 3, today.month, today.day),
               );
               if (picked != null) notifier.setExamDate(picked);
             },

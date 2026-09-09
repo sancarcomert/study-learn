@@ -279,7 +279,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: ExamCountdownChip(examDate: examDate),
+                  child: TapScale(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const StatsScreen()),
+                    ),
+                    child: ExamCountdownChip(examDate: examDate),
+                  ),
                 ),
               ),
 
