@@ -19,10 +19,18 @@ class PlanBuilder {
   /// [explicitSubject] verilirse yalnızca o ders kullanılır.
   /// [topics] boş değilse görev sayısı = konu sayısı; her konu sırayla bir
   /// derse yazılır. [examDays] null değilse ve <= 30 ise öncelikler yükselir.
+  ///
+  /// [uncoveredTopics] (subjectId → işaretlenmemiş konu adları): verildiğinde
+  /// ve [topics] boşken, görev başlıkları o dersin gerçek boş konularından
+  /// üretilir ("Matematik: Türev"). [fillToCapacity] true ise görev sayısı
+  /// ders sayısıyla değil, kalan süreyle sınırlanır — Koç "sen ayarla"
+  /// modunda dolu bir program çıkarmak için.
   static PlanResult build({
     required List<SubjectModel> orderedSubjects,
     SubjectModel? explicitSubject,
     List<String> topics = const [],
+    Map<String, List<String>> uncoveredTopics = const {},
+    bool fillToCapacity = false,
     required int hoursAvailable,
     required String energy,
     int? examDays,
@@ -60,9 +68,33 @@ class PlanBuilder {
       ordered = targets.reversed.toList();
     }
 
-    final count = topics.isNotEmpty ? topics.length : targets.length;
     final duration = durationFor(energy);
     final capacity = hoursAvailable * 60;
+
+    final int count;
+    if (topics.isNotEmpty) {
+      count = topics.length;
+    } else if (fillToCapacity) {
+      // Kalan süreyi doldur — ders sayısıyla sınırlama.
+      count = (capacity ~/ duration).clamp(1, 20);
+    } else {
+      count = targets.length;
+    }
+
+    // Ders başına boş-konu imleci (round-robin).
+    final topicCursor = <String, int>{};
+    String titleFor(SubjectModel subject, int i) {
+      if (topics.isNotEmpty) return '${subject.name}: ${topics[i]}';
+      final pool = uncoveredTopics[subject.id];
+      if (pool != null && pool.isNotEmpty) {
+        final idx = topicCursor[subject.id] ?? 0;
+        if (idx < pool.length) {
+          topicCursor[subject.id] = idx + 1;
+          return '${subject.name}: ${pool[idx]}';
+        }
+      }
+      return subject.name;
+    }
 
     var remaining = capacity;
     var offset = 0;
@@ -71,13 +103,13 @@ class PlanBuilder {
 
     for (var i = 0; i < count; i++) {
       final subject = ordered[i % ordered.length];
-      final title =
-          topics.isNotEmpty ? '${subject.name}: ${topics[i]}' : subject.name;
 
       if (duration > remaining) {
-        unfit.add(title);
+        unfit.add(topics.isNotEmpty ? '${subject.name}: ${topics[i]}' : subject.name);
         continue;
       }
+
+      final title = titleFor(subject, i);
 
       blocks.add(PlanBlock(
         title: title,

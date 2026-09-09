@@ -13,6 +13,7 @@ import 'widgets/exam_countdown.dart';
 import 'task_model.dart';
 import 'task_time_status.dart';
 import 'study_advisor.dart';
+import 'topic_provider.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'widgets/task_tile.dart';
@@ -320,12 +321,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .fold<int>(0, (s, t) => s + (t.estimatedMinutes ?? 0));
 
     // "Nereden başlasan?" — yalnızca bugün hiç görev yokken göster.
+    final coverage = ref.watch(coverageBySubjectProvider);
     final suggestions = todayTasks.isEmpty
         ? StudyAdvisor.suggest(
             subjects: subjects,
             tasks: allTasks,
             examDate: examDate,
             limit: 3,
+            coveragePercent: {
+              for (final e in coverage.entries)
+                if (e.value.hasTopics) e.key: e.value.ratio,
+            },
           )
         : const <StudySuggestion>[];
 

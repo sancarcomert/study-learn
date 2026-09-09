@@ -10,6 +10,8 @@ import 'subject_model.dart';
 import 'subject_provider.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
+import 'topic_model.dart';
+import 'topic_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/exam_countdown.dart';
@@ -285,11 +287,25 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final examDate = ref.read(statsProvider).examDate;
     final examDays = examDate == null ? null : daysUntilExam(examDate);
 
+    // Konu Takip verisi: kapsama oranları + ders başına boş konular.
+    final coverage = ref.read(coverageBySubjectProvider);
+    final coveragePercent = <String, double>{
+      for (final e in coverage.entries)
+        if (e.value.hasTopics) e.key: e.value.ratio,
+    };
+    final uncovered = <String, List<String>>{};
+    for (final t in ref.read(topicProvider)) {
+      if (t.status != TopicStatus.reviewed && t.status != TopicStatus.studied) {
+        uncovered.putIfAbsent(t.subjectId, () => []).add(t.name);
+      }
+    }
+
     final advisorIds = StudyAdvisor.suggest(
       subjects: subjects,
       tasks: allTasks,
       examDate: examDate,
       limit: subjects.length,
+      coveragePercent: coveragePercent,
     ).map((s) => s.subjectId).toList();
 
     final ordered = <SubjectModel>[
@@ -304,6 +320,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       hoursAvailable: hours,
       energy: 'orta',
       examDays: examDays,
+      uncoveredTopics: uncovered,
+      fillToCapacity: uncovered.isNotEmpty,
     );
 
     if (result.isEmpty) {

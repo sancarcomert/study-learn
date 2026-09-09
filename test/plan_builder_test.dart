@@ -98,6 +98,40 @@ void main() {
     expect(r.blocks.first.subjectId, 'id-Fizik');
   });
 
+  test('uncoveredTopics + fillToCapacity → başlıklar boş konulardan, süreyi doldurur',
+      () {
+    final r = PlanBuilder.build(
+      orderedSubjects: [_sub('Matematik')],
+      uncoveredTopics: {
+        'id-Matematik': ['Türev', 'İntegral', 'Limit'],
+      },
+      fillToCapacity: true,
+      hoursAvailable: 3, // 180 dk / 45 = 4 blok
+      energy: 'orta',
+      now: now,
+    );
+    expect(r.blocks.length, 4);
+    expect(r.blocks[0].title, 'Matematik: Türev');
+    expect(r.blocks[1].title, 'Matematik: İntegral');
+    expect(r.blocks[2].title, 'Matematik: Limit');
+    // Konu havuzu bitince ders adına döner.
+    expect(r.blocks[3].title, 'Matematik');
+  });
+
+  test('fillToCapacity yokken görev sayısı ders sayısıyla sınırlı', () {
+    final r = PlanBuilder.build(
+      orderedSubjects: [_sub('Matematik')],
+      uncoveredTopics: {
+        'id-Matematik': ['Türev', 'İntegral'],
+      },
+      hoursAvailable: 3,
+      energy: 'orta',
+      now: now,
+    );
+    expect(r.blocks.length, 1);
+    expect(r.blocks.first.title, 'Matematik: Türev');
+  });
+
   test('düşük enerji → 25 dk + ters sıra', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,

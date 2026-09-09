@@ -11,12 +11,15 @@ class StudyAdvisor {
 
   /// En çok ihmal edilen / geride kalan dersleri gerekçesiyle sıralar.
   /// Bugün zaten görevi olan dersler elenir (tekrar önermek anlamsız).
+  /// [coveragePercent] (subjectId → 0..1): yalnızca konusu olan dersler için
+  /// Konu Takip kapsama oranı. Verildiğinde düşük kapsamlı dersler öne çıkar.
   static List<StudySuggestion> suggest({
     required List<SubjectModel> subjects,
     required List<TaskModel> tasks,
     DateTime? examDate,
     DateTime? now,
     int limit = 3,
+    Map<String, double> coveragePercent = const {},
   }) {
     if (subjects.isEmpty) return const [];
 
@@ -62,12 +65,15 @@ class StudyAdvisor {
           t.priority == TaskPriority.high &&
           !t.dueDate.isAfter(today));
 
-      // --- Puan (0..~1.1) ---
+      final coverage = coveragePercent[s.id];
+
+      // --- Puan (0..~1.4) ---
       var score = 0.0;
       score += (daysSinceTouch.clamp(0, 21) / 21) * 0.50; // ihmal
       score += (1 - completionRate) * 0.25; // geride kalma
       if (total == 0) score += 0.15; // hiç dokunulmamış
       if (hasPendingPriority) score += 0.20 + examPressure * 0.15;
+      if (coverage != null) score += (1 - coverage) * 0.35; // konu boşluğu
 
       if (score <= 0.05) continue;
 
@@ -81,6 +87,7 @@ class StudyAdvisor {
           daysSinceTouch: daysSinceTouch,
           hasPendingPriority: hasPendingPriority,
           examDays: examDays,
+          coverage: coverage,
         ),
       ));
     }
@@ -100,7 +107,11 @@ class StudyAdvisor {
     required int daysSinceTouch,
     required bool hasPendingPriority,
     required int? examDays,
+    double? coverage,
   }) {
+    if (coverage != null && coverage < 0.6) {
+      return 'Konuların %${(coverage * 100).round()}\'i işaretli — geride';
+    }
     if (total == 0) {
       return 'Henüz hiç görev eklemedin';
     }

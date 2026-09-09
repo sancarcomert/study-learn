@@ -73,6 +73,23 @@ void main() {
     expect(out.first.reason, 'Bekleyen öncelikli görevin var');
   });
 
+  test('düşük konu kapsaması olan ders öne çıkar + gerekçe', () {
+    final subjects = [_sub('Matematik'), _sub('Fizik')];
+    // İkisi de aynı gün dokunulmuş; fark yalnız kapsama.
+    final tasks = [
+      _task('id-Matematik', due: today.subtract(const Duration(days: 2))),
+      _task('id-Fizik', due: today.subtract(const Duration(days: 2))),
+    ];
+    final out = StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: tasks,
+      now: now,
+      coveragePercent: {'id-Matematik': 0.9, 'id-Fizik': 0.1},
+    );
+    expect(out.first.subjectName, 'Fizik');
+    expect(out.first.reason, contains('işaretli'));
+  });
+
   test('limit uygulanır', () {
     final subjects = List.generate(
       6,
