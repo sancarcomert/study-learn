@@ -194,39 +194,29 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'TOPLAM ÇALIŞMA'),
+          const Eyebrow(text: 'ÇALIŞMA SÜRESİ'),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
               boxShadow: AppColors.softShadow,
             ),
-            child: Row(
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.tonal(AppColors.secondary),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.timer_outlined,
-                    color: AppColors.secondary,
-                    size: 20,
-                  ),
+                _StudyTimeRow(
+                  icon: Icons.timer_outlined,
+                  iconColor: AppColors.primary,
+                  label: 'Odak seansı',
+                  minutes: stats.focusMinutes,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    'Görev ve odak seanslarıyla geçirilen süre',
-                    style: AppTextStyles.bodySecondary,
-                  ),
-                ),
-                Text(
-                  '${stats.totalStudyMinutes ~/ 60}s ${stats.totalStudyMinutes % 60}dk',
-                  style: AppTextStyles.heading3,
+                Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.12)),
+                _StudyTimeRow(
+                  icon: Icons.check_circle_outline,
+                  iconColor: AppColors.secondary,
+                  label: 'Tamamlanan görevler (tahmini)',
+                  minutes: stats.totalStudyMinutes,
                 ),
               ],
             ),
@@ -316,6 +306,47 @@ class _ProfileStatCard extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: AppTextStyles.caption,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudyTimeRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final int minutes;
+
+  const _StudyTimeRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.minutes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.tonal(iconColor),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(label, style: AppTextStyles.bodySecondary),
+          ),
+          Text(
+            '${minutes ~/ 60}s ${minutes % 60}dk',
+            style: AppTextStyles.heading3,
           ),
         ],
       ),

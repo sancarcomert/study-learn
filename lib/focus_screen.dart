@@ -58,8 +58,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     _ticker?.cancel();
     final minutes = _elapsedSec ~/ 60;
     if (minutes >= 1) {
-      ref.read(statsProvider.notifier).adjustStudyMinutes(minutes);
-      AppSnackBar.success(context, '$minutes dk çalışma kaydedildi');
+      ref.read(statsProvider.notifier).addFocusMinutes(minutes);
+      AppSnackBar.success(context, '$minutes dk odak süresi kaydedildi');
     }
     Navigator.of(context).pop();
   }

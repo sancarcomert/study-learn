@@ -54,6 +54,14 @@ class UserStatsModel extends HiveObject {
   @HiveField(10)
   DateTime? examDate;
 
+  // Odak seanslarında GERÇEKTEN ölçülen toplam dakika. totalStudyMinutes'tan
+  // ayrı tutulur: o alan tamamlanan görevlerin TAHMİNİ süresini biriktirir,
+  // bu ise kronometreyle ölçülen gerçek süreyi. İkisi karışmasın diye ayrı.
+  // defaultValue: bu alan eklenmeden önce yazılmış kayıtlarda fields[11]
+  // null döner; non-nullable int cast'i patlamasın diye 0 varsayılır.
+  @HiveField(11, defaultValue: 0)
+  int focusMinutes;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -66,5 +74,6 @@ class UserStatsModel extends HiveObject {
     this.userName,
     this.hasSeenNotificationPrompt = false,
     this.examDate,
+    this.focusMinutes = 0,
   });
 }

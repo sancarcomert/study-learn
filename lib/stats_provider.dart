@@ -35,6 +35,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       userName: _stats.userName,
       hasSeenNotificationPrompt: _stats.hasSeenNotificationPrompt,
       examDate: _stats.examDate,
+      focusMinutes: _stats.focusMinutes,
     );
   }
 
@@ -145,6 +146,16 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   void updateUserName(String name) {
     final trimmed = name.trim();
     _stats.userName = trimmed.isEmpty ? null : trimmed;
+    _stats.save();
+    _emit();
+  }
+
+  // Odak seansında ölçülen dakikayı focusMinutes'a ekler. totalStudyMinutes'a
+  // DOKUNMAZ — o alan tamamlanan görev tahminini biriktirir, bu ise ölçülen
+  // gerçek süreyi. İkisi Profile'da ayrı gösterilir.
+  void addFocusMinutes(int minutes) {
+    if (minutes <= 0) return;
+    _stats.focusMinutes += minutes;
     _stats.save();
     _emit();
   }
