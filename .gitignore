@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Yedek / geçici artefaktlar (kazara commit'lenmişti)
+*.zip
+/temp_restore/
