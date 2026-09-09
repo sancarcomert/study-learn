@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
-import 'smart_plan_screen.dart';
+import 'coach_screen.dart';
 import 'focus_screen.dart';
 import 'tap_scale.dart';
 
@@ -20,11 +20,11 @@ class PlanScreen extends StatelessWidget {
         children: [
           _PlanEntry(
             icon: Icons.auto_awesome_outlined,
-            title: "Akıllı Plan",
-            subtitle: "Bugünkü çalışma planını oluştur",
+            title: "Çalışma Koçu",
+            subtitle: "Sohbetle bugünkü planını oluştur",
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const SmartPlanScreen()),
+              MaterialPageRoute(builder: (_) => const CoachScreen()),
             ),
           ),
           const SizedBox(height: 12),

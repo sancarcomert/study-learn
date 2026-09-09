@@ -15,7 +15,7 @@ import 'task_time_status.dart';
 import 'plan_parser.dart';
 import 'study_advisor.dart';
 import 'add_task_screen.dart';
-import 'smart_plan_screen.dart';
+import 'coach_screen.dart';
 import 'widgets/task_tile.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
@@ -434,7 +434,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     label: 'Bugünü Planla',
                     icon: Icons.auto_awesome_outlined,
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SmartPlanScreen()),
+                      MaterialPageRoute(builder: (_) => const CoachScreen()),
                     ),
                   ),
 
