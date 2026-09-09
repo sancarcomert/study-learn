@@ -1,0 +1,162 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:study_planner/plan_parser.dart';
+import 'package:study_planner/subject_model.dart';
+
+SubjectModel _sub(String name) => SubjectModel(
+      id: 'id-$name',
+      name: name,
+      colorValue: 0,
+      createdAt: DateTime(2026, 1, 1),
+    );
+
+void main() {
+  // Sabit referans: 2026-09-10 Perşembe.
+  final now = DateTime(2026, 9, 10, 14, 0);
+  final subjects = [_sub('Matematik'), _sub('Fizik'), _sub('Paragraf')];
+
+  group('süre', () {
+    test('"2 saat" → 120 dk', () {
+      final p = PlanParser.parse('2 saat matematik', subjects: subjects, now: now);
+      expect(p.durationMinutes, 120);
+    });
+
+    test('"45 dk" → 45', () {
+      final p = PlanParser.parse('45 dk paragraf', subjects: subjects, now: now);
+      expect(p.durationMinutes, 45);
+    });
+
+    test('"1.5 saat" → 90', () {
+      final p = PlanParser.parse('1.5 saat fizik', subjects: subjects, now: now);
+      expect(p.durationMinutes, 90);
+    });
+
+    test('"yarım saat" → 30', () {
+      final p =
+          PlanParser.parse('yarım saat türev', subjects: subjects, now: now);
+      expect(p.durationMinutes, 30);
+    });
+
+    test('"bir buçuk saat" → 90', () {
+      final p = PlanParser.parse('bir buçuk saat kimya',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 90);
+    });
+  });
+
+  group('tarih', () {
+    test('"yarın" → +1 gün', () {
+      final p = PlanParser.parse('yarın matematik', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 11));
+    });
+
+    test('"bugün" → aynı gün', () {
+      final p = PlanParser.parse('bugün fizik', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 10));
+    });
+
+    test('"öbür gün" → +2 gün', () {
+      final p =
+          PlanParser.parse('öbür gün paragraf', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 12));
+    });
+
+    test('"3 gün sonra" → +3 gün', () {
+      final p = PlanParser.parse('3 gün sonra deneme',
+          subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 13));
+    });
+
+    test('"pazartesi" → bir sonraki pazartesi (bugün perşembe)', () {
+      final p =
+          PlanParser.parse('pazartesi matematik', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 14));
+    });
+
+    test('haftanın aynı günü → +7 (bugün değil)', () {
+      final p =
+          PlanParser.parse('perşembe fizik', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 17));
+    });
+
+    test('"cumartesi" "cuma" içinde geçse de doğru gün', () {
+      final p =
+          PlanParser.parse('cumartesi tekrar', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 12));
+    });
+  });
+
+  group('tekrar', () {
+    test('"her gün" → daily', () {
+      final p = PlanParser.parse('her gün 20 dk kelime',
+          subjects: subjects, now: now);
+      expect(p.recurrence, 'daily');
+      expect(p.durationMinutes, 20);
+    });
+
+    test('"her hafta" → weekly', () {
+      final p = PlanParser.parse('her hafta deneme çöz',
+          subjects: subjects, now: now);
+      expect(p.recurrence, 'weekly');
+    });
+
+    test('"her pazartesi" → weekly + o güne tarih', () {
+      final p = PlanParser.parse('her pazartesi paragraf',
+          subjects: subjects, now: now);
+      expect(p.recurrence, 'weekly');
+      expect(p.date, DateTime(2026, 9, 14));
+    });
+  });
+
+  group('ders', () {
+    test('kullanıcının ders adı birebir eşleşir', () {
+      final p = PlanParser.parse('fizik dalga konusu',
+          subjects: subjects, now: now);
+      expect(p.subjectId, 'id-Fizik');
+      expect(p.subjectName, 'Fizik');
+    });
+
+    test('anahtar kelimeyle tahmin (türev → Matematik)', () {
+      final p = PlanParser.parse('yarın türev çalışacağım',
+          subjects: subjects, now: now);
+      expect(p.subjectId, 'id-Matematik');
+    });
+
+    test('tahmin edilen ders kullanıcıda yoksa sadece ad taşınır', () {
+      final p = PlanParser.parse('fotosentez tekrarı',
+          subjects: subjects, now: now);
+      expect(p.subjectId, isNull);
+      expect(p.subjectName, 'Biyoloji');
+    });
+  });
+
+  group('başlık temizliği', () {
+    test('tarih/süre/filler çıkarılır', () {
+      final p = PlanParser.parse('yarın 2 saat matematik türev çalışacağım',
+          subjects: subjects, now: now);
+      expect(p.title.toLowerCase(), contains('türev'));
+      expect(p.title.toLowerCase(), isNot(contains('yarın')));
+      expect(p.title.toLowerCase(), isNot(contains('saat')));
+      expect(p.title.toLowerCase(), isNot(contains('çalışacağım')));
+    });
+
+    test('geriye içerik kalmazsa ders adına düşer', () {
+      final p =
+          PlanParser.parse('yarın 1 saat matematik', subjects: subjects, now: now);
+      expect(p.title, 'Matematik');
+    });
+  });
+
+  group('boş / sinyalsiz', () {
+    test('boş girdi', () {
+      final p = PlanParser.parse('   ', subjects: subjects, now: now);
+      expect(p.hasSignal, isFalse);
+    });
+
+    test('sadece düz metin → sinyal yok, başlık korunur', () {
+      final p = PlanParser.parse('deneme sınavı analizi',
+          subjects: subjects, now: now);
+      expect(p.hasSignal, isFalse);
+      expect(p.title, 'deneme sınavı analizi');
+    });
+  });
+}

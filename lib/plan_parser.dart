@@ -1,0 +1,378 @@
+import 'subject_ai.dart';
+import 'subject_model.dart';
+
+/// Serbest metinden ("yarın 2 saat matematik türev", "her pazartesi 45 dk
+/// paragraf") görev alanlarını çıkaran YEREL ayrıştırıcı. LLM yok — sadece
+/// düzenli ifade + Türkçe anahtar kelime sözlüğü + [SubjectAI].
+///
+/// Hiçbir yan etkisi yoktur: girdi + ders listesi alır, [ParsedPlan] döndürür.
+/// Görev oluşturma çağıran tarafın işi (mevcut `taskProvider.addTask`).
+class PlanParser {
+  const PlanParser._();
+
+  /// [input]'u ayrıştırır. [subjects] kullanıcının mevcut dersleri — ders adı
+  /// eşleştirmesi için gerekir. [now] test edilebilirlik için enjekte edilir.
+  static ParsedPlan parse(
+    String input, {
+    required List<SubjectModel> subjects,
+    DateTime? now,
+  }) {
+    final reference = now ?? DateTime.now();
+    final today = DateTime(reference.year, reference.month, reference.day);
+    final raw = input.trim();
+    if (raw.isEmpty) return const ParsedPlan.empty();
+
+    final lower = _trLower(raw);
+
+    // Ayrıştırma sırasında başlıktan silinecek ham metin parçaları.
+    final consumed = <String>[];
+
+    final duration = _parseDuration(lower, consumed);
+    final recurrence = _parseRecurrence(lower, consumed);
+    // Tekrar "her <gün>" ise tarih o güne sabitlenir; değilse serbest tarih.
+    DateTime? date = _parseRecurringWeekday(lower, today, consumed);
+    date ??= _parseDate(lower, today, consumed);
+
+    final subjectMatch = _parseSubject(lower, raw, subjects, consumed);
+
+    final title = _cleanTitle(raw, consumed, fallback: subjectMatch?.name);
+
+    return ParsedPlan(
+      title: title,
+      subjectId: subjectMatch?.id,
+      subjectName: subjectMatch?.name,
+      date: date,
+      durationMinutes: duration,
+      recurrence: recurrence,
+    );
+  }
+
+  // --- Süre -----------------------------------------------------------------
+
+  static final RegExp _hoursDecimal =
+      RegExp(r'(\d+)(?:[.,](\d+))?\s*(saat|sa)\b');
+  static final RegExp _minutes = RegExp(r'(\d+)\s*(dakika|dk|dak)\b');
+  static final RegExp _halfHour = RegExp(r'\byarım\s+saat\b');
+  static final RegExp _wordHours =
+      RegExp(r'\b(bir|iki|üç|uc|dört|dort|beş|bes)\s+(buçuk\s+)?saat\b');
+
+  static const Map<String, int> _numberWords = {
+    'bir': 1,
+    'iki': 2,
+    'üç': 3,
+    'uc': 3,
+    'dört': 4,
+    'dort': 4,
+    'beş': 5,
+    'bes': 5,
+  };
+
+  static int? _parseDuration(String lower, List<String> consumed) {
+    final half = _halfHour.firstMatch(lower);
+    if (half != null) {
+      consumed.add(half.group(0)!);
+      return 30;
+    }
+
+    final wordHour = _wordHours.firstMatch(lower);
+    if (wordHour != null) {
+      consumed.add(wordHour.group(0)!);
+      final base = _numberWords[wordHour.group(1)!] ?? 1;
+      final hasHalf = wordHour.group(2) != null;
+      return base * 60 + (hasHalf ? 30 : 0);
+    }
+
+    final h = _hoursDecimal.firstMatch(lower);
+    if (h != null) {
+      consumed.add(h.group(0)!);
+      final whole = int.tryParse(h.group(1)!) ?? 0;
+      final fracDigits = h.group(2);
+      var minutes = whole * 60;
+      if (fracDigits != null && fracDigits.isNotEmpty) {
+        final frac = double.tryParse('0.$fracDigits') ?? 0;
+        minutes += (frac * 60).round();
+      }
+      return minutes > 0 ? minutes : null;
+    }
+
+    final m = _minutes.firstMatch(lower);
+    if (m != null) {
+      consumed.add(m.group(0)!);
+      final value = int.tryParse(m.group(1)!) ?? 0;
+      return value > 0 ? value : null;
+    }
+
+    return null;
+  }
+
+  // --- Tarih --------------------------------------------------------------
+
+  // Uzun adlar önce: "cumartesi" içinde "cuma", "pazartesi" içinde "pazar" var.
+  static const List<MapEntry<String, int>> _weekdays = [
+    MapEntry('pazartesi', DateTime.monday),
+    MapEntry('salı', DateTime.tuesday),
+    MapEntry('sali', DateTime.tuesday),
+    MapEntry('çarşamba', DateTime.wednesday),
+    MapEntry('carsamba', DateTime.wednesday),
+    MapEntry('perşembe', DateTime.thursday),
+    MapEntry('persembe', DateTime.thursday),
+    MapEntry('cumartesi', DateTime.saturday),
+    MapEntry('cuma', DateTime.friday),
+    MapEntry('pazar', DateTime.sunday),
+  ];
+
+  static final RegExp _inNDays = RegExp(r'(\d+)\s*gün\s*sonra');
+
+  static DateTime? _parseDate(String lower, DateTime today, List<String> consumed) {
+    if (RegExp(r'öbür\s*gün|öbürgün|obur\s*gun').hasMatch(lower)) {
+      consumed.add('öbür gün');
+      consumed.add('öbürgün');
+      consumed.add('obur gun');
+      return today.add(const Duration(days: 2));
+    }
+    if (lower.contains('yarın') || lower.contains('yarin')) {
+      consumed.add('yarın');
+      consumed.add('yarin');
+      return today.add(const Duration(days: 1));
+    }
+    if (lower.contains('bugün') || lower.contains('bugun')) {
+      consumed.add('bugün');
+      consumed.add('bugun');
+      return today;
+    }
+    if (RegExp(r'haftaya|(gelecek|önümüzdeki|onumuzdeki)\s+hafta')
+        .hasMatch(lower)) {
+      consumed.add('haftaya');
+      consumed.add('gelecek hafta');
+      consumed.add('önümüzdeki hafta');
+      consumed.add('onumuzdeki hafta');
+      return today.add(const Duration(days: 7));
+    }
+
+    final nDays = _inNDays.firstMatch(lower);
+    if (nDays != null) {
+      consumed.add(nDays.group(0)!);
+      final n = int.tryParse(nDays.group(1)!) ?? 0;
+      if (n > 0) return today.add(Duration(days: n));
+    }
+
+    for (final entry in _weekdays) {
+      if (_containsWord(lower, entry.key)) {
+        consumed.add(entry.key);
+        return _nextWeekday(today, entry.value);
+      }
+    }
+
+    return null;
+  }
+
+  /// "her pazartesi", "her salı günü" → o güne ait bir sonraki tarih. Sadece
+  /// "her" ile birlikte geçtiğinde tetiklenir; yalın "pazartesi" bunu değil
+  /// [_parseDate]'i kullanır.
+  static DateTime? _parseRecurringWeekday(
+      String lower, DateTime today, List<String> consumed) {
+    for (final entry in _weekdays) {
+      final pattern = RegExp('her\\s+${entry.key}');
+      if (pattern.hasMatch(lower)) {
+        consumed.add('her ${entry.key}');
+        return _nextWeekday(today, entry.value);
+      }
+    }
+    return null;
+  }
+
+  static DateTime _nextWeekday(DateTime today, int targetWeekday) {
+    var delta = (targetWeekday - today.weekday) % 7;
+    if (delta <= 0) delta += 7; // "bugün" değil, "önümüzdeki o gün"
+    return today.add(Duration(days: delta));
+  }
+
+  // --- Tekrar -----------------------------------------------------------
+
+  static String _parseRecurrence(String lower, List<String> consumed) {
+    if (RegExp(r'her\s*gün|hergün|her\s+(sabah|akşam|aksam)').hasMatch(lower)) {
+      consumed.add('her gün');
+      consumed.add('hergün');
+      consumed.add('her sabah');
+      consumed.add('her akşam');
+      return 'daily';
+    }
+    if (RegExp(r'her\s+hafta|haftalık|haftalik').hasMatch(lower)) {
+      consumed.add('her hafta');
+      consumed.add('haftalık');
+      consumed.add('haftalik');
+      return 'weekly';
+    }
+    for (final entry in _weekdays) {
+      if (RegExp('her\\s+${entry.key}').hasMatch(lower)) {
+        return 'weekly';
+      }
+    }
+    return 'none';
+  }
+
+  // --- Ders ------------------------------------------------------------
+
+  static _SubjectMatch? _parseSubject(
+    String lower,
+    String raw,
+    List<SubjectModel> subjects,
+    List<String> consumed,
+  ) {
+    // 1) Kullanıcının kendi ders adlarıyla birebir/içerik eşleşmesi.
+    for (final s in subjects) {
+      final name = _trLower(s.name);
+      if (name.isEmpty) continue;
+      if (_containsWord(lower, name) || lower.contains(name)) {
+        consumed.add(s.name);
+        return _SubjectMatch(s.id, s.name);
+      }
+    }
+
+    // 2) Anahtar kelime tahmini (Matematik, Fizik, ...). Kullanıcıda aynı adlı
+    //    ders varsa id'sini bağla; yoksa sadece adı taşı.
+    final predicted = SubjectAI.predict(raw);
+    if (predicted != null) {
+      for (final s in subjects) {
+        if (_trLower(s.name) == _trLower(predicted)) {
+          return _SubjectMatch(s.id, s.name);
+        }
+      }
+      return _SubjectMatch(null, predicted);
+    }
+
+    return null;
+  }
+
+  // --- Başlık temizliği ------------------------------------------------
+
+  static const List<String> _fillers = [
+    'çalışacağım',
+    'çalışayım',
+    'çalışmam',
+    'çalışma',
+    'çalış',
+    'yapacağım',
+    'yapmam',
+    'yapayım',
+    'tekrar edeceğim',
+    'planla',
+    'ekle',
+  ];
+
+  static String _cleanTitle(
+    String raw,
+    List<String> consumed, {
+    String? fallback,
+  }) {
+    var out = raw;
+    for (final piece in consumed) {
+      out = _stripWord(out, piece);
+    }
+    for (final filler in _fillers) {
+      out = _stripWord(out, filler);
+    }
+    out = out
+        .replaceAll(RegExp(r'[-–—:,.]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    // "ve" gibi tek başına kalan bağlaçları at.
+    out = out
+        .split(' ')
+        .where((w) => w.isNotEmpty && w.toLowerCase() != 've')
+        .join(' ')
+        .trim();
+
+    if (out.isEmpty) return (fallback ?? raw).trim();
+    return out;
+  }
+
+  // --- Yardımcılar ---------------------------------------------------
+
+  /// Türkçe küçük harf: `İ` → `i` (birleşik nokta U+0307 kaldırılır).
+  static String _trLower(String s) =>
+      s.toLowerCase().replaceAll('̇', '').trim();
+
+  static final RegExp _trWordChar = RegExp(r'[0-9a-zçğıöşü]', caseSensitive: false);
+
+  /// [word]'ü [src] içinden yalnızca sözcük olarak (harf/rakam komşusu yoksa)
+  /// siler. Dart'ın `\b`'si Türkçe harflerde güvenilir olmadığı için elle
+  /// komşu denetimi yapılır.
+  static String _stripWord(String src, String word) {
+    if (word.isEmpty) return src;
+    return src.replaceAllMapped(
+      RegExp(RegExp.escape(word), caseSensitive: false),
+      (m) {
+        final before = m.start == 0 ? '' : src[m.start - 1];
+        final after = m.end >= src.length ? '' : src[m.end];
+        final okBefore = before.isEmpty || !_trWordChar.hasMatch(before);
+        final okAfter = after.isEmpty || !_trWordChar.hasMatch(after);
+        return (okBefore && okAfter) ? ' ' : m.group(0)!;
+      },
+    );
+  }
+
+  /// [needle]'ı kelime sınırıyla arar. Türkçe karakterler `\b` ile güvenilir
+  /// olmadığından, çevresini boşluk/başlangıç/son/noktalama ile kontrol eder.
+  static bool _containsWord(String haystack, String needle) {
+    if (needle.isEmpty) return false;
+    final idx = haystack.indexOf(needle);
+    if (idx < 0) return false;
+    final before = idx == 0 ? ' ' : haystack[idx - 1];
+    final afterIdx = idx + needle.length;
+    final after = afterIdx >= haystack.length ? ' ' : haystack[afterIdx];
+    final boundary = RegExp(r'[\s.,;:!?()\-]');
+    return boundary.hasMatch(before) && boundary.hasMatch(after);
+  }
+}
+
+/// [PlanParser.parse] çıktısı. Tüm alanlar opsiyonel — ne yakalandıysa o dolu.
+class ParsedPlan {
+  /// Temizlenmiş görev başlığı (tarih/süre/tekrar ifadeleri çıkarılmış).
+  final String title;
+  final String? subjectId;
+  final String? subjectName;
+  final DateTime? date;
+  final int? durationMinutes;
+
+  /// 'none' | 'daily' | 'weekly' — `taskProvider.addRecurringTask` ile aynı sözlük.
+  final String recurrence;
+
+  const ParsedPlan({
+    required this.title,
+    this.subjectId,
+    this.subjectName,
+    this.date,
+    this.durationMinutes,
+    this.recurrence = 'none',
+  });
+
+  const ParsedPlan.empty()
+      : title = '',
+        subjectId = null,
+        subjectName = null,
+        date = null,
+        durationMinutes = null,
+        recurrence = 'none';
+
+  /// Hiçbir yapılandırılmış sinyal yakalanmadı — çağıran taraf metni düz
+  /// başlık olarak kullanabilir ya da kullanıcıdan netleştirme isteyebilir.
+  bool get hasSignal =>
+      subjectId != null ||
+      subjectName != null ||
+      date != null ||
+      durationMinutes != null ||
+      recurrence != 'none';
+
+  @override
+  String toString() =>
+      'ParsedPlan(title: "$title", subject: $subjectName/$subjectId, '
+      'date: $date, dur: $durationMinutes, rec: $recurrence)';
+}
+
+class _SubjectMatch {
+  final String? id;
+  final String name;
+  const _SubjectMatch(this.id, this.name);
+}
