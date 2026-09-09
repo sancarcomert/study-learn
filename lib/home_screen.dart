@@ -15,6 +15,7 @@ import 'add_task_screen.dart';
 import 'smart_plan_screen.dart';
 import 'widgets/task_tile.dart';
 import 'stats_screen.dart';
+import 'profile_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_snackbar.dart';
@@ -266,7 +267,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const _BrandMark(),
                     _ProfileRing(
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const StatsScreen()),
+                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
                       ),
                     ),
                   ],

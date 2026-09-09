@@ -6,7 +6,6 @@ import 'app_text_styles.dart';
 import 'stats_provider.dart';
 import 'subject_provider.dart';
 import 'task_provider.dart';
-import 'stats_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
 
@@ -219,53 +218,6 @@ class ProfileScreen extends ConsumerWidget {
                   minutes: stats.totalStudyMinutes,
                 ),
               ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          TapScale(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const StatsScreen()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppColors.softShadow,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.tonal(AppColors.primary),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.bar_chart,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      'Tüm İstatistikleri Gör',
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: AppColors.textSecondary,
-                  ),
-                ],
-              ),
             ),
           ),
         ],
