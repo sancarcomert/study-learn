@@ -73,8 +73,11 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 
 **Spec yol haritası:**
 - ✅ **P1 — Sınav sayacı** (commit `7014fa6`): `examDate` nullable Hive alanı, Home rozeti, İstatistik kartı, onboarding seçici.
-- ✅ **P2 — Odak seansı** (commit `e69936f`): `focus_screen.dart` yerel kronometre, Plan sekmesinden giriş. v1 tek seans (Pomodoro döngüsü yok). Sınır: `totalStudyMinutes` çift-sayım olası (P2.5).
-- **P2.5** (opsiyonel): odak/görev süre ayrımı, Pomodoro çalış/mola döngüsü, odağı görevden başlatma.
+- ✅ **P2 — Odak seansı** (commit `e69936f`): `focus_screen.dart` yerel kronometre, Plan sekmesinden giriş. v1 tek seans (Pomodoro döngüsü yok).
+- ✅ **P2.5** (`9a28089` + `ea1319a`): odağı görevden başlatma (task_tile ▶ butonu); odak/görev süre ayrımı — `focusMinutes` ayrı Hive alanı (`defaultValue: 0`), Profil'de "ÇALIŞMA SÜRESİ" iki satır.
+- **Kalan opsiyonel:** Pomodoro çalış/mola döngüsü.
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
+
+Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHub yok.
 
 **Sonra:** `pusula_yol_haritasi.md`'deki Faz 1 (Supabase backend temeli — şema, RLS, Auth). P1–P3 ile Faz 1 paralel yürütülmez.
