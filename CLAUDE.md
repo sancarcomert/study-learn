@@ -76,6 +76,12 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 - ✅ **P2 — Odak seansı** (commit `e69936f`): `focus_screen.dart` yerel kronometre, Plan sekmesinden giriş. v1 tek seans (Pomodoro döngüsü yok).
 - ✅ **P2.5** (`9a28089` + `ea1319a` + `ed74c20`): odağı görevden başlatma; odak/görev süre ayrımı (`focusMinutes` ayrı Hive alanı, `defaultValue: 0`); duvar-saati sayaç + PopScope geri-tuş koruması; sınav sayacı Home rozeti tıklanır + geçmiş-tarih picker çökmesi.
 - ✅ **Pomodoro** (`54057f9`): FocusScreen iki modlu (Serbest / Pomodoro). Çalışma bloğu → 5 dk mola → 4 turda 15 dk uzun mola. Tamamlanan blok anında `focusMinutes`'a. Bağımlılık yok.
+- ✅ **IA sadeleştirme** (`d18f72a`): Profil'den "Tüm İstatistikleri Gör" kaldırıldı; Home profil halkası → ProfileScreen. İstatistik tek gerçek giriş: alt nav + Home sınav rozeti.
+- ✅ **Kişiselleştirme + ipuçları** (`5fae800`): selam isimle + davranışa göre alt satır; Home'da tek seferlik görev ipucu şeridi (kaydır + ▶), `hasSeenTaskHints` alanı.
+
+### AI durumu / sınır
+- Mevcut = "seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini). LLM yok.
+- "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 1 (Supabase) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
 
 Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHub yok.
