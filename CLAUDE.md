@@ -78,11 +78,22 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 - ✅ **Pomodoro** (`54057f9`): FocusScreen iki modlu (Serbest / Pomodoro). Çalışma bloğu → 5 dk mola → 4 turda 15 dk uzun mola. Tamamlanan blok anında `focusMinutes`'a. Bağımlılık yok.
 - ✅ **IA sadeleştirme** (`d18f72a`): Profil'den "Tüm İstatistikleri Gör" kaldırıldı; Home profil halkası → ProfileScreen. İstatistik tek gerçek giriş: alt nav + Home sınav rozeti.
 - ✅ **Kişiselleştirme + ipuçları** (`5fae800`): selam isimle + davranışa göre alt satır; Home'da tek seferlik görev ipucu şeridi (kaydır + ▶), `hasSeenTaskHints` alanı.
+- ✅ **Seviye 1.5 yerel AI** (`2dd2a9c` → `737e20b`, 4 commit): LLM'siz.
+  - `plan_parser.dart` — serbest metin → {ders, tarih, süre, tekrar}. Türkçe regex + `SubjectAI`. Dart `\b` Türkçe harflerde çalışmadığından elle komşu-harf denetimi.
+  - `study_advisor.dart` — dersleri ihmal süresi + tamamlama oranı + sınav yakınlığı + bugünkü denge ile puanlayıp gerekçeli öneri.
+  - `plan_builder.dart` — plan üretiminin saf çekirdeği (girdi → `PlanBlock` listesi, hiçbir şey yazmaz).
+  - **Akıllı Plan tek moda indi** (`671d10f`): "Günümü Planla / Sınava Hazırlan" mod seçici silindi; sınav farkındalığı artık `examDate`'ten (≤30 gün → öncelikler yükselir). Çok güne yayılan konu dağıtımı çıkarıldı → **Konu Takip** modülüne bırakıldı (ayrı karar).
+  - **`smart_plan_screen.dart` silindi** → `coach_screen.dart` (rehberli sohbet: vakit → enerji → konu → öneri → ekle; açık uçlu chatbot değil). Home kral butonu + Plan sekmesi buraya.
+  - Home: `_QuickAddBar` (doğal-dil hızlı ekle) + bugün görev yokken `_SuggestionStrip` (StudyAdvisor önerileri).
+  - `test/` eklendi: 38 test (parser/advisor/builder). Repo'da başka test yoktu.
 
 ### AI durumu / sınır
-- Mevcut = "seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini). LLM yok.
+- "Seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini).
+- **"Seviye 1.5" (yukarıda, tamamlandı):** parser + advisor + builder + Çalışma Koçu. Hepsi yerel/kural tabanlı, salt okunur; görev oluşturma yine `taskProvider.addTask`.
 - "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 1 (Supabase) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
+- **Konu Takip modülü (açık karar):** ders→konu checklist + kapsama %'si + haftalık tekrarlı program. "Sınava Hazırlan" modunun eski işini devralır. Rakip-standardı ama modül boyutunda iş; `SubjectModel`'e `topics` alanı gerekir. P3 gibi ayrı go/no-go.
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
+- **Bilinen ufak pürüz:** Koç/Akıllı Plan ilk bloğu `DateTime.now()`'a planlıyor → plan gece yapılırsa görev "şimdi" görünüyor (eski SmartPlan davranışı, regresyon değil). İstenirse sonraki saate yuvarlanabilir.
 
 Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHub yok.
 
