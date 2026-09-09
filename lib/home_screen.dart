@@ -9,6 +9,7 @@ import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/next_task_card.dart';
 import 'widgets/eyebrow.dart';
+import 'widgets/exam_countdown.dart';
 import 'task_model.dart';
 import 'add_task_screen.dart';
 import 'smart_plan_screen.dart';
@@ -214,6 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final todayTasks = _sortedBySchedule(todayTasksRaw);
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
+    final examDate = ref.watch(statsProvider).examDate;
 
     final nextTask = allTasks
         .where((task) => task.scheduledTime != null && !task.isCompleted)
@@ -271,6 +273,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
+
+            if (examDate != null && daysUntilExam(examDate) >= 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ExamCountdownChip(examDate: examDate),
+                ),
+              ),
 
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),

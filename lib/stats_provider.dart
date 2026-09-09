@@ -34,6 +34,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       hasCompletedOnboarding: _stats.hasCompletedOnboarding,
       userName: _stats.userName,
       hasSeenNotificationPrompt: _stats.hasSeenNotificationPrompt,
+      examDate: _stats.examDate,
     );
   }
 
@@ -144,6 +145,15 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   void updateUserName(String name) {
     final trimmed = name.trim();
     _stats.userName = trimmed.isEmpty ? null : trimmed;
+    _stats.save();
+    _emit();
+  }
+
+  // Hedeflenen sınav tarihini kaydeder. null geçilirse geri sayım kaldırılır.
+  // Sadece gün hassasiyeti tutulur (saat/dakika sıfırlanır).
+  void setExamDate(DateTime? date) {
+    _stats.examDate =
+        date == null ? null : DateTime(date.year, date.month, date.day);
     _stats.save();
     _emit();
   }

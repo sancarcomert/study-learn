@@ -48,6 +48,12 @@ class UserStatsModel extends HiveObject {
   @HiveField(9)
   bool? hasSeenNotificationPrompt;
 
+  // Kullanıcının hedeflediği sınav tarihi (YKS vb). Opsiyonel — onboarding'de
+  // atlanabilir, sonradan İstatistik ekranından girilebilir. Null ise
+  // hiçbir yerde geri sayım gösterilmez.
+  @HiveField(10)
+  DateTime? examDate;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -59,5 +65,6 @@ class UserStatsModel extends HiveObject {
     this.hasCompletedOnboarding = false,
     this.userName,
     this.hasSeenNotificationPrompt = false,
+    this.examDate,
   });
 }

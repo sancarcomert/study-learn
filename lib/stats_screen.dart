@@ -4,6 +4,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'widgets/achievement_card.dart';
 import 'widgets/eyebrow.dart';
+import 'widgets/exam_countdown.dart';
 import 'task_provider.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
@@ -81,6 +82,27 @@ class StatsScreen extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+
+          const SizedBox(height: 12),
+          const Eyebrow(text: 'SINAV'),
+          const SizedBox(height: 12),
+          _ExamDateCard(
+            examDate: stats.examDate,
+            onPick: () async {
+              final notifier = ref.read(statsProvider.notifier);
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: stats.examDate ??
+                    now.add(const Duration(days: 90)),
+                firstDate: now,
+                lastDate: DateTime(now.year + 3, now.month, now.day),
+              );
+              if (picked != null) notifier.setExamDate(picked);
+            },
+            onClear: () =>
+                ref.read(statsProvider.notifier).setExamDate(null),
           ),
 
           const SizedBox(height: 28),
@@ -249,6 +271,82 @@ const SizedBox(height: 20), // DERS BAZLI DAĞILIM
               );
             }),
         ],
+      ),
+    );
+  }
+}
+
+class _ExamDateCard extends StatelessWidget {
+  final DateTime? examDate;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  const _ExamDateCard({
+    required this.examDate,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  static const _months = [
+    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final date = examDate;
+    return GestureDetector(
+      onTap: onPick,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.softShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.event_outlined,
+                  size: 20, color: AppColors.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: date == null
+                  ? Text('Sınav tarihi ekle',
+                      style: AppTextStyles.body
+                          .copyWith(fontWeight: FontWeight.w600))
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          examCountdownLabel(daysUntilExam(date)),
+                          style: AppTextStyles.body
+                              .copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${date.day} ${_months[date.month - 1]} ${date.year}',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+            ),
+            if (date == null)
+              const Icon(Icons.add, size: 20, color: AppColors.textSecondary)
+            else
+              GestureDetector(
+                onTap: onClear,
+                child: const Icon(Icons.close,
+                    size: 18, color: AppColors.textMuted),
+              ),
+          ],
+        ),
       ),
     );
   }
