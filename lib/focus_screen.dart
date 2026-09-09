@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
@@ -11,10 +13,13 @@ import 'widgets/eyebrow.dart';
 import 'widgets/animated_progress_bar.dart';
 import 'widgets/app_snackbar.dart';
 
-/// Tek seferlik odak seansı — yerel kronometre. "Bitir"de (ya da seans
-/// çalışırken geri çıkışta) geçen tam dakika `focusMinutes`'a eklenir.
-/// Süre duvar-saati farkıyla hesaplanır (tick sayarak değil) — arka plana
-/// alınca / jank olunca kaymaz. Pomodoro döngüsü v1'de yok.
+/// Odak seansı — iki mod:
+/// - **Serbest:** açık uçlu kronometre (sayar), hedef sadece görsel.
+/// - **Pomodoro:** çalışma bloğu → 5 dk mola döngüsü, 4 turda bir 15 dk
+///   uzun mola. Her tamamlanan çalışma bloğu anında `focusMinutes`'a yazılır.
+///
+/// Süre her yerde DUVAR-SAATİ farkıyla hesaplanır (tick sayarak değil) —
+/// arka plan / jank'te kaymaz. Bağımlılık yok, bildirim/ses yok (v1).
 class FocusScreen extends ConsumerStatefulWidget {
   final String? initialNote;
   final int? initialTargetMin;
@@ -25,31 +30,35 @@ class FocusScreen extends ConsumerStatefulWidget {
   ConsumerState<FocusScreen> createState() => _FocusScreenState();
 }
 
+enum _Mode { free, pomodoro }
+
+enum _Phase { work, shortBreak, longBreak }
+
 class _FocusScreenState extends ConsumerState<FocusScreen> {
   Timer? _ticker;
-
-  // Duraklatılmış segmentlerden biriken saniye + çalışan segmentin başlangıcı.
-  // Geçen süre = _committedSec + (çalışıyorsa now - _segmentStart).
-  int _committedSec = 0;
-  DateTime? _segmentStart;
-
-  bool _saved = false;
+  bool _running = false;
   bool _leaving = false;
 
-  late int _targetMin = widget.initialTargetMin ?? 25;
+  _Mode _mode = _Mode.free;
+  late int _blockMin = widget.initialTargetMin ?? 25;
 
   late final TextEditingController _noteController =
       TextEditingController(text: widget.initialNote ?? '');
 
-  static const List<int> _targetOptions = [15, 25, 30, 45, 60];
+  static const List<int> _blockOptions = [15, 25, 30, 45, 60];
+  static const int _shortBreakSec = 5 * 60;
+  static const int _longBreakSec = 15 * 60;
 
-  bool get _running => _segmentStart != null;
+  // Serbest mod: yukarı sayan geçen süre.
+  int _freeCommittedSec = 0;
+  DateTime? _freeSegStart;
+  bool _freeSaved = false;
 
-  int get _elapsedSec =>
-      _committedSec +
-      (_segmentStart == null
-          ? 0
-          : DateTime.now().difference(_segmentStart!).inSeconds);
+  // Pomodoro: mevcut fazın geçen süresi + tur sayacı.
+  _Phase _phase = _Phase.work;
+  int _pomoCycle = 1; // üzerinde çalışılan / son biten çalışma bloğu no'su
+  int _phaseAccumSec = 0;
+  DateTime? _phaseSegStart;
 
   @override
   void dispose() {
@@ -58,42 +67,153 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     super.dispose();
   }
 
-  void _toggle() {
-    if (_running) {
-      _committedSec = _elapsedSec;
-      _segmentStart = null;
-      _ticker?.cancel();
+  // ---- ortak ----
+
+  int get _freeElapsedSec =>
+      _freeCommittedSec +
+      (_freeSegStart == null
+          ? 0
+          : DateTime.now().difference(_freeSegStart!).inSeconds);
+
+  int get _phaseElapsedSec =>
+      _phaseAccumSec +
+      (_phaseSegStart == null
+          ? 0
+          : DateTime.now().difference(_phaseSegStart!).inSeconds);
+
+  int get _phaseTargetSec {
+    switch (_phase) {
+      case _Phase.work:
+        return _blockMin * 60;
+      case _Phase.shortBreak:
+        return _shortBreakSec;
+      case _Phase.longBreak:
+        return _longBreakSec;
+    }
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_mode == _Mode.pomodoro &&
+          _running &&
+          _phaseElapsedSec >= _phaseTargetSec) {
+        _advancePhase(auto: true);
+      }
       setState(() {});
-    } else {
-      _segmentStart = DateTime.now();
+    });
+  }
+
+  void _toggleRun() {
+    if (_running) {
+      // duraklat
+      if (_mode == _Mode.free) {
+        _freeCommittedSec = _freeElapsedSec;
+        _freeSegStart = null;
+      } else {
+        _phaseAccumSec = _phaseElapsedSec;
+        _phaseSegStart = null;
+      }
       _ticker?.cancel();
-      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() {});
-      });
+      setState(() => _running = false);
+    } else {
+      final now = DateTime.now();
+      if (_mode == _Mode.free) {
+        _freeSegStart = now;
+      } else {
+        _phaseSegStart = now;
+      }
+      _running = true;
+      _startTicker();
       setState(() {});
     }
   }
 
-  void _saveIfNeeded() {
+  void _switchMode(_Mode m) {
+    if (_running || m == _mode) return;
     _ticker?.cancel();
-    _committedSec = _elapsedSec;
-    _segmentStart = null;
-    final minutes = _committedSec ~/ 60;
-    if (_saved || minutes < 1) return;
-    _saved = true;
-    ref.read(statsProvider.notifier).addFocusMinutes(minutes);
-    final note = _noteController.text.trim();
-    AppSnackBar.success(
-      context,
-      note.isEmpty
-          ? '$minutes dk odak süresi kaydedildi'
-          : '$note · $minutes dk kaydedildi',
-    );
+    setState(() {
+      _mode = m;
+      _running = false;
+      _freeCommittedSec = 0;
+      _freeSegStart = null;
+      _freeSaved = false;
+      _phase = _Phase.work;
+      _pomoCycle = 1;
+      _phaseAccumSec = 0;
+      _phaseSegStart = null;
+    });
   }
 
-  /// Kaydet + ekrandan çık. Hem "Bitir" butonu hem geri tuşu buraya gelir.
-  /// _leaving bayrağı PopScope.canPop'u açar, böylece sonraki pop döngüye
-  /// girmeden geçer.
+  // ---- pomodoro faz geçişi ----
+
+  void _commitCurrentWorkBlock() {
+    if (_phase != _Phase.work) return;
+    final workedMin =
+        math.min(_phaseElapsedSec, _blockMin * 60) ~/ 60;
+    if (workedMin >= 1) {
+      ref.read(statsProvider.notifier).addFocusMinutes(workedMin);
+    }
+  }
+
+  /// [auto] true ise sayaç bittiği için otomatik geçiş; false ise molayı
+  /// kullanıcı elle geçti.
+  void _advancePhase({bool auto = false}) {
+    HapticFeedback.mediumImpact();
+    final wasWork = _phase == _Phase.work;
+
+    if (wasWork) {
+      _commitCurrentWorkBlock();
+      final isLong = _pomoCycle % 4 == 0;
+      _phase = isLong ? _Phase.longBreak : _Phase.shortBreak;
+      if (mounted) {
+        AppSnackBar.info(
+          context,
+          isLong ? 'Uzun mola · 15 dk' : 'Mola · 5 dk',
+        );
+      }
+    } else {
+      _pomoCycle++;
+      _phase = _Phase.work;
+      if (mounted && auto) {
+        AppSnackBar.info(context, '$_pomoCycle. tur — çalışmaya dön');
+      }
+    }
+
+    _phaseAccumSec = 0;
+    _phaseSegStart = _running ? DateTime.now() : null;
+    setState(() {});
+  }
+
+  // ---- çıkış ----
+
+  void _saveIfNeeded() {
+    _ticker?.cancel();
+    if (_mode == _Mode.free) {
+      _freeCommittedSec = _freeElapsedSec;
+      _freeSegStart = null;
+      final minutes = _freeCommittedSec ~/ 60;
+      if (!_freeSaved && minutes >= 1) {
+        _freeSaved = true;
+        ref.read(statsProvider.notifier).addFocusMinutes(minutes);
+        final note = _noteController.text.trim();
+        AppSnackBar.success(
+          context,
+          note.isEmpty
+              ? '$minutes dk odak süresi kaydedildi'
+              : '$note · $minutes dk kaydedildi',
+        );
+      }
+    } else {
+      // pomodoro: tamamlanan bloklar zaten yazıldı; yalnız mevcut kısmi
+      // çalışma bloğunu ekle.
+      _commitCurrentWorkBlock();
+      _phaseSegStart = null;
+    }
+    _running = false;
+  }
+
   void _exit() {
     _saveIfNeeded();
     if (!mounted || _leaving) return;
@@ -103,26 +223,61 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     });
   }
 
-  String get _clock {
-    final total = _elapsedSec;
-    final m = (total ~/ 60).toString().padLeft(2, '0');
-    final s = (total % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+  bool get _hasUnsavedProgress {
+    if (_running) return true;
+    if (_mode == _Mode.free) return _freeElapsedSec >= 60;
+    return _phase == _Phase.work && _phaseElapsedSec >= 60;
+  }
+
+  // ---- görünüm ----
+
+  String _fmt(int totalSec) {
+    final s = totalSec.abs();
+    final m = (s ~/ 60).toString().padLeft(2, '0');
+    final ss = (s % 60).toString().padLeft(2, '0');
+    return '$m:$ss';
+  }
+
+  String get _phaseLabel {
+    switch (_phase) {
+      case _Phase.work:
+        return 'Çalışma · $_pomoCycle. tur';
+      case _Phase.shortBreak:
+        return 'Kısa mola';
+      case _Phase.longBreak:
+        return 'Uzun mola';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final elapsedSec = _elapsedSec;
-    final targetSec = _targetMin * 60;
-    final reached = targetSec > 0 && elapsedSec >= targetSec;
-    final progress =
-        targetSec == 0 ? 0.0 : (elapsedSec / targetSec).clamp(0.0, 1.0);
-    final accent = reached ? AppColors.success : AppColors.primary;
+    final isBreak = _mode == _Mode.pomodoro && _phase != _Phase.work;
+
+    // ---- ana sayaç metni + ilerleme ----
+    final String clock;
+    final double progress;
+    final bool reached;
+    if (_mode == _Mode.free) {
+      final e = _freeElapsedSec;
+      final target = _blockMin * 60;
+      clock = _fmt(e);
+      progress = target == 0 ? 0 : (e / target).clamp(0.0, 1.0);
+      reached = target > 0 && e >= target;
+    } else {
+      final remaining = _phaseTargetSec - _phaseElapsedSec;
+      clock = _fmt(remaining < 0 ? 0 : remaining);
+      progress = _phaseTargetSec == 0
+          ? 0
+          : (_phaseElapsedSec / _phaseTargetSec).clamp(0.0, 1.0);
+      reached = false;
+    }
+
+    final accent = isBreak
+        ? AppColors.success
+        : (reached ? AppColors.success : AppColors.primary);
 
     return PopScope(
-      // Anlamlı süre birikmişse (>= 1 dk) ya da sayaç çalışıyorsa geri
-      // tuşunu yakala — sessizce kaybetme, kaydet ve öyle çık.
-      canPop: _leaving || (!_running && elapsedSec < 60),
+      canPop: _leaving || !_hasUnsavedProgress,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _exit();
       },
@@ -136,6 +291,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
               children: [
                 const Eyebrow(text: 'ODAK SEANSI'),
                 const SizedBox(height: 12),
+
+                // mod seçici
+                _ModeToggle(
+                  mode: _mode,
+                  enabled: !_running,
+                  onChanged: _switchMode,
+                ),
+
+                const SizedBox(height: 16),
                 TextField(
                   controller: _noteController,
                   textInputAction: TextInputAction.done,
@@ -144,16 +308,16 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 44),
+                const SizedBox(height: 40),
 
                 Center(
                   child: Text(
-                    _clock,
+                    clock,
                     style: AppTextStyles.heading1.copyWith(
                       fontSize: 64,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1,
-                      color: reached
+                      color: (isBreak || reached)
                           ? AppColors.success
                           : AppColors.textPrimary,
                     ),
@@ -162,9 +326,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    reached ? 'hedefe ulaştın 🎯' : 'hedef $_targetMin dk',
+                    _mode == _Mode.free
+                        ? (reached ? 'hedefe ulaştın 🎯' : 'hedef $_blockMin dk')
+                        : _phaseLabel,
                     style: AppTextStyles.caption.copyWith(
-                      color: reached ? AppColors.success : AppColors.textMuted,
+                      color: (isBreak || reached)
+                          ? AppColors.success
+                          : AppColors.textMuted,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -178,44 +347,74 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                 ),
 
                 const SizedBox(height: 24),
-                Wrap(
-                  spacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: _targetOptions.map((min) {
-                    final selected = _targetMin == min;
-                    return TapScale(
-                      onTap: () => setState(() => _targetMin = min),
+                if (!isBreak)
+                  Wrap(
+                    spacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: _blockOptions.map((min) {
+                      final selected = _blockMin == min;
+                      return TapScale(
+                        onTap: _running
+                            ? () {}
+                            : () => setState(() => _blockMin = min),
+                        child: Opacity(
+                          opacity: _running ? 0.4 : 1,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.tonal(AppColors.primary),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '$min dk',
+                              style: AppTextStyles.body.copyWith(
+                                color: selected
+                                    ? AppColors.ink
+                                    : AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  )
+                else
+                  Center(
+                    child: TapScale(
+                      onTap: () => _advancePhase(auto: false),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
+                          horizontal: 18,
+                          vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.tonal(AppColors.primary),
+                          color: AppColors.tonal(AppColors.success),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '$min dk',
+                          'Molayı geç',
                           style: AppTextStyles.body.copyWith(
-                            color:
-                                selected ? AppColors.ink : AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  ),
 
-                const SizedBox(height: 44),
+                const SizedBox(height: 40),
 
                 Row(
                   children: [
                     Expanded(
                       child: TapScale(
-                        onTap: _toggle,
+                        onTap: _toggleRun,
                         child: Container(
                           height: 64,
                           alignment: Alignment.center,
@@ -264,6 +463,63 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeToggle extends StatelessWidget {
+  final _Mode mode;
+  final bool enabled;
+  final ValueChanged<_Mode> onChanged;
+
+  const _ModeToggle({
+    required this.mode,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            _seg('Serbest', _Mode.free),
+            _seg('Pomodoro', _Mode.pomodoro),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _seg(String label, _Mode value) {
+    final selected = mode == value;
+    return Expanded(
+      child: TapScale(
+        onTap: enabled ? () => onChanged(value) : null,
+        child: Container(
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              color: selected ? AppColors.ink : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
             ),
           ),
         ),
