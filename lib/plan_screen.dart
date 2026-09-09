@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'smart_plan_screen.dart';
+import 'focus_screen.dart';
 import 'tap_scale.dart';
 
 class PlanScreen extends StatelessWidget {
@@ -14,68 +15,84 @@ class PlanScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text("Plan", style: AppTextStyles.heading2),
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(24),
+        children: [
+          _PlanEntry(
+            icon: Icons.auto_awesome_outlined,
+            title: "Akıllı Plan",
+            subtitle: "Günü planla veya sınavına hazırlan",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SmartPlanScreen()),
+            ),
           ),
-          child: TapScale(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SmartPlanScreen(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(18),
+          const SizedBox(height: 12),
+          _PlanEntry(
+            icon: Icons.timer_outlined,
+            title: "Odak Seansı",
+            subtitle: "Kronometreyle çalış, süren kaydedilsin",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FocusScreen()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanEntry extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _PlanEntry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppColors.cardShadow,
+                color: AppColors.tonal(AppColors.primary),
+                shape: BoxShape.circle,
               ),
-              child: Row(
+              child: Icon(icon, color: AppColors.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.tonal(AppColors.primary),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome_outlined,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Akıllı Plan", style: AppTextStyles.heading3),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Günü planla veya sınavına hazırlan",
-                          style: AppTextStyles.bodySecondary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: AppColors.textSecondary,
-                  ),
+                  Text(title, style: AppTextStyles.heading3),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: AppTextStyles.bodySecondary),
                 ],
               ),
             ),
-          ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
         ),
       ),
     );

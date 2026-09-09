@@ -220,7 +220,7 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    'Tamamlanan görevlerle geçirilen süre',
+                    'Görev ve odak seanslarıyla geçirilen süre',
                     style: AppTextStyles.bodySecondary,
                   ),
                 ),
