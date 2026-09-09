@@ -87,12 +87,17 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
   - Home: `_QuickAddBar` **eklendi sonra kaldırıldı** (`638f2c6`) — + FAB ile mükerrerdi. Bugün görev yokken `_SuggestionStrip` (StudyAdvisor önerileri) kaldı.
   - `test/` eklendi: 45 test (parser/advisor/builder). Repo'da başka test yoktu.
 - ✅ **Onboarding + hedef** (`c82e08a`): onboarding en üste "ADIN" alanı (isim soyisim → `updateUserName`); **sınav tarihi seçici kaldırıldı** — kullanıcı girmedikçe geri sayım yok (giriş artık yalnız İstatistik ekranından). `UserStatsModel.dailyGoal` 3 → 1 (yeni kayıt; migration yok). Hedef kutlaması (konfeti dialog) günde bir kez — `home_screen._celebratedOn`.
+- ✅ **Konu Takip modülü** (`4423e2f` → `9e0fbe5`, 4 commit, cihazda test): **mevcut SubjectModel'e dokunulmadı** — ayrı Hive box (`topics`, typeId 6-7), `subjectId` ile bağlı.
+  - `topic_model` (TopicStatus: başlanmadı/çalışıldı/tekrar — "soru çözüldü" YOK), `topic_repository`, `topic_provider` (`coverageBySubjectProvider`, `topicsForSubjectProvider`), `topic_catalog` (12 ders YKS yaygın konu listesi).
+  - `konu_takip_screen` (özet: genel % + ders listesi + sütun grafiği) → `subject_topics_screen` (satıra dokun = durum döngüsü, sola kaydır = sil, "Yaygın konuları ekle", alt barda konu ekle). Plan sekmesi 3. giriş.
+  - `widgets/coverage_bar_chart` (fl_chart) — Konu Takip özeti + İstatistik "KONU KAPSAMASI" kartı.
+  - **AI bağlandı:** `StudyAdvisor.suggest(coveragePercent:)` düşük kapsamlı dersi öne çıkarır; `PlanBuilder.build(uncoveredTopics:, fillToCapacity:)` görev başlıklarını gerçek boş konulardan üretir. Koç "sen ayarla" → işaretlenmemiş konulardan dolu program.
 
 ### AI durumu / sınır
 - "Seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini).
 - **"Seviye 1.5" (yukarıda, tamamlandı):** parser + advisor + builder + Çalışma Koçu. Hepsi yerel/kural tabanlı, salt okunur; görev oluşturma yine `taskProvider.addTask`.
 - "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 1 (Supabase) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
-- **Konu Takip modülü — SIRADA (kullanıcı onayladı):** ders→konu checklist + kapsama %'si + haftalık tekrarlı program. "Sınava Hazırlan" modunun eski işini devralır. `SubjectModel`'e `topics` nullable Hive alanı gerekir (`@HiveField(4)`, migration tuzağına dikkat).
+- **Konu Takip modülü — ✅ TAMAMLANDI** (`4423e2f`→`9e0fbe5`). Kalan opsiyonel: haftalık tekrarlı program üretimi (şu an tek günlük), konu bazlı güven/seviye, ders silinince konuları temizleme (şu an orphan kalıyor ama her yerde filtreleniyor).
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
 - **Bilinen ufak pürüz:** Koç/Akıllı Plan ilk bloğu `DateTime.now()`'a planlıyor → plan gece yapılırsa görev "şimdi" görünüyor (eski SmartPlan davranışı, regresyon değil). İstenirse sonraki saate yuvarlanabilir.
 
