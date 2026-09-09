@@ -78,14 +78,14 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 - ✅ **Pomodoro** (`54057f9`): FocusScreen iki modlu (Serbest / Pomodoro). Çalışma bloğu → 5 dk mola → 4 turda 15 dk uzun mola. Tamamlanan blok anında `focusMinutes`'a. Bağımlılık yok.
 - ✅ **IA sadeleştirme** (`d18f72a`): Profil'den "Tüm İstatistikleri Gör" kaldırıldı; Home profil halkası → ProfileScreen. İstatistik tek gerçek giriş: alt nav + Home sınav rozeti.
 - ✅ **Kişiselleştirme + ipuçları** (`5fae800`): selam isimle + davranışa göre alt satır; Home'da tek seferlik görev ipucu şeridi (kaydır + ▶), `hasSeenTaskHints` alanı.
-- ✅ **Seviye 1.5 yerel AI** (`2dd2a9c` → `737e20b`, 4 commit): LLM'siz.
-  - `plan_parser.dart` — serbest metin → {ders, tarih, süre, tekrar}. Türkçe regex + `SubjectAI`. Dart `\b` Türkçe harflerde çalışmadığından elle komşu-harf denetimi.
+- ✅ **Seviye 1.5 yerel AI** (`2dd2a9c` → `638f2c6`, 6 commit): LLM'siz.
+  - `plan_parser.dart` — serbest metin → {ders, tarih, **saat**, süre, tekrar}. Türkçe regex + `SubjectAI`. Dart `\b` Türkçe harflerde çalışmadığından elle komşu-harf denetimi. Saat: "15:30", "saat 3", "akşam 8", "sabah 9"; "akşam 1 saat" (süre) / "3 saat 15 dk" ayrımı korunur.
   - `study_advisor.dart` — dersleri ihmal süresi + tamamlama oranı + sınav yakınlığı + bugünkü denge ile puanlayıp gerekçeli öneri.
   - `plan_builder.dart` — plan üretiminin saf çekirdeği (girdi → `PlanBlock` listesi, hiçbir şey yazmaz).
   - **Akıllı Plan tek moda indi** (`671d10f`): "Günümü Planla / Sınava Hazırlan" mod seçici silindi; sınav farkındalığı artık `examDate`'ten (≤30 gün → öncelikler yükselir). Çok güne yayılan konu dağıtımı çıkarıldı → **Konu Takip** modülüne bırakıldı (ayrı karar).
-  - **`smart_plan_screen.dart` silindi** → `coach_screen.dart` (rehberli sohbet: vakit → enerji → konu → öneri → ekle; açık uçlu chatbot değil). Home kral butonu + Plan sekmesi buraya.
-  - Home: `_QuickAddBar` (doğal-dil hızlı ekle) + bugün görev yokken `_SuggestionStrip` (StudyAdvisor önerileri).
-  - `test/` eklendi: 38 test (parser/advisor/builder). Repo'da başka test yoktu.
+  - **`smart_plan_screen.dart` silindi** → `coach_screen.dart`. **Çip YOK** — koç doğal dille sorar, kullanıcı yazar (`638f2c6` geri bildirimi). Alt bar = sadece metin alanı; onay beklerken tek "Ekle" CTA'sı. Eksik alanı tek tek sorar (ders → süre → gün → tekrar). "sen ayarla / bilmiyorum" → devralma modu, koç günü `PlanBuilder` ile kurar. Enerji sorusu yok. Home kral butonu + Plan sekmesi buraya.
+  - Home: `_QuickAddBar` **eklendi sonra kaldırıldı** (`638f2c6`) — + FAB ile mükerrerdi. Bugün görev yokken `_SuggestionStrip` (StudyAdvisor önerileri) kaldı.
+  - `test/` eklendi: 45 test (parser/advisor/builder). Repo'da başka test yoktu.
 
 ### AI durumu / sınır
 - "Seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini).
