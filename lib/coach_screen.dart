@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
-import 'tap_scale.dart';
-import 'add_subject_sheet.dart';
 import 'plan_builder.dart';
 import 'plan_parser.dart';
 import 'study_advisor.dart';
@@ -16,10 +14,10 @@ import 'stats_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/exam_countdown.dart';
 
-/// Rehberli sohbet planlayıcı — eski form tabanlı SmartPlanScreen'in yerini
-/// alır. Açık uçlu bir chatbot DEĞİL: koç önce konuşur, kullanıcı çiplerle
-/// ve tek bir serbest metin alanıyla ilerler. Tüm mantık yerel
-/// ([StudyAdvisor] + [PlanParser] + [PlanBuilder]); LLM yok.
+/// Çalışma Koçu — serbest sohbetle plan kurar. Çip / çoktan seçmeli YOK:
+/// koç doğal dille sorar, kullanıcı yazar, [PlanParser] ayrıştırır, eksik
+/// kalanı koç tek tek ister. "Sen ayarla" denince koç günü kendi kurar
+/// ([PlanBuilder]). Tüm mantık yerel — LLM yok.
 class CoachScreen extends ConsumerStatefulWidget {
   const CoachScreen({super.key});
 
@@ -27,35 +25,40 @@ class CoachScreen extends ConsumerStatefulWidget {
   ConsumerState<CoachScreen> createState() => _CoachScreenState();
 }
 
-enum _Phase { needSubject, hours, energy, topic, proposal, done }
-
 class _CoachScreenState extends ConsumerState<CoachScreen> {
   final _scroll = ScrollController();
-  final _topicController = TextEditingController();
+  final _input = TextEditingController();
   final List<_Turn> _turns = [];
 
-  _Phase _phase = _Phase.hours;
+  final _Draft _draft = _Draft();
+  bool _delegate = false;
+  bool _askedRecurrence = false;
 
-  int _hours = 2;
-  String _energy = 'orta';
-  ParsedPlan? _parsed;
-  PlanResult? _result;
-  int _plannedCount = 0;
+  // Onaya sunulmuş plan (varsa). Tek görev ya da çok görevli gün planı.
+  List<PlanBlock>? _pending;
+  String _pendingRecurrence = 'none';
+  bool _pendingIsDay = false;
+
+  bool _hasInput = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startIntro());
+    _input.addListener(() {
+      final has = _input.text.trim().isNotEmpty;
+      if (has != _hasInput) setState(() => _hasInput = has);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _intro());
   }
 
   @override
   void dispose() {
     _scroll.dispose();
-    _topicController.dispose();
+    _input.dispose();
     super.dispose();
   }
 
-  // --- Konuşma yardımcıları ------------------------------------------
+  // --- Konuşma ------------------------------------------------------
 
   void _say(String text, {bool coach = true}) {
     setState(() => _turns.add(_Turn(coach: coach, text: text)));
@@ -63,105 +66,225 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       if (_scroll.hasClients) {
         _scroll.animateTo(
           _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  void _startIntro() {
+  void _intro() {
+    final stats = ref.read(statsProvider);
+    final name = stats.userName?.trim();
+    _say(name != null && name.isNotEmpty
+        ? 'Selam $name 👋 Nasıl gidiyor?'
+        : 'Selam 👋 Nasıl gidiyor?');
+
+    final examDate = stats.examDate;
+    final examLine = (examDate != null && daysUntilExam(examDate) >= 0)
+        ? ' Sınava ${daysUntilExam(examDate)} gün var.'
+        : '';
+    _say('Bugün nasıl planlayalım?$examLine Ne çalışmak istediğini ve ne '
+        'kadar vaktin olduğunu yaz — ya da "sen ayarla" de, ben kurayım.');
+  }
+
+  // --- Girdi işleme ----------------------------------------------
+
+  static final _confirm = RegExp(
+      r'^(ekle|tamam|evet|olur|kaydet|ekleyebilirsin|onayla|kabul)\b');
+  static final _restart =
+      RegExp(r'\b(baştan|bastan|iptal|vazgeç|vazgec|sıfırla|sifirla)\b');
+  static final _finish = RegExp(
+      r'\b(bitir|kapat|yeter|işim bitti|isim bitti|bu kadar|sağ ol|sag ol|teşekkür|tesekkur|yok(?: bu kadar)?)\b');
+  static final _delegateRe = RegExp(
+      r'\b(sen ayarla|sen yap|sen kur|sen karar|sana bırak|sana birak|sen bil|bilmiyorum|fark etmez|farketmez|önemli değil|onemli degil)\b');
+
+  void _onSend() {
+    final raw = _input.text.trim();
+    if (raw.isEmpty) return;
+    _input.clear();
+    FocusScope.of(context).unfocus();
+    _say(raw, coach: false);
+
+    final low = raw.toLowerCase().replaceAll('̇', '');
+
+    if (_pending != null && _confirm.hasMatch(low)) {
+      _commit();
+      return;
+    }
+    if (_restart.hasMatch(low)) {
+      _draft.reset();
+      _pending = null;
+      _delegate = false;
+      _askedRecurrence = false;
+      _say('Tamam, temizledim. Baştan anlat bakalım.');
+      return;
+    }
+    if (_pending == null && _draft.isEmpty && _finish.hasMatch(low)) {
+      _say('Kolay gelsin 👋');
+      return;
+    }
+
+    if (_delegateRe.hasMatch(low)) _delegate = true;
+
+    final parsed = PlanParser.parse(raw, subjects: ref.read(subjectProvider));
+    _merge(parsed, raw);
+
+    // Onay beklerken gelen serbest metin = düzenleme; yeni bilgiyi al, planı
+    // tazele.
+    _pending = null;
+    _advance();
+  }
+
+  void _merge(ParsedPlan p, String raw) {
+    if (p.date != null) _draft.day = p.date;
+    if (p.durationMinutes != null) _draft.minutes = p.durationMinutes;
+    if (p.recurrence != 'none') _draft.recurrence = p.recurrence;
+    if (p.hasTime) {
+      _draft.hour = p.hour;
+      _draft.minute = p.minute ?? 0;
+    }
+    if (p.subjectId != null) {
+      _draft.subjectId = p.subjectId;
+      _draft.subjectName = p.subjectName;
+    } else if (p.subjectName != null) {
+      _draft.subjectName = p.subjectName;
+    }
+
+    final t = p.title.trim();
+    final sameAsSubject =
+        t.toLowerCase() == (p.subjectName ?? '').toLowerCase();
+    if (t.isNotEmpty && p.hasSignal && !sameAsSubject) {
+      _draft.topic = t;
+    } else if (!_draft.hasSubject && !p.hasSignal && t.isNotEmpty) {
+      // Sinyalsiz düz cevap ("deneme analizi") → konu olarak kabul et.
+      _draft.topic = raw.trim();
+    }
+  }
+
+  // --- Akış kararı ---------------------------------------------
+
+  int _q = 0;
+  String _pick(List<String> options) => options[_q++ % options.length];
+
+  void _advance() {
     final subjects = ref.read(subjectProvider);
     if (subjects.isEmpty) {
-      setState(() => _phase = _Phase.needSubject);
-      _say('Başlamadan önce en az bir ders eklemelisin.');
+      _say('Önce en az bir ders eklemen lazım — sağ alttaki + ile '
+          'ekleyip geri gelebilirsin.');
       return;
     }
 
-    final stats = ref.read(statsProvider);
-    final allTasks = ref.read(taskProvider);
-    final examDate = stats.examDate;
-    final examDays = examDate == null ? null : daysUntilExam(examDate);
+    if (_delegate) {
+      if (_draft.minutes == null) {
+        _say(_pick([
+          'Tamam, ben kurayım. Bugün toplam ne kadar vaktin var?',
+          'Olur, devralıyorum. Kaç saatin var bugün?',
+        ]));
+        return;
+      }
+      _proposeDay();
+      return;
+    }
 
+    if (!_draft.hasSubject) {
+      _say(_pick([
+        'Ne çalışmak istiyorsun?',
+        'Hangi derse / konuya bakalım?',
+      ]));
+      return;
+    }
+    if (_draft.minutes == null) {
+      _say(_pick([
+        'Ne kadar ayıralım buna?',
+        'Kaç dakika / saat düşünüyorsun?',
+      ]));
+      return;
+    }
+    if (_draft.day == null) {
+      _say(_pick([
+        'Ne zaman? Bugün, yarın ya da bir gün söyle.',
+        'Hangi gün olsun — bugün mü, yarın mı?',
+      ]));
+      return;
+    }
+    if (_draft.recurrence == 'none' && !_askedRecurrence) {
+      _askedRecurrence = true;
+      _say('Tek sefer mi, yoksa tekrar mı etsin? (ör. "her gün", '
+          '"her pazartesi" ya da "tek sefer")');
+      return;
+    }
+
+    _proposeSingle();
+  }
+
+  // --- Öneri ---------------------------------------------------
+
+  static const _months = [
+    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
+  ];
+
+  String _dayLabel(DateTime d) {
     final now = DateTime.now();
-    final todayIncomplete = allTasks
-        .where((t) =>
-            !t.isCompleted &&
-            t.dueDate.year == now.year &&
-            t.dueDate.month == now.month &&
-            t.dueDate.day == now.day)
-        .length;
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = DateTime(d.year, d.month, d.day).difference(today).inDays;
+    if (diff == 0) return 'Bugün';
+    if (diff == 1) return 'Yarın';
+    return '${d.day} ${_months[d.month - 1]}';
+  }
 
-    final advisor = StudyAdvisor.suggest(
-      subjects: subjects,
-      tasks: allTasks,
-      examDate: examDate,
-      limit: 1,
-    );
+  String _hhmm(int h, int m) =>
+      '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
 
-    final name = stats.userName?.trim();
-    final parts = <String>[
-      (name != null && name.isNotEmpty) ? 'Merhaba $name.' : 'Merhaba.',
-      todayIncomplete == 0
-          ? 'Bugün için planlı görevin yok.'
-          : 'Bugün $todayIncomplete planlı görevin var.',
+  String _recLabel(String r) => switch (r) {
+        'daily' => ' · her gün',
+        'weekly' => ' · her hafta',
+        _ => '',
+      };
+
+  String _composeTitle() {
+    final s = _draft.subjectName;
+    final t = _draft.topic;
+    if (s != null && t != null && t.toLowerCase() != s.toLowerCase()) {
+      return '$s: $t';
+    }
+    return t ?? s ?? 'Çalışma';
+  }
+
+  void _proposeSingle() {
+    final day = _draft.day ?? DateTime.now();
+    final minutes = _draft.minutes ?? 45;
+    final start = _draft.hour != null
+        ? DateTime(day.year, day.month, day.day, _draft.hour!, _draft.minute ?? 0)
+        : day;
+
+    _pending = [
+      PlanBlock(
+        title: _composeTitle(),
+        subjectId: _draft.subjectId ?? '',
+        minutes: minutes,
+        startTime: start,
+        priority: TaskPriority.medium,
+      ),
     ];
-    if (examDays != null && examDays >= 0) {
-      parts.add('Sınava $examDays gün.');
-    }
-    if (advisor.isNotEmpty) {
-      parts.add(
-        '${advisor.first.subjectName} — ${advisor.first.reason.toLowerCase()}; '
-        'oradan başlayabiliriz.',
-      );
-    }
+    _pendingRecurrence = _draft.recurrence;
+    _pendingIsDay = false;
 
-    _say(parts.join(' '));
-    _say('Bugün ne kadar vaktin var?');
-    setState(() => _phase = _Phase.hours);
+    final timePart =
+        _draft.hour != null ? ' · ${_hhmm(_draft.hour!, _draft.minute ?? 0)}' : '';
+    _say('Şöyle olsun mu?\n\n'
+        '${_dayLabel(day)}$timePart${_recLabel(_draft.recurrence)}\n'
+        '${_composeTitle()} · $minutes dk\n\n'
+        '"ekle" yaz ya da neyi değiştireceğini söyle.');
   }
 
-  // --- Adım geçişleri ----------------------------------------------
-
-  void _pickHours(int h) {
-    _say('$h saat', coach: false);
-    _hours = h;
-    _say('Enerjin nasıl?');
-    setState(() => _phase = _Phase.energy);
-  }
-
-  void _pickEnergy(String label, String value) {
-    _say(label, coach: false);
-    _energy = value;
-    _say('Belirli bir ders ya da konu var mı? Yazabilirsin ya da geç.');
-    setState(() => _phase = _Phase.topic);
-  }
-
-  void _submitTopic() {
-    final text = _topicController.text.trim();
-    _topicController.clear();
-    if (text.isEmpty) {
-      _skipTopic();
-      return;
-    }
-    _say(text, coach: false);
-    _parsed = PlanParser.parse(text, subjects: ref.read(subjectProvider));
-    _buildProposal();
-  }
-
-  void _skipTopic() {
-    _say('Geç', coach: false);
-    _parsed = null;
-    _buildProposal();
-  }
-
-  void _buildProposal() {
+  void _proposeDay() {
     final subjects = ref.read(subjectProvider);
     final allTasks = ref.read(taskProvider);
     final examDate = ref.read(statsProvider).examDate;
     final examDays = examDate == null ? null : daysUntilExam(examDate);
 
-    // Ders sırası: önce StudyAdvisor'ın önerdiği sıra, sonra kalanlar.
     final advisorIds = StudyAdvisor.suggest(
       subjects: subjects,
       tasks: allTasks,
@@ -170,109 +293,83 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     ).map((s) => s.subjectId).toList();
 
     final ordered = <SubjectModel>[
-      for (final id in advisorIds)
-        subjects.firstWhere((s) => s.id == id),
+      for (final id in advisorIds) subjects.firstWhere((s) => s.id == id),
       for (final s in subjects)
         if (!advisorIds.contains(s.id)) s,
     ];
 
-    SubjectModel? explicit;
-    final topics = <String>[];
-    final parsed = _parsed;
-    if (parsed != null) {
-      if (parsed.subjectId != null) {
-        explicit = subjects.firstWhere(
-          (s) => s.id == parsed.subjectId,
-          orElse: () => ordered.first,
-        );
-      }
-      // Kalan başlık metnini tek konu etiketi olarak kullan (virgülle bölerek).
-      for (final t in parsed.title.split(',')) {
-        final trimmed = t.trim();
-        if (trimmed.isNotEmpty &&
-            (explicit == null ||
-                trimmed.toLowerCase() != explicit.name.toLowerCase())) {
-          topics.add(trimmed);
-        }
-      }
-    }
-
+    final hours = (_draft.minutes! / 60).round().clamp(1, 12);
     final result = PlanBuilder.build(
       orderedSubjects: ordered,
-      explicitSubject: explicit,
-      topics: topics,
-      hoursAvailable: _hours,
-      energy: _energy,
+      hoursAvailable: hours,
+      energy: 'orta',
       examDays: examDays,
     );
 
     if (result.isEmpty) {
-      _say('Bu ayarlarla sığan bir blok çıkmadı. Biraz daha vakit ya da '
-          'yüksek enerji seçip tekrar deneyelim mi?');
-      setState(() => _phase = _Phase.hours);
-      _say('Bugün ne kadar vaktin var?');
+      _say('Bu kadar vakitle bir blok bile çıkmadı. Biraz daha vakit yazar '
+          'mısın?');
+      _draft.minutes = null;
       return;
     }
 
-    _result = result;
-    _plannedCount = result.blocks.length;
+    _pending = result.blocks;
+    _pendingRecurrence = 'none';
+    _pendingIsDay = true;
 
     final lines =
         result.blocks.map((b) => '•  ${b.title} · ${b.minutes} dk').join('\n');
     _say('${result.reason}\n\n$lines\n\n'
-        'Toplam ${result.plannedMinutes} dk · $_plannedCount görev.');
-    if (result.unfitTitles.isNotEmpty) {
-      _say('${result.unfitTitles.length} tanesi bugüne sığmadı — sonra '
-          'elle ekleyebilirsin.');
-    }
-    setState(() => _phase = _Phase.proposal);
+        'Toplam ${result.plannedMinutes} dk · ${result.blocks.length} görev.\n\n'
+        '"ekle" de ya da değiştirmek istediğini söyle.');
   }
 
-  void _confirmPlan() {
-    final result = _result;
-    if (result == null) return;
-
-    final today = DateTime.now();
+  void _commit() {
+    final blocks = _pending;
+    if (blocks == null) return;
     final notifier = ref.read(taskProvider.notifier);
-    for (final b in result.blocks) {
-      notifier.addTask(
+    final today = DateTime.now();
+
+    if (!_pendingIsDay && _pendingRecurrence != 'none') {
+      final b = blocks.first;
+      notifier.addRecurringTask(
         title: b.title,
-        subjectId: b.subjectId,
-        dueDate: today,
-        priority: b.priority,
-        scheduledTime: b.startTime,
+        subjectId: b.subjectId.isEmpty ? null : b.subjectId,
+        startDate: _draft.day ?? today,
+        recurrenceRule: _pendingRecurrence,
         estimatedMinutes: b.minutes,
-        difficulty: TopicDifficulty.medium,
+        scheduledTimeOfDay: _draft.hour != null
+            ? TimeOfDay(hour: _draft.hour!, minute: _draft.minute ?? 0)
+            : null,
       );
+    } else {
+      for (final b in blocks) {
+        notifier.addTask(
+          title: b.title,
+          subjectId: b.subjectId.isEmpty ? null : b.subjectId,
+          dueDate: _pendingIsDay ? today : (_draft.day ?? today),
+          priority: b.priority,
+          scheduledTime: _sameDateTime(b.startTime) ? b.startTime : null,
+          estimatedMinutes: b.minutes,
+          difficulty: TopicDifficulty.medium,
+        );
+      }
     }
 
-    _say('Planı ekle', coach: false);
-    _say('$_plannedCount görev eklendi. Kolay gelsin 💪');
-    setState(() => _phase = _Phase.done);
+    final n = blocks.length;
+    _pending = null;
+    _draft.reset();
+    _delegate = false;
+    _askedRecurrence = false;
+    _say(n == 1
+        ? 'Eklendi 👍 Başka bir şey planlayalım mı?'
+        : '$n görev eklendi 👍 Başka bir şey var mı?');
   }
 
-  void _restart() {
-    _say('Baştan', coach: false);
-    _parsed = null;
-    _result = null;
-    setState(() => _phase = _Phase.hours);
-    _say('Tamam. Bugün ne kadar vaktin var?');
-  }
+  /// startTime gerçek bir saat taşıyor mu (yoksa sadece gün mü)?
+  bool _sameDateTime(DateTime d) => !(d.hour == 0 && d.minute == 0);
 
-  Future<void> _openAddSubject() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const AddSubjectSheet(),
-    );
-    if (!mounted) return;
-    if (ref.read(subjectProvider).isNotEmpty) {
-      _startIntro();
-    }
-  }
-
-  // --- UI ---------------------------------------------------------
+  // --- UI -----------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -296,130 +393,105 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: _buildInput(),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_pending != null) ...[
+                    PrimaryButton(
+                      label: 'Ekle',
+                      icon: Icons.check,
+                      onPressed: _commit,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: AppColors.surfaceVariant, width: 1),
+                          ),
+                          child: TextField(
+                            controller: _input,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _onSend(),
+                            minLines: 1,
+                            maxLines: 4,
+                            style: AppTextStyles.body
+                                .copyWith(color: AppColors.textPrimary),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: InputBorder.none,
+                              hintText: 'Yaz…',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _hasInput ? _onSend : null,
+                        icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                        style: IconButton.styleFrom(
+                          backgroundColor: _hasInput
+                              ? AppColors.primary
+                              : AppColors.surfaceVariant,
+                          foregroundColor: _hasInput
+                              ? AppColors.ink
+                              : AppColors.textMuted,
+                          minimumSize: const Size(44, 44),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildInput() {
-    switch (_phase) {
-      case _Phase.needSubject:
-        return Row(
-          children: [
-            Expanded(
-              child: PrimaryButton(
-                label: 'Ders Ekle',
-                icon: Icons.add,
-                onPressed: _openAddSubject,
-              ),
-            ),
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Kapat', style: AppTextStyles.bodySecondary),
-            ),
-          ],
-        );
+/// Değişebilir plan taslağı — sohbet ilerledikçe dolar.
+class _Draft {
+  DateTime? day;
+  int? minutes;
+  int? hour;
+  int? minute;
+  String recurrence = 'none';
+  String? subjectId;
+  String? subjectName;
+  String? topic;
 
-      case _Phase.hours:
-        return _ChipRow(
-          options: const [
-            MapEntry('1 saat', 1),
-            MapEntry('2 saat', 2),
-            MapEntry('3 saat', 3),
-            MapEntry('4+ saat', 4),
-          ],
-          onTap: (v) => _pickHours(v),
-        );
+  bool get hasSubject =>
+      subjectId != null ||
+      (subjectName != null && subjectName!.isNotEmpty) ||
+      (topic != null && topic!.isNotEmpty);
 
-      case _Phase.energy:
-        return _ChipRow(
-          options: const [
-            MapEntry('Düşük', 'düşük'),
-            MapEntry('Orta', 'orta'),
-            MapEntry('Yüksek', 'yüksek'),
-          ],
-          onTap: (v) => _pickEnergy(
-            v == 'düşük'
-                ? 'Düşük'
-                : v == 'yüksek'
-                    ? 'Yüksek'
-                    : 'Orta',
-            v,
-          ),
-        );
+  bool get isEmpty =>
+      day == null &&
+      minutes == null &&
+      hour == null &&
+      recurrence == 'none' &&
+      subjectId == null &&
+      subjectName == null &&
+      topic == null;
 
-      case _Phase.topic:
-        return Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: AppColors.surfaceVariant, width: 1),
-                ),
-                child: TextField(
-                  controller: _topicController,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submitTopic(),
-                  style: AppTextStyles.body
-                      .copyWith(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    hintText: 'örn. fizik dalga, türev…',
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: _submitTopic,
-              icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.ink,
-                minimumSize: const Size(44, 44),
-              ),
-            ),
-            TextButton(
-              onPressed: _skipTopic,
-              child: Text('Geç', style: AppTextStyles.bodySecondary),
-            ),
-          ],
-        );
-
-      case _Phase.proposal:
-        return Row(
-          children: [
-            Expanded(
-              child: PrimaryButton(
-                label: 'Planı Ekle',
-                icon: Icons.check,
-                onPressed: _confirmPlan,
-              ),
-            ),
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: _restart,
-              child: Text('Baştan', style: AppTextStyles.bodySecondary),
-            ),
-          ],
-        );
-
-      case _Phase.done:
-        return DarkButton(
-          label: 'Bitir',
-          onPressed: () => Navigator.of(context).pop(),
-        );
-    }
+  void reset() {
+    day = null;
+    minutes = null;
+    hour = null;
+    minute = null;
+    recurrence = 'none';
+    subjectId = null;
+    subjectName = null;
+    topic = null;
   }
 }
 
@@ -445,9 +517,7 @@ class _Bubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.82,
         ),
         decoration: BoxDecoration(
-          color: coach
-              ? AppColors.surface
-              : AppColors.tonal(AppColors.primary),
+          color: coach ? AppColors.surface : AppColors.tonal(AppColors.primary),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
@@ -458,51 +528,10 @@ class _Bubble extends StatelessWidget {
         ),
         child: Text(
           turn.text,
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.textPrimary,
-            height: 1.35,
-          ),
+          style: AppTextStyles.body
+              .copyWith(color: AppColors.textPrimary, height: 1.35),
         ),
       ),
-    );
-  }
-}
-
-/// Alt bardaki tek satırlık seçim çipleri. [T] seçilen değerin tipi.
-class _ChipRow<T> extends StatelessWidget {
-  final List<MapEntry<String, T>> options;
-  final ValueChanged<T> onTap;
-
-  const _ChipRow({required this.options, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final o in options) ...[
-          Expanded(
-            child: TapScale(
-              onTap: () => onTap(o.value),
-              child: Container(
-                height: 46,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.tonal(AppColors.primary),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  o.key,
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (o != options.last) const SizedBox(width: 8),
-        ],
-      ],
     );
   }
 }

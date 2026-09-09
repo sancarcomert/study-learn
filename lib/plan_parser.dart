@@ -29,6 +29,7 @@ class PlanParser {
 
     final duration = _parseDuration(lower, consumed);
     final recurrence = _parseRecurrence(lower, consumed);
+    final time = _parseTime(lower, consumed);
     // Tekrar "her <gün>" ise tarih o güne sabitlenir; değilse serbest tarih.
     DateTime? date = _parseRecurringWeekday(lower, today, consumed);
     date ??= _parseDate(lower, today, consumed);
@@ -44,7 +45,102 @@ class PlanParser {
       date: date,
       durationMinutes: duration,
       recurrence: recurrence,
+      hour: time?.hour,
+      minute: time?.minute,
     );
+  }
+
+  // --- Saat ---------------------------------------------------------------
+
+  static final RegExp _clock = RegExp(r'(\d{1,2}):(\d{2})');
+  // Nokta biçimli saat, ama "1.30 saat" gibi ondalık süreyi DIŞLAR.
+  static final RegExp _clockDot =
+      RegExp(r'(\d{1,2})\.(\d{2})(?![\d\s]*(saat|sa)\b)');
+  // "saat 3" → 03:00; ama "3 saat 15" (bileşik süre) yakalanmaz.
+  static final RegExp _saatN = RegExp(r'(?<!\d\s)saat\s*(\d{1,2})');
+  static final RegExp _nGibi =
+      RegExp(r'(\d{1,2})\s*(gibi|te|ta|de|da)\b');
+
+  static _Time? _parseTime(String lower, List<String> consumed) {
+    final eveningHint = RegExp(r'akşam|aksam|gece|öğleden sonra|ogleden sonra')
+        .hasMatch(lower);
+    final morningHint = lower.contains('sabah') || lower.contains('öğlen') ||
+        lower.contains('oglen');
+
+    final hm = _clock.firstMatch(lower) ?? _clockDot.firstMatch(lower);
+    if (hm != null) {
+      final h = int.parse(hm.group(1)!);
+      final m = int.parse(hm.group(2)!);
+      if (h < 24 && m < 60) {
+        consumed.add(hm.group(0)!);
+        return _Time(h, m);
+      }
+    }
+
+    final sN = _saatN.firstMatch(lower);
+    if (sN != null) {
+      final h = int.parse(sN.group(1)!);
+      if (h < 24) {
+        consumed.add(sN.group(0)!);
+        return _Time(_resolveHour(h, eveningHint, morningHint), 0);
+      }
+    }
+
+    final g = _nGibi.firstMatch(lower);
+    if (g != null) {
+      final h = int.parse(g.group(1)!);
+      if (h >= 1 && h < 24) {
+        consumed.add(g.group(0)!);
+        return _Time(_resolveHour(h, eveningHint, morningHint), 0);
+      }
+    }
+
+    // "akşam 8", "sabah 9", "9 sabah" — gün-bölümü sözcüğüne bitişik sayı.
+    // Sayının hemen ardından süre birimi gelirse ("akşam 1 saat") saat değil,
+    // süredir — yakalama.
+    final near = RegExp(
+      r'(sabah|akşam|aksam|gece|öğlen|oglen)\s*(\d{1,2})(?!\s*(?:saat|sa|dk|dakika|dakka))|(\d{1,2})\s*(sabah|akşam|aksam|gece|öğlen|oglen)',
+    ).firstMatch(lower);
+    if (near != null) {
+      final digits = near.group(2) ?? near.group(3)!;
+      final h = int.parse(digits);
+      if (h >= 1 && h < 24) {
+        consumed.add(near.group(0)!);
+        return _Time(_resolveHour(h, eveningHint, morningHint), 0);
+      }
+    }
+
+    if (RegExp(r'öğleden sonra|ogleden sonra').hasMatch(lower)) {
+      consumed.add('öğleden sonra');
+      consumed.add('ogleden sonra');
+      return const _Time(14, 0);
+    }
+    if (lower.contains('sabah')) {
+      consumed.add('sabah');
+      return const _Time(9, 0);
+    }
+    if (RegExp(r'öğlen|oglen|öğle|ogle').hasMatch(lower)) {
+      consumed.add('öğlen');
+      consumed.add('öğle');
+      return const _Time(12, 30);
+    }
+    if (lower.contains('akşam') || lower.contains('aksam')) {
+      consumed.add('akşam');
+      return const _Time(19, 0);
+    }
+    if (lower.contains('gece')) {
+      consumed.add('gece');
+      return const _Time(21, 0);
+    }
+    return null;
+  }
+
+  /// Yalın saat (1..8) ve sabah ipucu yoksa çalışma bağlamında öğleden
+  /// sonra kabul edilir; akşam/gece ipucu varsa 12'den küçükse +12.
+  static int _resolveHour(int h, bool eveningHint, bool morningHint) {
+    if (eveningHint && h < 12) return h + 12;
+    if (!morningHint && h >= 1 && h <= 8) return h + 12;
+    return h;
   }
 
   // --- Süre -----------------------------------------------------------------
@@ -336,6 +432,10 @@ class ParsedPlan {
   final DateTime? date;
   final int? durationMinutes;
 
+  /// Gün içi başlangıç saati (24s) — yakalandıysa. Dakika ayrı tutulur.
+  final int? hour;
+  final int? minute;
+
   /// 'none' | 'daily' | 'weekly' — `taskProvider.addRecurringTask` ile aynı sözlük.
   final String recurrence;
 
@@ -345,6 +445,8 @@ class ParsedPlan {
     this.subjectName,
     this.date,
     this.durationMinutes,
+    this.hour,
+    this.minute,
     this.recurrence = 'none',
   });
 
@@ -354,7 +456,11 @@ class ParsedPlan {
         subjectName = null,
         date = null,
         durationMinutes = null,
+        hour = null,
+        minute = null,
         recurrence = 'none';
+
+  bool get hasTime => hour != null;
 
   /// Hiçbir yapılandırılmış sinyal yakalanmadı — çağıran taraf metni düz
   /// başlık olarak kullanabilir ya da kullanıcıdan netleştirme isteyebilir.
@@ -363,16 +469,23 @@ class ParsedPlan {
       subjectName != null ||
       date != null ||
       durationMinutes != null ||
+      hour != null ||
       recurrence != 'none';
 
   @override
   String toString() =>
       'ParsedPlan(title: "$title", subject: $subjectName/$subjectId, '
-      'date: $date, dur: $durationMinutes, rec: $recurrence)';
+      'date: $date, time: $hour:$minute, dur: $durationMinutes, rec: $recurrence)';
 }
 
 class _SubjectMatch {
   final String? id;
   final String name;
   const _SubjectMatch(this.id, this.name);
+}
+
+class _Time {
+  final int hour;
+  final int minute;
+  const _Time(this.hour, this.minute);
 }

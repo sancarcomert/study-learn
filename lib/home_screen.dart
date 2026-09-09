@@ -12,7 +12,6 @@ import 'widgets/eyebrow.dart';
 import 'widgets/exam_countdown.dart';
 import 'task_model.dart';
 import 'task_time_status.dart';
-import 'plan_parser.dart';
 import 'study_advisor.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
@@ -178,43 +177,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (h == 0) return '$m dk';
     if (m == 0) return '$h sa';
     return '$h sa $m dk';
-  }
-
-  /// Doğal-dil hızlı ekleme. Metni [PlanParser] ile ayrıştırıp mevcut
-  /// `taskProvider` API'siyle görev(ler) oluşturur — yeni bir yol açmaz.
-  void _handleQuickAdd(String raw) {
-    final text = raw.trim();
-    if (text.isEmpty) return;
-
-    final subjects = ref.read(subjectProvider);
-    final parsed = PlanParser.parse(text, subjects: subjects);
-
-    final date = parsed.date ?? DateTime.now();
-    final notifier = ref.read(taskProvider.notifier);
-
-    if (parsed.recurrence != 'none') {
-      notifier.addRecurringTask(
-        title: parsed.title,
-        subjectId: parsed.subjectId,
-        startDate: date,
-        recurrenceRule: parsed.recurrence,
-        estimatedMinutes: parsed.durationMinutes,
-      );
-      AppSnackBar.success(
-        context,
-        parsed.recurrence == 'weekly'
-            ? '"${parsed.title}" — haftalık seri eklendi'
-            : '"${parsed.title}" — günlük seri eklendi',
-      );
-    } else {
-      notifier.addTask(
-        title: parsed.title,
-        subjectId: parsed.subjectId,
-        dueDate: date,
-        estimatedMinutes: parsed.durationMinutes,
-      );
-      AppSnackBar.success(context, '"${parsed.title}" eklendi');
-    }
   }
 
   /// "Nereden başlasan?" önerisine dokunma — o ders için bugüne sade bir
@@ -438,11 +400,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 14),
-
-                  // 3b) DOĞAL DİL HIZLI EKLE
-                  _QuickAddBar(onSubmit: _handleQuickAdd),
-
                   const SizedBox(height: 28),
 
                   // 4) BENTO GRID
@@ -593,92 +550,6 @@ class _HintStrip extends StatelessWidget {
                   color: AppColors.primary,
                   fontWeight: FontWeight.w700,
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Home'da King butonun altındaki tek satırlık doğal-dil giriş alanı.
-/// Kendi controller'ını yönetir; ayrıştırma + görev oluşturma [onSubmit]'e
-/// (HomeScreen) devredilir.
-class _QuickAddBar extends StatefulWidget {
-  final ValueChanged<String> onSubmit;
-
-  const _QuickAddBar({required this.onSubmit});
-
-  @override
-  State<_QuickAddBar> createState() => _QuickAddBarState();
-}
-
-class _QuickAddBarState extends State<_QuickAddBar> {
-  final _controller = TextEditingController();
-  bool _hasText = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(() {
-      final has = _controller.text.trim().isNotEmpty;
-      if (has != _hasText) setState(() => _hasText = has);
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    widget.onSubmit(text);
-    _controller.clear();
-    FocusScope.of(context).unfocus();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 2, 6, 2),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceVariant, width: 1),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.auto_awesome_outlined,
-              size: 18, color: AppColors.textMuted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _submit(),
-              style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                hintText: 'yarın 2 saat matematik türev…',
-              ),
-            ),
-          ),
-          AnimatedOpacity(
-            opacity: _hasText ? 1 : 0.35,
-            duration: const Duration(milliseconds: 150),
-            child: IconButton(
-              onPressed: _hasText ? _submit : null,
-              icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.ink,
-                minimumSize: const Size(36, 36),
-                padding: EdgeInsets.zero,
               ),
             ),
           ),
