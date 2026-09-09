@@ -11,6 +11,7 @@ import 'widgets/next_task_card.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/exam_countdown.dart';
 import 'task_model.dart';
+import 'task_time_status.dart';
 import 'add_task_screen.dart';
 import 'smart_plan_screen.dart';
 import 'widgets/task_tile.dart';
@@ -140,18 +141,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return [...withTime, ...withoutTime];
   }
 
-  String? _nextBlockText(TaskModel? upcomingTask) {
-    if (upcomingTask == null || upcomingTask.scheduledTime == null) {
-      return null;
+  static String _hhmm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  /// Hero'nun alt satırı için zaman-farkında durum metni. Öncelik:
+  /// gecikmiş > şu an devam eden > yaklaşan. Hiçbiri yoksa null (davranışa
+  /// göre selam devreye girer).
+  String? _statusLine({
+    required List<TaskModel> overdue,
+    required TaskModel? inProgress,
+    required TaskModel? upcoming,
+  }) {
+    if (overdue.isNotEmpty) {
+      return overdue.length == 1
+          ? '"${overdue.first.title}" gecikti — dokun, ertele ya da tamamla.'
+          : '${overdue.length} görev gecikti.';
     }
-
-    final diff = upcomingTask.scheduledTime!.difference(DateTime.now());
-
-    if (diff.inMinutes > 0) {
-      return 'Bir sonraki çalışma bloğuna kadar ${diff.inMinutes} dakikan var.';
+    if (inProgress != null) {
+      return 'Şu an: ${_hhmm(inProgress.scheduledTime!)} · ${inProgress.title}';
     }
-
-    return 'Bir görevin başlama zamanı geldi.';
+    if (upcoming != null) {
+      final mins = upcoming.scheduledTime!.difference(DateTime.now()).inMinutes;
+      return mins <= 90
+          ? '$mins dk sonra: ${upcoming.title}'
+          : 'Sıradaki: ${_hhmm(upcoming.scheduledTime!)} · ${upcoming.title}';
+    }
+    return null;
   }
 
   String _fmtDuration(int minutes) {
@@ -232,12 +247,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final stats = ref.watch(statsProvider);
     final examDate = stats.examDate;
 
-    final nextTask = allTasks
+    final now = DateTime.now();
+    final scheduledIncomplete = allTasks
         .where((task) => task.scheduledTime != null && !task.isCompleted)
         .toList()
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
 
-    final upcomingTask = nextTask.isEmpty ? null : nextTask.first;
+    final overdueTasks = scheduledIncomplete
+        .where((t) => t.timeStatusAt(now) == TaskTimeStatus.overdue)
+        .toList();
+    TaskModel? firstWithStatus(TaskTimeStatus s) {
+      for (final t in scheduledIncomplete) {
+        if (t.timeStatusAt(now) == s) return t;
+      }
+      return null;
+    }
+
+    final inProgressTask = firstWithStatus(TaskTimeStatus.inProgress);
+    // "Sıradaki görev" kartı ve metni artık yalnız GERÇEKTEN gelecekteki
+    // görevi gösterir — gecikmiş olan "sıradaki" değildir.
+    final upcomingTask = firstWithStatus(TaskTimeStatus.upcoming);
 
     ref.listen<int>(taskCompletionEventProvider, (previous, next) {
       if (previous != null && next > previous) {
@@ -318,12 +347,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: AppTextStyles.heading1),
                   const SizedBox(height: 8),
                   Text(
-                    _nextBlockText(upcomingTask) ??
+                    _statusLine(
+                          overdue: overdueTasks,
+                          inProgress: inProgressTask,
+                          upcoming: upcomingTask,
+                        ) ??
                         _subGreeting(
                           total: totalCount,
                           completed: completedCount,
                         ),
-                    style: AppTextStyles.bodySecondary,
+                    style: AppTextStyles.bodySecondary.copyWith(
+                      color: overdueTasks.isNotEmpty
+                          ? AppColors.warning
+                          : null,
+                      fontWeight: overdueTasks.isNotEmpty
+                          ? FontWeight.w600
+                          : null,
+                    ),
                   ),
 
                   const SizedBox(height: 32),
@@ -458,7 +498,7 @@ class _HintStrip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Görevi sağa kaydır → tamamla',
+                  'Daireye dokun → tamamla · ▶ → odak kronometresi',
                   style: AppTextStyles.bodySecondary.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -466,7 +506,7 @@ class _HintStrip extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Görevdeki ▶ → o görev için odak kronometresi',
+                  'Sağa kaydır → yarına ertele · sola kaydır → sil',
                   style: AppTextStyles.caption,
                 ),
               ],

@@ -8,6 +8,7 @@ import '../focus_screen.dart';
 import '../subject_model.dart';
 import '../task_model.dart';
 import '../task_provider.dart';
+import '../task_time_status.dart';
 import '../tap_scale.dart';
 import 'app_snackbar.dart';
 
@@ -342,12 +343,33 @@ class TaskTile extends ConsumerWidget {
                                           _SubjectChip(subject: subject),
 
                                         if (task.scheduledTime != null)
-                                          _InfoChip(
-                                            icon: Icons.schedule,
-                                            color: AppColors.secondary,
-                                            text:
-                                                '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}',
-                                          ),
+                                          Builder(builder: (_) {
+                                            final st = task.timeStatusAt(
+                                                DateTime.now());
+                                            final hhmm =
+                                                '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}';
+                                            switch (st) {
+                                              case TaskTimeStatus.overdue:
+                                                return _InfoChip(
+                                                  icon: Icons
+                                                      .warning_amber_rounded,
+                                                  color: AppColors.warning,
+                                                  text: '$hhmm · gecikti',
+                                                );
+                                              case TaskTimeStatus.inProgress:
+                                                return _InfoChip(
+                                                  icon: Icons.schedule,
+                                                  color: AppColors.primary,
+                                                  text: '$hhmm · şimdi',
+                                                );
+                                              default:
+                                                return _InfoChip(
+                                                  icon: Icons.schedule,
+                                                  color: AppColors.secondary,
+                                                  text: hhmm,
+                                                );
+                                            }
+                                          }),
 
                                         if (task.estimatedMinutes != null)
                                           _InfoChip(

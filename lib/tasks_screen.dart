@@ -11,6 +11,7 @@ import 'task_model.dart';
 import 'add_task_screen.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/eyebrow.dart';
+import 'task_time_status.dart';
 import 'tap_scale.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
@@ -208,6 +209,15 @@ class _TimelineRow extends StatelessWidget {
     final endTime =
         scheduled.add(Duration(minutes: task.estimatedMinutes ?? 30));
 
+    final st = task.timeStatusAt(DateTime.now());
+    final overdue = st == TaskTimeStatus.overdue;
+    final inProgress = st == TaskTimeStatus.inProgress;
+    // Kart zemini sakin kalır (ders tonu); gecikmişse yalnız nokta + saat
+    // etiketi + saat aralığı kehribara döner — "bağır" değil "işaretle".
+    final dotColor = overdue
+        ? AppColors.warning
+        : (inProgress ? AppColors.primary : color);
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,8 +228,10 @@ class _TimelineRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Text(
                 '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}',
-                style:
-                    AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: overdue ? AppColors.warning : null,
+                ),
               ),
             ),
           ),
@@ -232,7 +244,7 @@ class _TimelineRow extends StatelessWidget {
                   height: 10,
                   margin: const EdgeInsets.only(top: 4),
                   decoration: BoxDecoration(
-                    color: color,
+                    color: dotColor,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -306,14 +318,28 @@ class _TimelineRow extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.timer_outlined,
+                            overdue
+                                ? Icons.warning_amber_rounded
+                                : Icons.timer_outlined,
                             size: 12,
-                            color: AppColors.textSecondary,
+                            color: overdue
+                                ? AppColors.warning
+                                : (inProgress
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')} - ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
-                            style: AppTextStyles.caption,
+                            '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')} - ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}'
+                            '${overdue ? ' · gecikti' : (inProgress ? ' · şimdi' : '')}',
+                            style: AppTextStyles.caption.copyWith(
+                              color: overdue
+                                  ? AppColors.warning
+                                  : (inProgress ? AppColors.primary : null),
+                              fontWeight: (overdue || inProgress)
+                                  ? FontWeight.w700
+                                  : null,
+                            ),
                           ),
                         ],
                       ),
