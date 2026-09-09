@@ -3,6 +3,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'coach_screen.dart';
 import 'focus_screen.dart';
+import 'konu_takip_screen.dart';
 import 'tap_scale.dart';
 
 class PlanScreen extends StatelessWidget {
@@ -25,6 +26,16 @@ class PlanScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CoachScreen()),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PlanEntry(
+            icon: Icons.checklist_rtl_outlined,
+            title: "Konu Takip",
+            subtitle: "Konuları işaretle, ilerlemeni gör",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const KonuTakipScreen()),
             ),
           ),
           const SizedBox(height: 12),
