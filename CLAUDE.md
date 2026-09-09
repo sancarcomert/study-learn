@@ -71,9 +71,10 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 - Onboarding başlığı "Study Planner" → "Pusula" (marka kararı, kullanıcı onayı bekliyor)
 - 51 `info` lint (repo geneli `withOpacity` → `.withValues()`, `use_build_context_synchronously`) — hata değil, ayrı temizlik
 
-**Spec yol haritası (P0'dan sonra, her biri ayrı iş, backend gerektirmez):**
-- **P1 — Sınav sayacı:** onboarding'e sınav tarihi, Home'da "YKS'ye X gün" chip, İstatistik'te. Yerel veri.
-- **P2 — Odak/Pomodoro modülü:** yerel kronometre, görev→süre→`TOPLAM ÇALIŞMA`. CLAUDE.md yasağı DEĞİL (yasak: canlı ders/video/soru bankası). Pazar beklentisi yüksek.
+**Spec yol haritası:**
+- ✅ **P1 — Sınav sayacı** (commit `7014fa6`): `examDate` nullable Hive alanı, Home rozeti, İstatistik kartı, onboarding seçici.
+- ✅ **P2 — Odak seansı** (commit `e69936f`): `focus_screen.dart` yerel kronometre, Plan sekmesinden giriş. v1 tek seans (Pomodoro döngüsü yok). Sınır: `totalStudyMinutes` çift-sayım olası (P2.5).
+- **P2.5** (opsiyonel): odak/görev süre ayrımı, Pomodoro çalış/mola döngüsü, odağı görevden başlatma.
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
 
 **Sonra:** `pusula_yol_haritasi.md`'deki Faz 1 (Supabase backend temeli — şema, RLS, Auth). P1–P3 ile Faz 1 paralel yürütülmez.
