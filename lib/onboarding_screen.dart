@@ -18,14 +18,9 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  String? _selectedSubject;
-  DateTime? _examDate;
+  final _nameController = TextEditingController();
   final _customSubjectController = TextEditingController();
-
-  static const List<String> _monthsShort = [
-    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
-    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
-  ];
+  String? _selectedSubject;
 
   static const List<String> _commonSubjects = [
     'Matematik',
@@ -37,6 +32,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _customSubjectController.dispose();
     super.dispose();
   }
@@ -46,7 +42,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (subjectName.isEmpty) return;
 
     final colorValue = AppColors.subjectPalette.first.value;
-
     ref.read(subjectProvider.notifier).addSubject(subjectName, colorValue);
 
     final newSubjects = ref.read(subjectProvider);
@@ -65,33 +60,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _completeOnboarding();
   }
 
-  void _skip() {
-    _completeOnboarding();
-  }
+  void _skip() => _completeOnboarding();
 
   void _completeOnboarding() {
     // MainShell'e geçişi burada elle YAPMIYORUZ: app.dart zaten
     // statsProvider.hasCompletedOnboarding'i izliyor ve bu flag true
-    // olunca home'u reaktif olarak MainShell'e çeviriyor. Elle
-    // pushReplacement eklemek ikinci bir MainShell (çift IndexedStack,
-    // çift timer, ölü State context) yaratıyordu.
-    if (_examDate != null) {
-      ref.read(statsProvider.notifier).setExamDate(_examDate);
+    // olunca home'u reaktif olarak MainShell'e çeviriyor.
+    final name = _nameController.text.trim();
+    if (name.isNotEmpty) {
+      ref.read(statsProvider.notifier).updateUserName(name);
     }
     ref.read(statsProvider.notifier).markOnboardingCompleted();
-  }
-
-  Future<void> _pickExamDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _examDate ?? now.add(const Duration(days: 90)),
-      firstDate: now,
-      lastDate: DateTime(now.year + 3, now.month, now.day),
-    );
-    if (picked != null && mounted) {
-      setState(() => _examDate = picked);
-    }
   }
 
   @override
@@ -113,29 +92,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const Eyebrow(text: 'BAŞLANGIÇ'),
                 const SizedBox(height: 6),
-
-                Text(
-                  'Pusula\'ya hoş geldin 👋',
-                  style: AppTextStyles.heading1,
-                ),
-
+                Text('Pusula\'ya hoş geldin 👋', style: AppTextStyles.heading1),
                 const SizedBox(height: 8),
-
                 Text(
-                  'Sana özel bir başlangıç hazırlayalım.',
+                  'Kısaca tanışalım, hemen başlıyoruz.',
                   style: AppTextStyles.bodySecondary,
                 ),
 
                 const SizedBox(height: 32),
 
-                const Eyebrow(text: 'HANGİ DERS'),
+                const Eyebrow(text: 'ADIN'),
                 const SizedBox(height: 10),
-
-                Text(
-                  'Şu an hangi derse çalışıyorsun?',
-                  style: AppTextStyles.body,
+                TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    hintText: 'Adın soyadın',
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
 
+                const SizedBox(height: 28),
+
+                const Eyebrow(text: 'HANGİ DERS'),
+                const SizedBox(height: 10),
+                Text(
+                  'Başlamak için bir ders seç — sonra istediğini eklersin.',
+                  style: AppTextStyles.bodySecondary,
+                ),
                 const SizedBox(height: 12),
 
                 Wrap(
@@ -168,7 +152,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         child: Text(
                           subject,
                           style: AppTextStyles.body.copyWith(
-                            // Altın zeminde beyaz değil koyu metin.
                             color: isSelected ? AppColors.ink : AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -187,54 +170,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                   onChanged: (value) {
                     setState(() {
-                      if (value.isNotEmpty) {
-                        _selectedSubject = null;
-                      }
+                      if (value.isNotEmpty) _selectedSubject = null;
                     });
                   },
-                ),
-
-                const SizedBox(height: 28),
-
-                const Eyebrow(text: 'SINAV TARİHİ (OPSİYONEL)'),
-                const SizedBox(height: 10),
-                TapScale(
-                  onTap: _pickExamDate,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.event_outlined,
-                            size: 18, color: AppColors.primary),
-                        const SizedBox(width: 10),
-                        Text(
-                          _examDate == null
-                              ? 'Sınav tarihini seç'
-                              : '${_examDate!.day} ${_monthsShort[_examDate!.month - 1]} ${_examDate!.year}',
-                          style: AppTextStyles.body.copyWith(
-                            color: _examDate == null
-                                ? AppColors.textSecondary
-                                : AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (_examDate != null)
-                          TapScale(
-                            onTap: () => setState(() => _examDate = null),
-                            child: const Icon(Icons.close,
-                                size: 16, color: AppColors.textMuted),
-                          ),
-                      ],
-                    ),
-                  ),
                 ),
 
                 const SizedBox(height: 32),

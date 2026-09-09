@@ -71,7 +71,9 @@ class UserStatsModel extends HiveObject {
     this.currentStreak = 0,
     this.longestStreak = 0,
     this.lastCompletedDate,
-    this.dailyGoal = 3,
+    // Yeni kullanıcı için 1: ilk gün tek görevle "hedefi tamamladın"
+    // hissini yakalasın. Mevcut kayıtlar zaten kendi değerini taşır.
+    this.dailyGoal = 1,
     this.freezesAvailable = 1,
     this.totalCompletedTasks = 0,
     this.totalStudyMinutes = 0,

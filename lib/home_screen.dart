@@ -37,6 +37,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Timer? _liveClockTicker;
 
+  // Günlük hedef kutlaması günde bir kez çıksın. dailyGoal=1 iken hedefe
+  // ulaştıktan sonra tamamlanan HER görev goalReachedEvent'i yeniden
+  // tetikliyor; bu bayrak aynı gün ikinci konfetiyi engeller. Uygulama
+  // yeniden açılınca sıfırlanır (yeni oturumda bir kez görmek kabul).
+  DateTime? _celebratedOn;
+
   @override
   void initState() {
     super.initState();
@@ -296,6 +302,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     ref.listen<int>(goalReachedEventProvider, (previous, next) {
       if (previous != null && next > previous) {
+        final t = DateTime.now();
+        final today = DateTime(t.year, t.month, t.day);
+        if (_celebratedOn == today) return;
+        _celebratedOn = today;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showGoalCelebration();
         });
