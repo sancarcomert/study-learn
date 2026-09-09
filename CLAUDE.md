@@ -74,8 +74,8 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 **Spec yol haritası:**
 - ✅ **P1 — Sınav sayacı** (commit `7014fa6`): `examDate` nullable Hive alanı, Home rozeti, İstatistik kartı, onboarding seçici.
 - ✅ **P2 — Odak seansı** (commit `e69936f`): `focus_screen.dart` yerel kronometre, Plan sekmesinden giriş. v1 tek seans (Pomodoro döngüsü yok).
-- ✅ **P2.5** (`9a28089` + `ea1319a`): odağı görevden başlatma (task_tile ▶ butonu); odak/görev süre ayrımı — `focusMinutes` ayrı Hive alanı (`defaultValue: 0`), Profil'de "ÇALIŞMA SÜRESİ" iki satır.
-- **Kalan opsiyonel:** Pomodoro çalış/mola döngüsü.
+- ✅ **P2.5** (`9a28089` + `ea1319a` + `ed74c20`): odağı görevden başlatma; odak/görev süre ayrımı (`focusMinutes` ayrı Hive alanı, `defaultValue: 0`); duvar-saati sayaç + PopScope geri-tuş koruması; sınav sayacı Home rozeti tıklanır + geçmiş-tarih picker çökmesi.
+- ✅ **Pomodoro** (`54057f9`): FocusScreen iki modlu (Serbest / Pomodoro). Çalışma bloğu → 5 dk mola → 4 turda 15 dk uzun mola. Tamamlanan blok anında `focusMinutes`'a. Bağımlılık yok.
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
 
 Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHub yok.
