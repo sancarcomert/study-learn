@@ -86,12 +86,13 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
   - **`smart_plan_screen.dart` silindi** → `coach_screen.dart`. **Çip YOK** — koç doğal dille sorar, kullanıcı yazar (`638f2c6` geri bildirimi). Alt bar = sadece metin alanı; onay beklerken tek "Ekle" CTA'sı. Eksik alanı tek tek sorar (ders → süre → gün → tekrar). "sen ayarla / bilmiyorum" → devralma modu, koç günü `PlanBuilder` ile kurar. Enerji sorusu yok. Home kral butonu + Plan sekmesi buraya.
   - Home: `_QuickAddBar` **eklendi sonra kaldırıldı** (`638f2c6`) — + FAB ile mükerrerdi. Bugün görev yokken `_SuggestionStrip` (StudyAdvisor önerileri) kaldı.
   - `test/` eklendi: 45 test (parser/advisor/builder). Repo'da başka test yoktu.
+- ✅ **Onboarding + hedef** (`c82e08a`): onboarding en üste "ADIN" alanı (isim soyisim → `updateUserName`); **sınav tarihi seçici kaldırıldı** — kullanıcı girmedikçe geri sayım yok (giriş artık yalnız İstatistik ekranından). `UserStatsModel.dailyGoal` 3 → 1 (yeni kayıt; migration yok). Hedef kutlaması (konfeti dialog) günde bir kez — `home_screen._celebratedOn`.
 
 ### AI durumu / sınır
 - "Seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini).
 - **"Seviye 1.5" (yukarıda, tamamlandı):** parser + advisor + builder + Çalışma Koçu. Hepsi yerel/kural tabanlı, salt okunur; görev oluşturma yine `taskProvider.addTask`.
 - "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 1 (Supabase) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
-- **Konu Takip modülü (açık karar):** ders→konu checklist + kapsama %'si + haftalık tekrarlı program. "Sınava Hazırlan" modunun eski işini devralır. Rakip-standardı ama modül boyutunda iş; `SubjectModel`'e `topics` alanı gerekir. P3 gibi ayrı go/no-go.
+- **Konu Takip modülü — SIRADA (kullanıcı onayladı):** ders→konu checklist + kapsama %'si + haftalık tekrarlı program. "Sınava Hazırlan" modunun eski işini devralır. `SubjectModel`'e `topics` nullable Hive alanı gerekir (`@HiveField(4)`, migration tuzağına dikkat).
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
 - **Bilinen ufak pürüz:** Koç/Akıllı Plan ilk bloğu `DateTime.now()`'a planlıyor → plan gece yapılırsa görev "şimdi" görünüyor (eski SmartPlan davranışı, regresyon değil). İstenirse sonraki saate yuvarlanabilir.
 
