@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../add_task_screen.dart';
 import '../app_colors.dart';
 import '../app_text_styles.dart';
+import '../focus_screen.dart';
 import '../subject_model.dart';
 import '../task_model.dart';
 import '../task_provider.dart';
@@ -373,6 +374,40 @@ class TaskTile extends ConsumerWidget {
                               ),
                             ),
                           ),
+
+                          // Bu görev üzerinde odak seansı başlat — süre
+                          // TOPLAM ÇALIŞMA'ya işlenir. Tamamlanmış görevde
+                          // gösterilmez.
+                          if (!task.isCompleted) ...[
+                            const SizedBox(width: 8),
+                            TapScale(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FocusScreen(
+                                      initialNote: task.title,
+                                      initialTargetMin: task.estimatedMinutes,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                alignment: Alignment.center,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.surfaceVariant,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.play_arrow,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

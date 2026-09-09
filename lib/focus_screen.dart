@@ -16,8 +16,9 @@ import 'widgets/app_snackbar.dart';
 /// mola) v1'de yok; sadece sayaç + hedef göstergesi.
 class FocusScreen extends ConsumerStatefulWidget {
   final String? initialNote;
+  final int? initialTargetMin;
 
-  const FocusScreen({super.key, this.initialNote});
+  const FocusScreen({super.key, this.initialNote, this.initialTargetMin});
 
   @override
   ConsumerState<FocusScreen> createState() => _FocusScreenState();
@@ -27,12 +28,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   Timer? _ticker;
   int _elapsedSec = 0;
   bool _running = false;
-  int _targetMin = 25;
+  late int _targetMin = widget.initialTargetMin ?? 25;
 
   late final TextEditingController _noteController =
       TextEditingController(text: widget.initialNote ?? '');
 
-  static const List<int> _targetOptions = [15, 25, 45, 60];
+  static const List<int> _targetOptions = [15, 25, 30, 45, 60];
 
   @override
   void dispose() {
