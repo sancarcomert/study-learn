@@ -36,6 +36,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       hasSeenNotificationPrompt: _stats.hasSeenNotificationPrompt,
       examDate: _stats.examDate,
       focusMinutes: _stats.focusMinutes,
+      hasSeenTaskHints: _stats.hasSeenTaskHints,
     );
   }
 
@@ -125,6 +126,13 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
 
   void markNotificationPromptSeen() {
     _stats.hasSeenNotificationPrompt = true;
+    _stats.save();
+    _emit();
+  }
+
+  void markTaskHintsSeen() {
+    if (_stats.hasSeenTaskHints) return;
+    _stats.hasSeenTaskHints = true;
     _stats.save();
     _emit();
   }

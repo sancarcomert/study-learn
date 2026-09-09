@@ -62,6 +62,11 @@ class UserStatsModel extends HiveObject {
   @HiveField(11, defaultValue: 0)
   int focusMinutes;
 
+  // Home'daki tek seferlik "görev ipuçları" şeridi gösterildi mi?
+  // defaultValue: eski kayıtlar için de "gösterilmedi" (bir kere görürler).
+  @HiveField(12, defaultValue: false)
+  bool hasSeenTaskHints;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -75,5 +80,6 @@ class UserStatsModel extends HiveObject {
     this.hasSeenNotificationPrompt = false,
     this.examDate,
     this.focusMinutes = 0,
+    this.hasSeenTaskHints = false,
   });
 }

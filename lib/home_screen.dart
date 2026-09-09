@@ -104,18 +104,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  String _greeting() {
+  String _greeting(String? name) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Günaydın! ☀️';
-    if (hour < 18) return 'İyi günler! 👋';
-    return 'İyi akşamlar! 🌙';
+    final base = hour < 12
+        ? 'Günaydın'
+        : hour < 18
+            ? 'İyi günler'
+            : 'İyi akşamlar';
+    final emoji = hour < 12 ? '☀️' : (hour < 18 ? '👋' : '🌙');
+    final who = (name != null && name.trim().isNotEmpty) ? ', ${name.trim()}' : '';
+    return '$base$who! $emoji';
   }
 
-  String _subGreeting() {
+  /// Alt selam satırı davranışa göre değişir: bugünkü görevlerin hepsi
+  /// bittiyse tebrik, hiç yoksa plan çağrısı, aksi halde saate göre.
+  String _subGreeting({required int total, required int completed}) {
+    if (total > 0 && completed >= total) {
+      return 'Bugünü tamamladın 👏 Yarına hazırsın.';
+    }
+    if (total == 0) {
+      return 'Bugün için henüz plan yok — "Bugünü Planla" ile başla.';
+    }
+    final left = total - completed;
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Güne güzel bir başlangıç yapalım.';
-    if (hour < 18) return 'Bugün çalışmaya hazır mısın?';
-    return 'Günü kapatmadan son bir tur atalım mı?';
+    if (hour >= 18) return 'Günü kapatmadan $left görev kaldı.';
+    return '$left görevin var, hadi başlayalım.';
   }
 
   List<TaskModel> _sortedBySchedule(List<TaskModel> tasks) {
@@ -216,7 +229,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final todayTasks = _sortedBySchedule(todayTasksRaw);
     final allTasks = ref.watch(taskProvider);
     final subjects = ref.watch(subjectProvider);
-    final examDate = ref.watch(statsProvider).examDate;
+    final stats = ref.watch(statsProvider);
+    final examDate = stats.examDate;
 
     final nextTask = allTasks
         .where((task) => task.scheduledTime != null && !task.isCompleted)
@@ -232,6 +246,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           "Görev tamamlandı!",
           duration: const Duration(seconds: 1),
         );
+        // Kaydırarak tamamlamayı kendi kendine keşfettiyse ipucu şeridine
+        // gerek kalmadı.
+        ref.read(statsProvider.notifier).markTaskHintsSeen();
       }
     });
 
@@ -297,10 +314,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 24),
 
                   // 2) HERO
-                  Text(_greeting(), style: AppTextStyles.heading1),
+                  Text(_greeting(stats.userName),
+                      style: AppTextStyles.heading1),
                   const SizedBox(height: 8),
                   Text(
-                    _nextBlockText(upcomingTask) ?? _subGreeting(),
+                    _nextBlockText(upcomingTask) ??
+                        _subGreeting(
+                          total: totalCount,
+                          completed: completedCount,
+                        ),
                     style: AppTextStyles.bodySecondary,
                   ),
 
@@ -359,6 +381,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  if (!stats.hasSeenTaskHints &&
+                      todayTasks.any((t) => !t.isCompleted)) ...[
+                    _HintStrip(
+                      onDismiss: () => ref
+                          .read(statsProvider.notifier)
+                          .markTaskHintsSeen(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   if (todayTasks.isEmpty)
                     const EmptyStateCard(
                       icon: Icons.task_alt_outlined,
@@ -395,6 +426,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+/// Yeni kullanıcıya bir kez gösterilen ipucu şeridi — görev listesindeki
+/// iki gizli/az belirgin etkileşimi anlatır. "Anladım"a basınca ya da
+/// kullanıcı bir görevi kendi kaydırıp tamamlayınca bir daha çıkmaz.
+class _HintStrip extends StatelessWidget {
+  final VoidCallback onDismiss;
+
+  const _HintStrip({required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: AppColors.tonal(AppColors.primary),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lightbulb_outline,
+              size: 18, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Görevi sağa kaydır → tamamla',
+                  style: AppTextStyles.bodySecondary.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Görevdeki ▶ → o görev için odak kronometresi',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          TapScale(
+            onTap: onDismiss,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Text(
+                'Anladım',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
