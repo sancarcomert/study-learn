@@ -21,7 +21,7 @@ class PlanScreen extends StatelessWidget {
           _PlanEntry(
             icon: Icons.auto_awesome_outlined,
             title: "Akıllı Plan",
-            subtitle: "Günü planla veya sınavına hazırlan",
+            subtitle: "Bugünkü çalışma planını oluştur",
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SmartPlanScreen()),
