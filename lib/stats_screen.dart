@@ -5,12 +5,21 @@ import 'app_text_styles.dart';
 import 'widgets/achievement_card.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/exam_countdown.dart';
+import 'widgets/activity_heatmap.dart';
+import 'task_model.dart';
 import 'task_provider.dart';
+import 'subject_model.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'topic_provider.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'widgets/animated_progress_bar.dart';
+
+/// Görevin "çalışıldığı gün" — tamamlanma tarihi (yoksa vade tarihi), saat sıfır.
+DateTime _taskDay(TaskModel t) {
+  final d = t.completedAt ?? t.dueDate;
+  return DateTime(d.year, d.month, d.day);
+}
+
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
 
@@ -23,14 +32,61 @@ class StatsScreen extends ConsumerWidget {
     final coveredSubjects =
         subjects.where((s) => coverage[s.id]?.hasTopics ?? false).toList();
 
-    // Tüm zamanlardaki (sadece bugün değil) tamamlanan görev sayısı
-    final totalCompleted = allTasks.where((t) => t.isCompleted).length;
+    final completedTasks = allTasks.where((t) => t.isCompleted).toList();
+    final totalCompleted = completedTasks.length;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final thisMonday = today.subtract(Duration(days: today.weekday - 1));
+
+    // Isı haritası: gün → tamamlanan görev sayısı
+    final countsByDay = <DateTime, int>{};
+    for (final t in completedTasks) {
+      final d = _taskDay(t);
+      countsByDay[d] = (countsByDay[d] ?? 0) + 1;
+    }
+
+    final weekCompleted = completedTasks
+        .where((t) => !_taskDay(t).isBefore(thisMonday))
+        .toList();
+    final weekCount = weekCompleted.length;
+    final activeDays = weekCompleted.map(_taskDay).toSet().length;
+    final coveredTopics =
+        coverage.values.fold<int>(0, (s, c) => s + c.covered);
 
     return Scaffold(
       appBar: AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          const Eyebrow(text: 'BU HAFTA'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _WeekTile(
+                  value: '$weekCount',
+                  label: 'görev tamam',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _WeekTile(
+                  value: '$activeDays/7',
+                  label: 'aktif gün',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _WeekTile(
+                  value: '$coveredTopics',
+                  label: 'işaretli konu',
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 28),
           const Eyebrow(text: 'SINAV'),
           const SizedBox(height: 12),
           _ExamDateCard(
@@ -106,86 +162,25 @@ class StatsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 28),
-          const Eyebrow(text: 'SON 7 GÜN'),
+          const Eyebrow(text: 'AKTİF GÜNLER'),
           const SizedBox(height: 12),
-          Builder(builder: (_) {
-            final now = DateTime.now();
-            final monday = now.subtract(Duration(days: now.weekday - 1));
-            final counts = List.generate(7, (i) {
-              final day =
-                  DateTime(monday.year, monday.month, monday.day + i);
-              return allTasks
-                  .where((t) =>
-                      t.isCompleted &&
-                      t.dueDate.year == day.year &&
-                      t.dueDate.month == day.month &&
-                      t.dueDate.day == day.day)
-                  .length;
-            });
-            final weekTotal = counts.fold<int>(0, (s, c) => s + c);
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.softShadow,
+            ),
+            child: totalCompleted == 0
+                ? Text('Görev tamamladıkça buraya işlenir.',
+                    style: AppTextStyles.bodySecondary)
+                : ActivityHeatmap(countsByDay: countsByDay, weeks: 12),
+          ),
 
-            if (weekTotal == 0) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppColors.softShadow,
-                ),
-                child: Text(
-                  'Bu hafta henüz tamamlanan görev yok.',
-                  style: AppTextStyles.bodySecondary,
-                ),
-              );
-            }
-
-            final maxCount = counts.reduce((a, b) => a > b ? a : b);
-            return SizedBox(
-              height: 140,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: (maxCount + 1).toDouble(),
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          const labels = [
-                            'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'
-                          ];
-                          return Text(labels[value.toInt()],
-                              style: AppTextStyles.caption);
-                        },
-                      ),
-                    ),
-                  ),
-                  barGroups: [
-                    for (var i = 0; i < 7; i++)
-                      BarChartGroupData(x: i, barRods: [
-                        BarChartRodData(
-                          toY: counts[i].toDouble(),
-                          color: AppColors.primary,
-                          width: 18,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ]),
-                  ],
-                ),
-                swapAnimationDuration: const Duration(milliseconds: 700),
-                swapAnimationCurve: Curves.easeOutCubic,
-              ),
-            );
-          }),
+          const SizedBox(height: 28),
+          const Eyebrow(text: 'DERS DAĞILIMI'),
+          const SizedBox(height: 12),
+          _SubjectDistribution(tasks: completedTasks, subjects: subjects),
 
          const SizedBox(height: 28),
          const Eyebrow(text: 'BAŞARILAR'),
@@ -216,9 +211,9 @@ AchievementCard(
           const Eyebrow(text: 'DERS İLERLEMESİ'),
           const SizedBox(height: 12),
           if (subjects.isEmpty)
-            _InfoBox(text: 'Henüz ders eklemedin.')
+            const _InfoBox(text: 'Henüz ders eklemedin.')
           else if (coveredSubjects.isEmpty)
-            _InfoBox(
+            const _InfoBox(
               text:
                   'Konu Takip\'ten (Plan sekmesi) konu ekleyerek ders ilerlemeni burada gör.',
             )
@@ -255,6 +250,169 @@ AchievementCard(
               );
             }),
         ],
+      ),
+    );
+  }
+}
+
+class _WeekTile extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _WeekTile({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: AppTextStyles.heading2),
+          const SizedBox(height: 2),
+          Text(label, style: AppTextStyles.caption),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ders başına — seçili dönemde (bu hafta / bu ay) tamamlanan görev sayısı.
+/// "Hangi dersi ihmal ediyorum" sorusuna yanıt.
+class _SubjectDistribution extends StatefulWidget {
+  final List<TaskModel> tasks; // yalnız tamamlananlar
+  final List<SubjectModel> subjects;
+
+  const _SubjectDistribution({required this.tasks, required this.subjects});
+
+  @override
+  State<_SubjectDistribution> createState() => _SubjectDistributionState();
+}
+
+class _SubjectDistributionState extends State<_SubjectDistribution> {
+  bool _month = false; // false = bu hafta, true = bu ay
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = _month
+        ? DateTime(now.year, now.month, 1)
+        : today.subtract(Duration(days: today.weekday - 1));
+
+    final counts = <String, int>{};
+    for (final t in widget.tasks) {
+      if (t.subjectId == null) continue;
+      if (_taskDay(t).isBefore(start)) continue;
+      counts[t.subjectId!] = (counts[t.subjectId!] ?? 0) + 1;
+    }
+
+    final rows = widget.subjects
+        .map((s) => MapEntry(s, counts[s.id] ?? 0))
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final maxCount =
+        rows.isEmpty ? 0 : rows.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _PeriodChip(
+              label: 'Bu hafta',
+              selected: !_month,
+              onTap: () => setState(() => _month = false),
+            ),
+            const SizedBox(width: 8),
+            _PeriodChip(
+              label: 'Bu ay',
+              selected: _month,
+              onTap: () => setState(() => _month = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (widget.subjects.isEmpty)
+          const _InfoBox(text: 'Henüz ders eklemedin.')
+        else if (maxCount == 0)
+          _InfoBox(
+            text: _month
+                ? 'Bu ay bir derse bağlı görev tamamlamadın.'
+                : 'Bu hafta bir derse bağlı görev tamamlamadın.',
+          )
+        else
+          ...rows.map((e) {
+            final ratio = maxCount == 0 ? 0.0 : e.value / maxCount;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppColors.softShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(e.key.name, style: AppTextStyles.body),
+                      Text('${e.value} görev',
+                          style: AppTextStyles.bodySecondary),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  AnimatedProgressBar(
+                    value: ratio,
+                    color: Color(e.key.colorValue),
+                    backgroundColor: AppColors.background,
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class _PeriodChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PeriodChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary
+              : AppColors.tonal(AppColors.primary),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: selected ? AppColors.ink : AppColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
