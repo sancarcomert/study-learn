@@ -615,6 +615,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.ink,
         elevation: 0,
+        tooltip: 'Görev ekle',
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const AddTaskScreen()),
@@ -765,11 +766,15 @@ class _CloseOutCard extends StatelessWidget {
                 ],
               ),
             ),
-            TapScale(
-              onTap: onDismiss,
-              child: const Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.close, size: 16, color: AppColors.textMuted),
+            Semantics(
+              button: true,
+              label: 'Kartı gizle',
+              child: TapScale(
+                onTap: onDismiss,
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                ),
               ),
             ),
           ],
@@ -880,20 +885,24 @@ class _ProfileRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TapScale(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.textMuted, width: 1.4),
-        ),
-        child: const Icon(
-          Icons.person_outline,
-          size: 17,
-          color: AppColors.textSecondary,
+    return Semantics(
+      button: true,
+      label: 'Profil',
+      child: TapScale(
+        onTap: onTap,
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.textMuted, width: 1.4),
+          ),
+          child: const Icon(
+            Icons.person_outline,
+            size: 17,
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );

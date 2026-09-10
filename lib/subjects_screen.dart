@@ -41,6 +41,7 @@ class SubjectsScreen extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
+        tooltip: 'Ders ekle',
         onPressed: () => _showAddSubjectSheet(context),
         child: const Icon(Icons.add, color: AppColors.ink),
       ),

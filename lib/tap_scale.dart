@@ -22,6 +22,10 @@ class _TapScaleState extends State<TapScale> {
 
   @override
   Widget build(BuildContext context) {
+    // Erişilebilirlik: "hareketi azalt" açıkken küçülme animasyonunu tamamen
+    // atla (dokunma + haptik aynen kalır).
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
     return GestureDetector(
       // Varsayılan (deferToChild) davranışta, Column/Row gibi kendi arka
       // planını boyamayan child'larda GestureDetector SADECE içerideki
@@ -37,14 +41,16 @@ class _TapScaleState extends State<TapScale> {
               HapticFeedback.lightImpact();
               widget.onTap!();
             },
-      onTapDown: (_) => _setScale(0.96),
-      onTapUp: (_) => _setScale(1.0),
-      onTapCancel: () => _setScale(1.0),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 100),
-        child: widget.child,
-      ),
+      onTapDown: reduceMotion ? null : (_) => _setScale(0.96),
+      onTapUp: reduceMotion ? null : (_) => _setScale(1.0),
+      onTapCancel: reduceMotion ? null : () => _setScale(1.0),
+      child: reduceMotion
+          ? widget.child
+          : AnimatedScale(
+              scale: _scale,
+              duration: const Duration(milliseconds: 100),
+              child: widget.child,
+            ),
     );
   }
 }

@@ -108,6 +108,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
+        tooltip: 'Görev ekle',
         onPressed: () {
           Navigator.push(
             context,

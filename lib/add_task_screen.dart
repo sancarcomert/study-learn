@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'subject_ai.dart';
 import 'subject_provider.dart';
+import 'tap_scale.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
 import 'widgets/app_buttons.dart';
@@ -595,8 +596,7 @@ Widget build(BuildContext context) {
 
                 const SizedBox(height: 20),
 
-                InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                TapScale(
                   onTap: () {
                     setState(() {
                       _detailsExpanded = !_detailsExpanded;

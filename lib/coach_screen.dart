@@ -613,6 +613,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                       const SizedBox(width: 8),
                       IconButton(
                         onPressed: _hasInput ? _onSend : null,
+                        tooltip: 'Gönder',
                         icon: const Icon(Icons.arrow_upward_rounded, size: 18),
                         style: IconButton.styleFrom(
                           backgroundColor: _hasInput
@@ -621,7 +622,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                           foregroundColor: _hasInput
                               ? AppColors.ink
                               : AppColors.textMuted,
-                          minimumSize: const Size(44, 44),
+                          minimumSize: const Size(48, 48),
                         ),
                       ),
                     ],
