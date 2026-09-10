@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:study_planner/backup_service.dart';
+import 'package:study_planner/daily_closeout_model.dart';
 import 'package:study_planner/focus_session_model.dart';
 import 'package:study_planner/hive_boxes.dart';
 import 'package:study_planner/subject_model.dart';
@@ -27,7 +28,8 @@ void main() {
       ..registerAdapter(UserStatsModelAdapter())
       ..registerAdapter(TopicStatusAdapter())
       ..registerAdapter(TopicModelAdapter())
-      ..registerAdapter(FocusSessionAdapter());
+      ..registerAdapter(FocusSessionAdapter())
+      ..registerAdapter(DailyCloseoutAdapter());
   });
 
   tearDownAll(() async {
@@ -41,6 +43,7 @@ void main() {
     await Hive.openBox<UserStatsModel>(HiveBoxes.statsBoxName);
     await Hive.openBox<TopicModel>(HiveBoxes.topicsBoxName);
     await Hive.openBox<FocusSession>(HiveBoxes.focusSessionsBoxName);
+    await Hive.openBox<DailyCloseout>(HiveBoxes.dailyCloseoutsBoxName);
   });
 
   tearDown(() async {
@@ -49,6 +52,7 @@ void main() {
     await Hive.deleteBoxFromDisk(HiveBoxes.statsBoxName);
     await Hive.deleteBoxFromDisk(HiveBoxes.topicsBoxName);
     await Hive.deleteBoxFromDisk(HiveBoxes.focusSessionsBoxName);
+    await Hive.deleteBoxFromDisk(HiveBoxes.dailyCloseoutsBoxName);
   });
 
   Future<void> seed() async {
@@ -104,6 +108,17 @@ void main() {
         endedAt: DateTime(2026, 9, 10, 18),
         minutes: 25,
         mode: 'pomodoro',
+      ),
+    );
+    await HiveBoxes.dailyCloseouts.put(
+      '2026-09-10',
+      DailyCloseout(
+        id: '2026-09-10',
+        date: DateTime(2026, 9, 10),
+        intent: 'Yarın türev tekrarı — İş çıkışı',
+        completedTasks: 3,
+        focusMinutes: 25,
+        closedAt: DateTime(2026, 9, 10, 22, 15),
       ),
     );
     await HiveBoxes.stats.put(
@@ -163,6 +178,11 @@ void main() {
     final focus = HiveBoxes.focusSessions.get('f1')!;
     expect(focus.minutes, 25);
     expect(focus.mode, 'pomodoro');
+
+    final closeout = HiveBoxes.dailyCloseouts.get('2026-09-10')!;
+    expect(closeout.intent, 'Yarın türev tekrarı — İş çıkışı');
+    expect(closeout.completedTasks, 3);
+    expect(closeout.closedAt, DateTime(2026, 9, 10, 22, 15));
 
     final stats = HiveBoxes.stats.get('main')!;
     expect(stats.currentStreak, 4);

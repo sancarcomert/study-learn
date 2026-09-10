@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'daily_closeout_model.dart';
 import 'focus_session_model.dart';
 import 'hive_boxes.dart';
 import 'subject_model.dart';
@@ -43,6 +44,8 @@ class BackupService {
       'tasks': HiveBoxes.tasks.values.map(_taskToMap).toList(),
       'topics': HiveBoxes.topics.values.map(_topicToMap).toList(),
       'focusSessions': HiveBoxes.focusSessions.values.map(_focusToMap).toList(),
+      'dailyCloseouts':
+          HiveBoxes.dailyCloseouts.values.map(_closeoutToMap).toList(),
       'stats': stats == null ? null : _statsToMap(stats),
     };
   }
@@ -80,12 +83,15 @@ class BackupService {
     final List<TaskModel> tasks;
     final List<TopicModel> topics;
     final List<FocusSession> focus;
+    final List<DailyCloseout> closeouts;
     final UserStatsModel? stats;
     try {
       subjects = _mapList(data['subjects']).map(_subjectFromMap).toList();
       tasks = _mapList(data['tasks']).map(_taskFromMap).toList();
       topics = _mapList(data['topics']).map(_topicFromMap).toList();
       focus = _mapList(data['focusSessions']).map(_focusFromMap).toList();
+      closeouts =
+          _mapList(data['dailyCloseouts']).map(_closeoutFromMap).toList();
       final s = data['stats'];
       stats = s is Map ? _statsFromMap(s.cast<String, dynamic>()) : null;
     } catch (_) {
@@ -108,6 +114,10 @@ class BackupService {
     await HiveBoxes.focusSessions.clear();
     for (final f in focus) {
       await HiveBoxes.focusSessions.put(f.id, f);
+    }
+    await HiveBoxes.dailyCloseouts.clear();
+    for (final c in closeouts) {
+      await HiveBoxes.dailyCloseouts.put(c.id, c);
     }
     if (stats != null) {
       await HiveBoxes.stats.put('main', stats);
@@ -177,7 +187,8 @@ class BackupService {
             items = _mapList(decoded['subjects']).length +
                 _mapList(decoded['tasks']).length +
                 _mapList(decoded['topics']).length +
-                _mapList(decoded['focusSessions']).length;
+                _mapList(decoded['focusSessions']).length +
+                _mapList(decoded['dailyCloseouts']).length;
           }
         } catch (_) {}
         return SnapshotInfo(path: f.path, takenAt: taken, itemCount: items);
@@ -268,6 +279,24 @@ class BackupService {
         endedAt: _date(m['endedAt']) ?? DateTime.now(),
         minutes: (m['minutes'] as num?)?.toInt() ?? 0,
         mode: (m['mode'] as String?) ?? 'serbest',
+      );
+
+  static Map<String, dynamic> _closeoutToMap(DailyCloseout c) => {
+        'id': c.id,
+        'date': c.date.toIso8601String(),
+        'intent': c.intent,
+        'completedTasks': c.completedTasks,
+        'focusMinutes': c.focusMinutes,
+        'closedAt': c.closedAt.toIso8601String(),
+      };
+
+  static DailyCloseout _closeoutFromMap(Map<String, dynamic> m) => DailyCloseout(
+        id: m['id'] as String,
+        date: _date(m['date']) ?? DateTime.now(),
+        intent: (m['intent'] as String?) ?? '',
+        completedTasks: (m['completedTasks'] as num?)?.toInt() ?? 0,
+        focusMinutes: (m['focusMinutes'] as num?)?.toInt() ?? 0,
+        closedAt: _date(m['closedAt']) ?? DateTime.now(),
       );
 
   static Map<String, dynamic> _statsToMap(UserStatsModel s) => {

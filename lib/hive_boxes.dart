@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'daily_closeout_model.dart';
 import 'focus_session_model.dart';
 import 'subject_model.dart';
 import 'task_model.dart';
@@ -12,6 +13,7 @@ class HiveBoxes {
   static const String statsBoxName = 'stats';
   static const String topicsBoxName = 'topics';
   static const String focusSessionsBoxName = 'focus_sessions';
+  static const String dailyCloseoutsBoxName = 'daily_closeouts';
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -48,11 +50,16 @@ class HiveBoxes {
       Hive.registerAdapter(FocusSessionAdapter());
     }
 
+    if (!Hive.isAdapterRegistered(DailyCloseoutAdapter().typeId)) {
+      Hive.registerAdapter(DailyCloseoutAdapter());
+    }
+
     await Hive.openBox<SubjectModel>(subjectsBoxName);
     await Hive.openBox<TaskModel>(tasksBoxName);
     await Hive.openBox<UserStatsModel>(statsBoxName);
     await Hive.openBox<TopicModel>(topicsBoxName);
     await Hive.openBox<FocusSession>(focusSessionsBoxName);
+    await Hive.openBox<DailyCloseout>(dailyCloseoutsBoxName);
   }
 
   static Box<SubjectModel> get subjects =>
@@ -69,4 +76,7 @@ class HiveBoxes {
 
   static Box<FocusSession> get focusSessions =>
       Hive.box<FocusSession>(focusSessionsBoxName);
+
+  static Box<DailyCloseout> get dailyCloseouts =>
+      Hive.box<DailyCloseout>(dailyCloseoutsBoxName);
 }

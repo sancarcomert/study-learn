@@ -16,6 +16,8 @@ import 'study_advisor.dart';
 import 'topic_provider.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
+import 'daily_closeout_provider.dart';
+import 'daily_closeout_sheet.dart';
 import 'widgets/task_tile.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
@@ -47,6 +49,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Geçmiş günden kalan tamamlanmamış görevler için "bugüne al?" sorusu —
   // oturum başına bir kez.
   bool _carryOverPrompted = false;
+
+  // Akşam "Bugünü kapat" kartını bu oturumda elle kapattıysa tekrar
+  // göstermeyiz (ertesi gün yeniden çıkar).
+  bool _closeOutDismissed = false;
 
   @override
   void initState() {
@@ -394,6 +400,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final completedCount = todayTasks.where((t) => t.isCompleted).length;
     final totalCount = todayTasks.length;
 
+    // "Bugünü kapat" ritüeli (B3): akşam, henüz kapatılmadıysa entry kartı;
+    // sabah, dün bir niyet yazıldıysa nazik hatırlatma.
+    final todayCloseout = ref.watch(todayCloseoutProvider);
+    final yesterdayIntent = ref.watch(yesterdayIntentProvider);
+    // Akşam eşiği: çalışma gününün sonu. 18:00'dan itibaren "günü kapat".
+    final isEvening = now.hour >= 18;
+    final showCloseOutCard =
+        isEvening && todayCloseout == null && !_closeOutDismissed;
+    final showYesterdayIntent = !isEvening &&
+        todayCloseout == null &&
+        yesterdayIntent != null &&
+        yesterdayIntent.isNotEmpty;
+
     final remainingMin = todayTasks
         .where((t) => !t.isCompleted)
         .fold<int>(0, (s, t) => s + (t.estimatedMinutes ?? 0));
@@ -483,6 +502,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
 
+                  if (showYesterdayIntent) ...[
+                    const SizedBox(height: 10),
+                    _YesterdayIntentLine(text: yesterdayIntent),
+                  ],
+
                   const SizedBox(height: 32),
 
                   // 3) KRAL BUTON
@@ -520,6 +544,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   if (upcomingTask != null) ...[
                     const SizedBox(height: 28),
                     NextTaskCard(task: upcomingTask, subjects: subjects),
+                  ],
+
+                  if (showCloseOutCard) ...[
+                    const SizedBox(height: 28),
+                    _CloseOutCard(
+                      onTap: () => showDailyCloseoutSheet(context),
+                      onDismiss: () =>
+                          setState(() => _closeOutDismissed = true),
+                    ),
                   ],
 
                   const SizedBox(height: 32),
@@ -648,6 +681,99 @@ class _HintStrip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Sabah, dün "Bugünü kapat"ta yazılan niyetin nazik hatırlatması (B3).
+/// Tek satır, dokunulamaz — sadece bir hatırlatma.
+class _YesterdayIntentLine extends StatelessWidget {
+  final String text;
+
+  const _YesterdayIntentLine({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(Icons.wb_twilight_outlined,
+              size: 15, color: AppColors.textMuted),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Dün için not düşmüştün: $text',
+            style: AppTextStyles.caption,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Akşam Home'da beliren "Bugünü kapat" giriş kartı (B3). Dokun → özet
+/// sayfası. "×" → bu oturumda gizle (ertesi gün yeniden çıkar).
+class _CloseOutCard extends StatelessWidget {
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  const _CloseOutCard({required this.onTap, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.surfaceVariant),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.tonal(AppColors.secondary),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.nightlight_outlined,
+                  size: 18, color: AppColors.secondary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bugünü kapat',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text('Kısa özet + yarına tek cümle',
+                      style: AppTextStyles.caption),
+                ],
+              ),
+            ),
+            TapScale(
+              onTap: onDismiss,
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.close, size: 16, color: AppColors.textMuted),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
