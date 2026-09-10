@@ -63,6 +63,7 @@ kapat", erişilebilirlik geçişi.
 | P0-8 | **İlk-60-saniye + boş durum cilası** — ilk açılış sıcak, boş durumlar sistemli. | "Ürün ince hissettiriyor" riskini kapatır. | Küçük |
 | P0-9 | **Deneme / net takibi** — TYT/AYT D-Y-net girişi + trend grafiği. Soru YOK, sadece skor → kapsam çizgisini geçmez. | 11–12 + mezun (kitlenin yarısı) için temel beklenti; her rakipte var. "Kapsam kayması" endişesi abartılıydı. | Orta (yeni izole modül) |
 | P0-10 | **Paylaşılabilir kart** — tek dokunuşla temiz görsel ("12 günlük serim 🔥" / "Bu hafta 18 görev"). Kutlama anında, nag değil. | Öğrenci story'sine atar → bedava dağıtım. | Küçük |
+| P0-11 | **Sınıfa göre güncel müfredat** — 2026-27 MEB (Türkiye Yüzyılı Maarif Modeli) programına göre 9/10/11/12 için ders + konu listeleri. **Kümülatif:** 9→{9}, 10→{9,10}, 11→{9,10,11}, 12/Mezun→{9,10,11,12}. Kimse üst sınıfın konusunu görmez; YKS'ye hazırlanan 12'li alt sınıf konularını da takip eder. Tarihli + kullanıcı ekleyip çıkarabilir. `topic_catalog` grade-segmentli hale gelir. | Sınıf kişiselleştirmesini (P0-1) tam anlamlı yapar; jenerik YKS listesinden ayrışır. | Orta–büyük (~1–2 hafta, araştırma + veri). **P0-2'den sonra.** |
 
 **Yayına GİRMEYECEK (kapsam sözleşmesi):** soru bankası · video içerik · **Türkiye-geneli
 global lider tablosu** (küçük opt-in haftalık ligler Faz 3'te olabilir) · reklam ·
@@ -135,7 +136,7 @@ Kullanıcı video/edit yapmayı kabul etti — iki koldan yürür:
 
 | Faz | Ne | Kaba süre |
 |---|---|---|
-| **Faz 0 — Yayına hazırlık** | P0-1…P0-10 + Play kaydı, ikon, ekran görüntüleri, gizlilik politikası (veri toplamıyoruz → kolay), kapalı test | ~6–10 hafta (8+ madde, solo dev) |
+| **Faz 0 — Yayına hazırlık** | P0-1…P0-11 + Play kaydı, ikon, ekran görüntüleri, gizlilik politikası (veri toplamıyoruz → kolay), kapalı test | ~6–10 hafta (8+ madde, solo dev) |
 | **Faz 1 — Yayın + büyüme** | Play'de yayın · ASO · haftalık 3–5 video · forum/discord seeding · mikro-influencer. Geri bildirime göre hızlı yamalar. | Sürekli, ilk 3 ay yoğun |
 | **Faz 2 — Backend (Supabase)** | Ancak gerçek kullanıcı + geri bildirim varsa: Auth, şema, RLS, bulut yedek. | Faz 1'den ~2–3 ay sonra |
 | **Faz 3 — Plus + ligler + LLM planlayıcı** | Para kazanma başlar. Haftalık ligler. Dar-kapsam LLM (sadece plan kurar). | Faz 2 sonrası |
