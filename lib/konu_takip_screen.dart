@@ -10,7 +10,6 @@ import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/animated_progress_bar.dart';
-import 'widgets/coverage_bar_chart.dart';
 
 /// Konu Takip özeti — dersler ve kapsama yüzdeleri. Bir derse dokununca o
 /// dersin konu listesine ([SubjectTopicsScreen]) gider.
@@ -27,16 +26,6 @@ class KonuTakipScreen extends ConsumerWidget {
     final totalCovered =
         coverage.values.fold<int>(0, (s, c) => s + c.covered);
     final overall = totalTopics == 0 ? 0.0 : totalCovered / totalTopics;
-
-    final chartBars = [
-      for (final s in subjects)
-        if ((coverage[s.id]?.hasTopics ?? false))
-          CoverageBar(
-            label: s.name,
-            ratio: coverage[s.id]!.ratio,
-            color: Color(s.colorValue),
-          ),
-    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -84,12 +73,6 @@ class KonuTakipScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                ],
-                if (chartBars.length >= 2) ...[
-                  const Eyebrow(text: 'DERS BAZLI KAPSAMA'),
-                  const SizedBox(height: 16),
-                  CoverageBarChart(bars: chartBars),
                   const SizedBox(height: 24),
                 ],
                 const Eyebrow(text: 'DERSLER'),

@@ -11,7 +11,6 @@ import 'stats_provider.dart';
 import 'topic_provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'widgets/animated_progress_bar.dart';
-import 'widgets/coverage_bar_chart.dart';
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
 
@@ -21,16 +20,8 @@ class StatsScreen extends ConsumerWidget {
     final subjects = ref.watch(subjectProvider);
     final stats = ref.watch(statsProvider);
     final coverage = ref.watch(coverageBySubjectProvider);
-
-    final coverageBars = [
-      for (final s in subjects)
-        if ((coverage[s.id]?.hasTopics ?? false))
-          CoverageBar(
-            label: s.name,
-            ratio: coverage[s.id]!.ratio,
-            color: Color(s.colorValue),
-          ),
-    ];
+    final coveredSubjects =
+        subjects.where((s) => coverage[s.id]?.hasTopics ?? false).toList();
 
     // Tüm zamanlardaki (sadece bugün değil) tamamlanan görev sayısı
     final totalCompleted = allTasks.where((t) => t.isCompleted).length;
@@ -243,11 +234,41 @@ AchievementCard(
   unlocked: totalCompleted >= 100,
 ),
 
-          if (coverageBars.isNotEmpty) ...[
+          if (coveredSubjects.isNotEmpty) ...[
             const SizedBox(height: 20),
             const Eyebrow(text: 'KONU KAPSAMASI'),
-            const SizedBox(height: 16),
-            CoverageBarChart(bars: coverageBars),
+            const SizedBox(height: 12),
+            ...coveredSubjects.map((s) {
+              final c = coverage[s.id]!;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppColors.softShadow,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(s.name, style: AppTextStyles.body),
+                        Text('${c.covered}/${c.total} · %${c.percent}',
+                            style: AppTextStyles.bodySecondary),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    AnimatedProgressBar(
+                      value: c.ratio,
+                      color: Color(s.colorValue),
+                      backgroundColor: AppColors.background,
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
 
 const SizedBox(height: 20), // DERS BAZLI DAĞILIM
