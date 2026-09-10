@@ -99,7 +99,8 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 - "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 1 (Supabase) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
 - **Konu Takip modülü — ✅ TAMAMLANDI** (`4423e2f`→`9e0fbe5`). Kalan opsiyonel: haftalık tekrarlı program üretimi (şu an tek günlük), konu bazlı güven/seviye, ders silinince konuları temizleme (şu an orphan kalıyor ama her yerde filtreleniyor).
 - **P3 — Net/deneme takibi (opsiyonel):** deneme neti girişi + trend. "Soru bankası" değil (soru yok). Kapsam kayması riski — kullanıcı kararı.
-- **Bilinen ufak pürüz:** Koç/Akıllı Plan ilk bloğu `DateTime.now()`'a planlıyor → plan gece yapılırsa görev "şimdi" görünüyor (eski SmartPlan davranışı, regresyon değil). İstenirse sonraki saate yuvarlanabilir.
+- ✅ **Profesyonelleştirme geçişi** (`ca37551` + `96fe32e`, cihazda test): (1) Koç/plan görevlerine artık **saat atanmıyor** — gün-kapsamlı; saat yalnız kullanıcı açıkça söylerse. `PlanBlock.startTime`→`order`. (2) Add Task **SÜRE opsiyonel** (`_selectedDuration` nullable, çipe tekrar dokun=kaldır) — eskiden her göreve zorla 30 dk. (3) "Şu anki saate göre gecikti" yerine Home açılışında **"önceki günlerden N görev — bugüne taşı?"** dialog'u (`task_time_status.isPastDayIncompleteAt`, `updateTask` ile taşıma). (4) Stats "KONU KAPSAMASI" sütun grafiği → sade yatay ilerleme listesi; `coverage_bar_chart.dart` silindi.
+- **Kalan ufak (opsiyonel):** Stats "SERİN" etiketi ("SERİ" olmalı); saatli geçmiş görevde "N dakika sonra başlayacak" metni (upcoming hesabı mutlak fark alıyor).
 
 Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHub yok.
 
