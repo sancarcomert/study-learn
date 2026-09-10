@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'focus_session_provider.dart';
 import 'stats_provider.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
@@ -154,6 +155,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         math.min(_phaseElapsedSec, _blockMin * 60) ~/ 60;
     if (workedMin >= 1) {
       ref.read(statsProvider.notifier).addFocusMinutes(workedMin);
+      ref
+          .read(focusSessionProvider.notifier)
+          .log(minutes: workedMin, mode: 'pomodoro');
     }
   }
 
@@ -197,6 +201,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
       if (!_freeSaved && minutes >= 1) {
         _freeSaved = true;
         ref.read(statsProvider.notifier).addFocusMinutes(minutes);
+        ref
+            .read(focusSessionProvider.notifier)
+            .log(minutes: minutes, mode: 'serbest');
         final note = _noteController.text.trim();
         AppSnackBar.success(
           context,

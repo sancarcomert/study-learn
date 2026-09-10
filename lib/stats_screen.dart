@@ -6,6 +6,7 @@ import 'widgets/achievement_card.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/exam_countdown.dart';
 import 'widgets/activity_heatmap.dart';
+import 'focus_session_provider.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
 import 'subject_model.dart';
@@ -18,6 +19,15 @@ import 'widgets/animated_progress_bar.dart';
 DateTime _taskDay(TaskModel t) {
   final d = t.completedAt ?? t.dueDate;
   return DateTime(d.year, d.month, d.day);
+}
+
+String _fmtMinutes(int m) {
+  if (m <= 0) return '0 dk';
+  final h = m ~/ 60;
+  final mm = m % 60;
+  if (h == 0) return '$mm dk';
+  if (mm == 0) return '$h sa';
+  return '$h sa $mm dk';
 }
 
 class StatsScreen extends ConsumerWidget {
@@ -51,6 +61,9 @@ class StatsScreen extends ConsumerWidget {
         .toList();
     final weekCount = weekCompleted.length;
     final activeDays = weekCompleted.map(_taskDay).toSet().length;
+
+    final focusByDay = ref.watch(focusMinutesByDayProvider);
+    final focusWeekMin = ref.watch(focusThisWeekMinutesProvider);
     return Scaffold(
       appBar: AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
       body: ListView(
@@ -182,6 +195,41 @@ class StatsScreen extends ConsumerWidget {
           ),
 
           const SizedBox(height: 28),
+          const Eyebrow(text: 'ODAK SÜRESİ'),
+          const SizedBox(height: 4),
+          Text(
+            'Odak Seansı\'nda (Plan sekmesi) kronometreyle ölçülen süre. '
+            'Aşağıda bu haftanın gün gün dağılımı.',
+            style: AppTextStyles.caption,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.softShadow,
+            ),
+            child: focusWeekMin == 0
+                ? Text(
+                    'Bu hafta henüz odak seansı yapmadın. '
+                    'Plan → Odak Seansı\'ndan başlayabilirsin.',
+                    style: AppTextStyles.bodySecondary)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bu hafta: ${_fmtMinutes(focusWeekMin)}',
+                        style: AppTextStyles.body
+                            .copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 14),
+                      _FocusWeekBar(byDay: focusByDay),
+                    ],
+                  ),
+          ),
+
+          const SizedBox(height: 28),
           const Eyebrow(text: 'HANGİ DERSE ÇALIŞTIN'),
           const SizedBox(height: 4),
           Text(
@@ -267,6 +315,67 @@ AchievementCard(
             }),
         ],
       ),
+    );
+  }
+}
+
+/// Bu haftanın (Pzt–Paz) gün gün odak dakikası — küçük özel sütun grafiği.
+class _FocusWeekBar extends StatelessWidget {
+  final Map<DateTime, int> byDay;
+  const _FocusWeekBar({required this.byDay});
+
+  static const _labels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final mins = List.generate(7, (i) {
+      final d = DateTime(monday.year, monday.month, monday.day + i);
+      return byDay[d] ?? 0;
+    });
+    final maxMin = mins.fold<int>(1, (a, b) => a > b ? a : b);
+    final todayIdx = today.weekday - 1;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < 7; i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i == 6 ? 0 : 6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 72,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: FractionallySizedBox(
+                        heightFactor: (mins[i] / maxMin).clamp(0.04, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: mins[i] == 0
+                                ? AppColors.surfaceVariant
+                                : (i == todayIdx
+                                    ? AppColors.primary
+                                    : AppColors.primary.withValues(alpha: 0.55)),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(_labels[i],
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted)),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
