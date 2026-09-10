@@ -1,5 +1,3 @@
-import 'subject_model.dart';
-
 class SubjectAI {
   static final Map<String, List<String>> keywords = {
 
