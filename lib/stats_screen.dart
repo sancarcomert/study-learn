@@ -51,36 +51,31 @@ class StatsScreen extends ConsumerWidget {
         .toList();
     final weekCount = weekCompleted.length;
     final activeDays = weekCompleted.map(_taskDay).toSet().length;
-    final coveredTopics =
-        coverage.values.fold<int>(0, (s, c) => s + c.covered);
-
     return Scaffold(
       appBar: AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           const Eyebrow(text: 'BU HAFTA'),
+          const SizedBox(height: 4),
+          Text(
+            'Pazartesiden bugüne kadar olan durumun.',
+            style: AppTextStyles.caption,
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: _WeekTile(
                   value: '$weekCount',
-                  label: 'görev tamam',
+                  label: 'görev bitirdin',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _WeekTile(
                   value: '$activeDays/7',
-                  label: 'aktif gün',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _WeekTile(
-                  value: '$coveredTopics',
-                  label: 'işaretli konu',
+                  label: 'gün çalıştın',
                 ),
               ),
             ],
@@ -162,7 +157,14 @@ class StatsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 28),
-          const Eyebrow(text: 'AKTİF GÜNLER'),
+          const Eyebrow(text: 'ÇALIŞMA TAKVİMİ'),
+          const SizedBox(height: 4),
+          Text(
+            'Son 12 hafta. Her kare bir gün — o gün ne kadar çok '
+            'görev bitirdiysen kare o kadar koyu (altın) olur. Amaç: '
+            'takvimi boş bırakmamak, düzenli çalışmak.',
+            style: AppTextStyles.caption,
+          ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -172,13 +174,21 @@ class StatsScreen extends ConsumerWidget {
               boxShadow: AppColors.softShadow,
             ),
             child: totalCompleted == 0
-                ? Text('Görev tamamladıkça buraya işlenir.',
+                ? Text(
+                    'Henüz görev bitirmedin. İlk görevini tamamlayınca '
+                    'bugünün karesi burada yanar.',
                     style: AppTextStyles.bodySecondary)
                 : ActivityHeatmap(countsByDay: countsByDay, weeks: 12),
           ),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'DERS DAĞILIMI'),
+          const Eyebrow(text: 'HANGİ DERSE ÇALIŞTIN'),
+          const SizedBox(height: 4),
+          Text(
+            'Seçili dönemde her derste kaç görev bitirdin. En kısa çubuk '
+            '= en az vakit ayırdığın ders.',
+            style: AppTextStyles.caption,
+          ),
           const SizedBox(height: 12),
           _SubjectDistribution(tasks: completedTasks, subjects: subjects),
 
@@ -208,7 +218,13 @@ AchievementCard(
 ),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'DERS İLERLEMESİ'),
+          const Eyebrow(text: 'KONU İLERLEMESİ'),
+          const SizedBox(height: 4),
+          Text(
+            'Konu Takip\'te "çalışıldı" işaretlediğin konuların '
+            'toplam müfredata oranı.',
+            style: AppTextStyles.caption,
+          ),
           const SizedBox(height: 12),
           if (subjects.isEmpty)
             const _InfoBox(text: 'Henüz ders eklemedin.')
