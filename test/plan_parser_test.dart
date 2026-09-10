@@ -192,6 +192,41 @@ void main() {
           PlanParser.parse('yarın 1 saat matematik', subjects: subjects, now: now);
       expect(p.title, 'Matematik');
     });
+
+    test('girdinin tamamı sinyalse başlık boş (ham metne düşmez)', () {
+      // "2 saat yarın" tamamen süre + tarih — ortada başlık yok.
+      final p =
+          PlanParser.parse('2 saat yarın', subjects: subjects, now: now);
+      expect(p.durationMinutes, 120);
+      expect(p.title, isEmpty);
+    });
+
+    test('konuşma dili fillerları çıkarılır', () {
+      final p = PlanParser.parse(
+          'matematik türev çalışmak istiyorum programa ekle',
+          subjects: subjects,
+          now: now);
+      expect(p.subjectName, 'Matematik');
+      expect(p.title.toLowerCase(), contains('türev'));
+      expect(p.title.toLowerCase(), isNot(contains('istiyorum')));
+      expect(p.title.toLowerCase(), isNot(contains('programa')));
+    });
+  });
+
+  group('bu akşam / bu sabah → bugün', () {
+    test('"bu akşam" → aynı gün', () {
+      final p =
+          PlanParser.parse('bu akşam fizik', subjects: subjects, now: now);
+      final today = DateTime(now.year, now.month, now.day);
+      expect(p.date, today);
+    });
+
+    test('"bu sabah 1 saat" → bugün + süre, saat değil', () {
+      final p = PlanParser.parse('bu sabah 1 saat kimya',
+          subjects: subjects, now: now);
+      expect(p.date, DateTime(now.year, now.month, now.day));
+      expect(p.durationMinutes, 60);
+    });
   });
 
   group('boş / sinyalsiz', () {

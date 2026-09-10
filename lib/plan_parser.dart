@@ -236,6 +236,12 @@ class PlanParser {
       consumed.add('bugun');
       return today;
     }
+    // "bu akşam / bu sabah / bu gece / bu öğlen" — hepsi bugünü kasteder.
+    // (Saati _parseTime ayrıca yakalar; burada yalnız günü sabitliyoruz.)
+    if (RegExp(r'\bbu\s+(akşam|aksam|sabah|gece|öğlen|oglen|öğle|ogle)')
+        .hasMatch(lower)) {
+      return today;
+    }
     if (RegExp(r'haftaya|(gelecek|önümüzdeki|onumuzdeki)\s+hafta')
         .hasMatch(lower)) {
       consumed.add('haftaya');
@@ -346,14 +352,27 @@ class PlanParser {
     'çalışacağım',
     'çalışayım',
     'çalışmam',
+    'çalışmak istiyorum',
+    'çalışmak',
     'çalışma',
     'çalış',
     'yapacağım',
     'yapmam',
     'yapayım',
+    'yapmam lazım',
+    'yapmam gerek',
+    'bakacağım',
+    'bakmam lazım',
     'tekrar edeceğim',
+    'tekrar edecem',
+    'istiyorum',
+    'isterim',
+    'lazım',
     'planla',
+    'planıma',
+    'programa',
     'ekle',
+    'koy',
   ];
 
   static String _cleanTitle(
@@ -380,7 +399,14 @@ class PlanParser {
         .join(' ')
         .trim();
 
-    if (out.isEmpty) return (fallback ?? raw).trim();
+    if (out.isEmpty) {
+      if (fallback != null && fallback.trim().isNotEmpty) return fallback.trim();
+      // Girdinin tamamı sinyal (tarih/süre/saat/tekrar) olarak tüketildiyse
+      // ortada gerçek bir başlık yok — ham metni başlık sanma. Çağıran taraf
+      // ders adına düşer. (Hiç sinyal tüketilmediyse metnin kendisi başlıktır.)
+      if (consumed.isNotEmpty) return '';
+      return raw.trim();
+    }
     return out;
   }
 

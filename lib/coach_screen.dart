@@ -85,17 +85,20 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   void _intro() {
     final stats = ref.read(statsProvider);
     final name = stats.userName?.trim();
-    _say(name != null && name.isNotEmpty
-        ? 'Selam $name 👋 Nasıl gidiyor?'
-        : 'Selam 👋 Nasıl gidiyor?');
+    final n = (name != null && name.isNotEmpty) ? ' $name' : '';
+    _say(_pick([
+      'Selam$n 👋 Nasıl gidiyor?',
+      'Merhaba$n 👋 Bugün keyifler nasıl?',
+      'Selam$n ✨ Hazırsan başlayalım.',
+    ]));
 
     final examDate = stats.examDate;
     final examLine = (examDate != null && daysUntilExam(examDate) >= 0)
         ? ' Sınava ${daysUntilExam(examDate)} gün var.'
         : '';
-    _say('Nasıl planlayalım?$examLine Ne çalışmak istediğini ve ne kadar '
-        'vaktin olduğunu yaz — ya da "sen ayarla" de, ben kurayım '
-        '(bugüne ya da "bu hafta" dersen 7 güne).');
+    _say('Ne çalışmak istediğini ve ne kadar vaktin olduğunu tek cümleyle '
+        'yaz.$examLine İstemiyorsan "sen ayarla" de, ben kurayım (bugüne, '
+        'ya da "bu hafta" dersen 7 güne).');
   }
 
   // --- Girdi işleme ----------------------------------------------
@@ -133,11 +136,14 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _delegate = false;
       _wantsWeek = null;
       _askedRecurrence = false;
-      _say('Tamam, temizledim. Baştan anlat bakalım.');
+      _say(_pick([
+        'Tamam, temizledim. Baştan anlat bakalım.',
+        'Sildim gitti. Yeniden başlayalım — ne çalışacaksın?',
+      ]));
       return;
     }
     if (_pending == null && _draft.isEmpty && _finish.hasMatch(low)) {
-      _say('Kolay gelsin 👋');
+      _say(_pick(['Kolay gelsin 👋', 'İyi çalışmalar 👋', 'Hadi kolay gelsin ✨']));
       return;
     }
 
@@ -161,13 +167,63 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
+    // Yeni/değişen alanları fark edip geri yansıtabilmek için birleştirme
+    // öncesi taslağın fotoğrafını al — "senaryo robotu" hissini bu kırıyor.
+    final snap = (
+      subject: _draft.subjectName,
+      topic: _draft.topic,
+      minutes: _draft.minutes,
+      day: _draft.day,
+      hour: _draft.hour,
+      rec: _draft.recurrence,
+    );
+
     final parsed = PlanParser.parse(raw, subjects: ref.read(subjectProvider));
     _merge(parsed, raw);
+
+    final ack = _ackLine(snap);
+    if (ack.isNotEmpty) _say(ack);
 
     // Onay beklerken gelen serbest metin = düzenleme; yeni bilgiyi al, planı
     // tazele.
     _pending = null;
     _advance();
+  }
+
+  /// Kullanıcının son mesajında yakalanan (ya da değiştirilen) alanları kısaca
+  /// geri yansıtır — "Not aldım — Matematik: türev · 2 saat." Boşsa hiçbir şey.
+  String _ackLine(
+      ({String? subject, String? topic, int? minutes, DateTime? day, int? hour,
+        String rec}) before) {
+    final bits = <String>[];
+
+    final subjectChanged = _draft.hasSubject &&
+        (before.subject != _draft.subjectName || before.topic != _draft.topic);
+    if (subjectChanged) bits.add(_composeTitle());
+
+    if (_draft.minutes != null && before.minutes != _draft.minutes) {
+      bits.add(_fmtMinutes(_draft.minutes!));
+    }
+    if (_draft.day != null && before.day != _draft.day) {
+      bits.add(_dayLabel(_draft.day!));
+    }
+    if (_draft.hour != null && before.hour != _draft.hour) {
+      bits.add(_hhmm(_draft.hour!, _draft.minute ?? 0));
+    }
+    if (_draft.recurrence != 'none' && before.rec != _draft.recurrence) {
+      bits.add(_recLabel(_draft.recurrence).replaceFirst(' · ', ''));
+    }
+
+    if (bits.isEmpty) return '';
+    return '${_pick(['Tamam', 'Not aldım', 'Anladım', 'Peki'])} — '
+        '${bits.join(' · ')}.';
+  }
+
+  String _fmtMinutes(int m) {
+    if (m <= 0) return '';
+    if (m % 60 == 0) return '${m ~/ 60} saat';
+    if (m < 60) return '$m dk';
+    return '${m ~/ 60} sa ${m % 60} dk';
   }
 
   void _merge(ParsedPlan p, String raw) {
@@ -213,13 +269,17 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       if (_draft.minutes == null) {
         _say(_pick([
           'Tamam, ben kurayım. Günde ortalama ne kadar vaktin var?',
-          'Olur, devralıyorum. Günde kaç saatin var?',
+          'Olur, devralıyorum. Günde kaç saat çalışabilirsin?',
+          'Peki. Bir günde kabaca ne kadar zaman ayırabiliyorsun?',
         ]));
         return;
       }
       if (_wantsWeek == null) {
-        _say('Sadece bugüne mi, yoksa önümüzdeki 7 güne bir program mı? '
-            '("bugün" ya da "bu hafta")');
+        _say(_pick([
+          'Sadece bugüne mi bakalım, yoksa "bu hafta" deyip 7 güne mi yayayım?',
+          'Bugünlük mü olsun, haftalık bir program mı istersin? '
+              '("bugün" / "bu hafta")',
+        ]));
         return;
       }
       if (_wantsWeek!) {
@@ -233,28 +293,34 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (!_draft.hasSubject) {
       _say(_pick([
         'Ne çalışmak istiyorsun?',
-        'Hangi derse / konuya bakalım?',
+        'Hangi derse ya da konuya bakalım?',
+        'Bugün aklında ne var — hangi ders?',
       ]));
       return;
     }
     if (_draft.minutes == null) {
       _say(_pick([
-        'Ne kadar ayıralım buna?',
-        'Kaç dakika / saat düşünüyorsun?',
+        'Buna ne kadar zaman ayıralım?',
+        'Kaç dakika ya da saat düşünüyorsun?',
+        'Ne kadarlık bir çalışma olsun?',
       ]));
       return;
     }
     if (_draft.day == null) {
       _say(_pick([
-        'Ne zaman? Bugün, yarın ya da bir gün söyle.',
-        'Hangi gün olsun — bugün mü, yarın mı?',
+        'Ne zaman? "Bugün", "yarın" ya da bir gün söyle.',
+        'Hangi gün olsun — bugün mü, yarın mı, başka bir gün mü?',
+        'Ne günü koyalım bunu?',
       ]));
       return;
     }
     if (_draft.recurrence == 'none' && !_askedRecurrence) {
       _askedRecurrence = true;
-      _say('Tek sefer mi, yoksa tekrar mı etsin? (ör. "her gün", '
-          '"her pazartesi" ya da "tek sefer")');
+      _say(_pick([
+        'Tek seferlik mi, yoksa tekrar mı etsin? '
+            '(ör. "her gün", "her pazartesi", ya da "tek sefer")',
+        'Bir kez mi olsun, düzenli mi? "her gün" / "her salı" / "tek sefer".',
+      ]));
       return;
     }
 
@@ -327,10 +393,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final timePart =
         _draft.hour != null ? ' · ${_hhmm(_draft.hour!, _draft.minute ?? 0)}' : '';
-    _say('Şöyle olsun mu?\n\n'
+    _say('${_pick(['Şöyle olsun mu?', 'Bunu mu ekleyeyim?', 'Şu haliyle uyar mı?'])}'
+        '\n\n'
         '${_dayLabel(day)}$timePart${_recLabel(_draft.recurrence)}\n'
-        '${_composeTitle()} · $minutes dk\n\n'
-        '"ekle" yaz ya da neyi değiştireceğini söyle.');
+        '${_composeTitle()} · ${_fmtMinutes(minutes)}\n\n'
+        'Uygunsa "ekle" yaz, değilse neyi değiştireceğini söyle.');
   }
 
   void _proposeDay() {
@@ -390,8 +457,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final lines =
         result.blocks.map((b) => '•  ${b.title} · ${b.minutes} dk').join('\n');
     _say('${result.reason}\n\n$lines\n\n'
-        'Toplam ${result.plannedMinutes} dk · ${result.blocks.length} görev.\n\n'
-        '"ekle" de ya da değiştirmek istediğini söyle.');
+        'Toplam ${_fmtMinutes(result.plannedMinutes)} · '
+        '${result.blocks.length} görev.\n\n'
+        'Uygunsa "ekle" de, dokunmak istediğin bir şey varsa söyle.');
   }
 
   void _proposeWeek() {
@@ -459,8 +527,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
     buf
       ..writeln()
-      ..write('Toplam ${week.totalBlocks} görev, ${week.days.length} gün.\n\n'
-          '"ekle" de ya da değiştirmek istediğini söyle.');
+      ..write('Toplam ${week.totalBlocks} görev, ${week.days.length} güne '
+          'yayılı.\n\nUygunsa "ekle" de, değiştirmek istediğin gün varsa söyle.');
     _say(buf.toString());
   }
 
@@ -489,8 +557,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _delegate = false;
       _wantsWeek = null;
       _askedRecurrence = false;
-      _say('$count görev ${week.days.length} güne yayıldı 👍 '
-          'Başka bir şey var mı?');
+      _say(_pick([
+        '$count görev ${week.days.length} güne yayıldı 👍 Başka bir şey var mı?',
+        'Hepsi eklendi — $count görev, ${week.days.length} gün 👍 '
+            'Devam edelim mi?',
+      ]));
       return;
     }
 
@@ -543,8 +614,14 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _wantsWeek = null;
     _askedRecurrence = false;
     _say(n == 1
-        ? 'Eklendi 👍 Başka bir şey planlayalım mı?'
-        : '$n görev eklendi 👍 Başka bir şey var mı?');
+        ? _pick([
+            'Eklendi 👍 Başka bir şey planlayalım mı?',
+            'Tamamdır, listene ekledim 👍 Devam edelim mi?',
+          ])
+        : _pick([
+            '$n görev eklendi 👍 Başka bir şey var mı?',
+            '$n görevi listene koydum 👍 Başka?',
+          ]));
   }
 
   // --- UI -----------------------------------------------------
