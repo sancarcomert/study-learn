@@ -13,7 +13,6 @@ SubjectModel _sub(String name) => SubjectModel(
     );
 
 void main() {
-  final now = DateTime(2026, 9, 10, 9);
   final subjects = [_sub('Matematik'), _sub('Fizik'), _sub('Kimya')];
 
   test('ders yoksa boş sonuç', () {
@@ -21,7 +20,6 @@ void main() {
       orderedSubjects: const [],
       hoursAvailable: 3,
       energy: 'orta',
-      now: now,
     );
     expect(r.isEmpty, isTrue);
   });
@@ -31,7 +29,6 @@ void main() {
       orderedSubjects: subjects,
       hoursAvailable: 3,
       energy: 'orta',
-      now: now,
     );
     expect(r.blocks.length, 3);
     expect(r.blocks.every((b) => b.minutes == 45), isTrue);
@@ -43,22 +40,18 @@ void main() {
       orderedSubjects: subjects,
       hoursAvailable: 1, // 60 dk → yalnız 1 blok (45 dk) sığar
       energy: 'orta',
-      now: now,
     );
     expect(r.blocks.length, 1);
     expect(r.unfitTitles.length, 2);
   });
 
-  test('bloklar ardışık zaman dilimlerine yerleşir', () {
+  test('bloklara saat atanmaz, sıra order ile taşınır', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
       hoursAvailable: 3,
       energy: 'yüksek', // 60 dk
-      now: now,
     );
-    expect(r.blocks[0].startTime, now);
-    expect(r.blocks[1].startTime, now.add(const Duration(minutes: 60)));
-    expect(r.blocks[2].startTime, now.add(const Duration(minutes: 120)));
+    expect(r.blocks.map((b) => b.order).toList(), [0, 1, 2]);
   });
 
   test('sınav <= 30 gün → tüm bloklar yüksek öncelik', () {
@@ -67,7 +60,6 @@ void main() {
       hoursAvailable: 3,
       energy: 'orta',
       examDays: 12,
-      now: now,
     );
     expect(r.blocks.every((b) => b.priority == TaskPriority.high), isTrue);
     expect(r.reason, contains('Sınava 12 gün'));
@@ -79,7 +71,6 @@ void main() {
       topics: const ['türev', 'integral', 'limit', 'polinom'],
       hoursAvailable: 8,
       energy: 'orta',
-      now: now,
     );
     expect(r.blocks.length, 4);
     expect(r.blocks[0].title, 'Matematik: türev');
@@ -92,7 +83,6 @@ void main() {
       explicitSubject: _sub('Fizik'),
       hoursAvailable: 2,
       energy: 'orta',
-      now: now,
     );
     expect(r.blocks.length, 1);
     expect(r.blocks.first.subjectId, 'id-Fizik');
@@ -108,7 +98,6 @@ void main() {
       fillToCapacity: true,
       hoursAvailable: 3, // 180 dk / 45 = 4 blok
       energy: 'orta',
-      now: now,
     );
     expect(r.blocks.length, 4);
     expect(r.blocks[0].title, 'Matematik: Türev');
@@ -126,7 +115,6 @@ void main() {
       },
       hoursAvailable: 3,
       energy: 'orta',
-      now: now,
     );
     expect(r.blocks.length, 1);
     expect(r.blocks.first.title, 'Matematik: Türev');
@@ -137,7 +125,6 @@ void main() {
       orderedSubjects: subjects,
       hoursAvailable: 3,
       energy: 'düşük',
-      now: now,
     );
     expect(r.blocks.every((b) => b.minutes == 25), isTrue);
     expect(r.blocks.first.subjectId, 'id-Kimya'); // ters
@@ -150,7 +137,6 @@ void main() {
           hoursAvailable: 8,
           energy: 'orta',
           examDays: 5,
-          now: now,
           random: Random(42),
         );
     expect(run().blocks.map((b) => b.subjectId).toList(),

@@ -31,4 +31,13 @@ extension TaskTimeStatusX on TaskModel {
 
   bool isOverdueAt(DateTime now) =>
       timeStatusAt(now) == TaskTimeStatus.overdue;
+
+  /// Görev geçmiş bir güne ait ve hâlâ tamamlanmadı mı? (Gün seviyesi —
+  /// saat/dakika bakılmaz.) "Bugüne taşı" önerisi bunu kullanır.
+  bool isPastDayIncompleteAt(DateTime now) {
+    if (isCompleted) return false;
+    final today = DateTime(now.year, now.month, now.day);
+    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    return due.isBefore(today);
+  }
 }

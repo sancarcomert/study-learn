@@ -44,7 +44,9 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
   TimeOfDay? _selectedTime;
 
-  int _selectedDuration = 30;
+  // Opsiyonel — null = süre belirtilmedi. Eskiden 30 dk zorla yazılıyordu,
+  // her göreve sessizce süre ekliyordu (amatör). Artık kullanıcı seçmezse yok.
+  int? _selectedDuration;
 
   TopicDifficulty _selectedDifficulty = TopicDifficulty.medium;
 
@@ -87,8 +89,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
           task.priority;
 
 
-      _selectedDuration =
-          task.estimatedMinutes ?? 30;
+      _selectedDuration = task.estimatedMinutes;
 
       _selectedDifficulty = task.difficulty;
 
@@ -106,7 +107,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
           !_isSameDay(task.dueDate, DateTime.now()) ||
           task.priority != TaskPriority.medium ||
           task.difficulty != TopicDifficulty.medium ||
-          (task.estimatedMinutes != null && task.estimatedMinutes != 30);
+          task.estimatedMinutes != null;
 
     }
 
@@ -796,7 +797,7 @@ Widget build(BuildContext context) {
                             const SizedBox(height: 24),
 
 
-                            const Eyebrow(text: "SÜRE"),
+                            const Eyebrow(text: "SÜRE (OPSİYONEL)"),
 
                             const SizedBox(height: 10),
 
@@ -809,9 +810,11 @@ Widget build(BuildContext context) {
                                   label: "$minutes dk",
                                   color: AppColors.primary,
                                   isSelected: isSelected,
+                                  // Seçili çipe tekrar dokun → süreyi kaldır.
                                   onTap: () {
                                     setState(() {
-                                      _selectedDuration = minutes;
+                                      _selectedDuration =
+                                          isSelected ? null : minutes;
                                     });
                                   },
                                 );

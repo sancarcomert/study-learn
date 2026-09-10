@@ -6,6 +6,10 @@ import 'task_model.dart';
 /// Günlük plan üretiminin SAF çekirdeği. Girdi alır, oluşturulacak
 /// blokların listesini döndürür — hiçbir şey yazmaz, provider'a dokunmaz.
 /// Çağıran taraf (coach_screen) blokları `taskProvider.addTask` ile kaydeder.
+///
+/// NOT: Bloklara saat ATANMAZ. Üretilen görevler gün-kapsamlı bir yapılacak
+/// listesidir; sıralarını `order` alanı taşır. Kullanıcı belirli bir saat
+/// söylediğinde saati coach_screen tek görev için kendisi koyar.
 class PlanBuilder {
   const PlanBuilder._();
 
@@ -34,10 +38,8 @@ class PlanBuilder {
     required int hoursAvailable,
     required String energy,
     int? examDays,
-    DateTime? now,
     Random? random,
   }) {
-    final start = now ?? DateTime.now();
     final rng = random ?? Random();
 
     final targets = explicitSubject != null
@@ -97,7 +99,6 @@ class PlanBuilder {
     }
 
     var remaining = capacity;
-    var offset = 0;
     final blocks = <PlanBlock>[];
     final unfit = <String>[];
 
@@ -105,21 +106,19 @@ class PlanBuilder {
       final subject = ordered[i % ordered.length];
 
       if (duration > remaining) {
-        unfit.add(topics.isNotEmpty ? '${subject.name}: ${topics[i]}' : subject.name);
+        unfit.add(
+            topics.isNotEmpty ? '${subject.name}: ${topics[i]}' : subject.name);
         continue;
       }
 
-      final title = titleFor(subject, i);
-
       blocks.add(PlanBlock(
-        title: title,
+        title: titleFor(subject, i),
         subjectId: subject.id,
         minutes: duration,
-        startTime: start.add(Duration(minutes: offset)),
+        order: blocks.length,
         priority: priority,
       ));
 
-      offset += duration;
       remaining -= duration;
     }
 
@@ -142,14 +141,16 @@ class PlanBlock {
   final String title;
   final String subjectId;
   final int minutes;
-  final DateTime startTime;
+
+  /// Listedeki sıra (0'dan). Saat değil — gün-kapsamlı sıralama ipucu.
+  final int order;
   final TaskPriority priority;
 
   const PlanBlock({
     required this.title,
     required this.subjectId,
     required this.minutes,
-    required this.startTime,
+    required this.order,
     required this.priority,
   });
 }

@@ -44,12 +44,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // yeniden açılınca sıfırlanır (yeni oturumda bir kez görmek kabul).
   DateTime? _celebratedOn;
 
+  // Geçmiş günden kalan tamamlanmamış görevler için "bugüne al?" sorusu —
+  // oturum başına bir kez.
+  bool _carryOverPrompted = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(statsProvider.notifier).checkStreakBroken();
-      _maybeShowNotificationPermissionPrompt();
+      await _maybeShowNotificationPermissionPrompt();
+      if (mounted) await _maybeShowCarryOverPrompt();
     });
 
     _liveClockTicker = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -110,6 +115,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (continueRequested == true) {
       await NotificationService.instance.requestPermissions();
+    }
+  }
+
+  /// Önceki günlerden kalan tamamlanmamış görevleri topluca bugüne taşımayı
+  /// önerir — profesyonel yapılacaklar uygulamalarındaki "carry over" akışı.
+  /// Görev oluşturma/güncelleme mevcut `taskProvider.updateTask` ile yapılır.
+  Future<void> _maybeShowCarryOverPrompt() async {
+    if (_carryOverPrompted || !mounted) return;
+
+    final now = DateTime.now();
+    final stale = ref
+        .read(taskProvider)
+        .where((t) => t.isPastDayIncompleteAt(now))
+        .toList();
+    if (stale.isEmpty) return;
+
+    _carryOverPrompted = true;
+    final n = stale.length;
+
+    final move = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.history_rounded,
+            color: AppColors.primary, size: 30),
+        title: Text(n == 1
+            ? 'Önceki günden kalan 1 görev var'
+            : 'Önceki günlerden $n görev kaldı'),
+        content: const Text(
+          'Tamamlanmamış görevleri bugüne taşıyalım mı?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Şimdi Değil'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Bugüne Taşı'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || move != true) return;
+
+    final today = DateTime(now.year, now.month, now.day);
+    final notifier = ref.read(taskProvider.notifier);
+    for (final t in stale) {
+      final st = t.scheduledTime;
+      notifier.updateTask(
+        t,
+        title: t.title,
+        subjectId: t.subjectId,
+        dueDate: today,
+        priority: t.priority,
+        scheduledTime: st == null
+            ? null
+            : DateTime(today.year, today.month, today.day, st.hour, st.minute),
+        estimatedMinutes: t.estimatedMinutes,
+        difficulty: t.difficulty,
+      );
+    }
+    if (mounted) {
+      AppSnackBar.success(
+          context, n == 1 ? 'Görev bugüne taşındı' : '$n görev bugüne taşındı');
     }
   }
 

@@ -255,18 +255,16 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   }
 
   void _proposeSingle() {
-    final day = _draft.day ?? DateTime.now();
+    final now = DateTime.now();
+    final day = _draft.day ?? DateTime(now.year, now.month, now.day);
     final minutes = _draft.minutes ?? 45;
-    final start = _draft.hour != null
-        ? DateTime(day.year, day.month, day.day, _draft.hour!, _draft.minute ?? 0)
-        : day;
 
     _pending = [
       PlanBlock(
         title: _composeTitle(),
         subjectId: _draft.subjectId ?? '',
         minutes: minutes,
-        startTime: start,
+        order: 0,
         priority: TaskPriority.medium,
       ),
     ];
@@ -346,7 +344,13 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final blocks = _pending;
     if (blocks == null) return;
     final notifier = ref.read(taskProvider.notifier);
-    final today = DateTime.now();
+    final n0 = DateTime.now();
+    final today = DateTime(n0.year, n0.month, n0.day);
+
+    // Saat YALNIZCA kullanıcı açıkça söylediyse ("saat 3", "akşam 8").
+    final timeOfDay = _draft.hour != null
+        ? TimeOfDay(hour: _draft.hour!, minute: _draft.minute ?? 0)
+        : null;
 
     if (!_pendingIsDay && _pendingRecurrence != 'none') {
       final b = blocks.first;
@@ -356,18 +360,23 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         startDate: _draft.day ?? today,
         recurrenceRule: _pendingRecurrence,
         estimatedMinutes: b.minutes,
-        scheduledTimeOfDay: _draft.hour != null
-            ? TimeOfDay(hour: _draft.hour!, minute: _draft.minute ?? 0)
-            : null,
+        scheduledTimeOfDay: timeOfDay,
       );
     } else {
       for (final b in blocks) {
+        final due = _pendingIsDay ? today : (_draft.day ?? today);
+        // Gün planı: saatsiz gün-kapsamlı görevler. Tek görev: yalnız
+        // kullanıcı saat verdiyse zamanlı.
+        final scheduled = (!_pendingIsDay && timeOfDay != null)
+            ? DateTime(due.year, due.month, due.day, timeOfDay.hour,
+                timeOfDay.minute)
+            : null;
         notifier.addTask(
           title: b.title,
           subjectId: b.subjectId.isEmpty ? null : b.subjectId,
-          dueDate: _pendingIsDay ? today : (_draft.day ?? today),
+          dueDate: due,
           priority: b.priority,
-          scheduledTime: _sameDateTime(b.startTime) ? b.startTime : null,
+          scheduledTime: scheduled,
           estimatedMinutes: b.minutes,
           difficulty: TopicDifficulty.medium,
         );
@@ -383,9 +392,6 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         ? 'Eklendi 👍 Başka bir şey planlayalım mı?'
         : '$n görev eklendi 👍 Başka bir şey var mı?');
   }
-
-  /// startTime gerçek bir saat taşıyor mu (yoksa sadece gün mü)?
-  bool _sameDateTime(DateTime d) => !(d.hour == 0 && d.minute == 0);
 
   // --- UI -----------------------------------------------------
 
