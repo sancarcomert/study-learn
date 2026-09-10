@@ -135,6 +135,95 @@ class PlanBuilder {
 
     return PlanResult(blocks: blocks, unfitTitles: unfit, reason: reason);
   }
+
+  /// Önümüzdeki [days] güne yayılan bir çalışma programı (docs/rakip_analizi
+  /// §6 B2). Tek günün tekrarı DEĞİL — her gün dersler döndürülür, böylece
+  /// odak her gün değişir. İşaretlenmemiş konular ([uncoveredTopics]) hafta
+  /// boyunca **bir kez** tüketilir (aynı konu her gün çıkmaz).
+  ///
+  /// Saat atanmaz; her günün blokları o günün gün-kapsamlı yapılacak listesi.
+  /// Çağıran taraf her bloğu kendi gününün `dueDate`'iyle `addTask`'a yazar.
+  static WeekPlanResult buildWeek({
+    required List<SubjectModel> orderedSubjects,
+    Map<String, List<String>> uncoveredTopics = const {},
+    required int hoursPerDay,
+    required DateTime startDate,
+    int days = 7,
+    int? examDays,
+    Random? random,
+  }) {
+    final subjectsPool = List<SubjectModel>.from(orderedSubjects);
+    if (subjectsPool.isEmpty || days < 1) {
+      return const WeekPlanResult(days: [], reason: '');
+    }
+
+    final examSoon = examDays != null && examDays >= 0 && examDays <= 30;
+    final priority = examSoon ? TaskPriority.high : TaskPriority.medium;
+    const duration = 45; // 'orta' blok
+    final perDayCapacity = hoursPerDay.clamp(1, 8) * 60;
+    final blocksPerDay = (perDayCapacity ~/ duration).clamp(1, 6);
+
+    // Ders başına boş-konu imleci — TÜM hafta boyunca ilerler.
+    final topicCursor = <String, int>{};
+    String titleFor(SubjectModel s) {
+      final pool = uncoveredTopics[s.id];
+      if (pool != null && pool.isNotEmpty) {
+        final idx = topicCursor[s.id] ?? 0;
+        if (idx < pool.length) {
+          topicCursor[s.id] = idx + 1;
+          return '${s.name}: ${pool[idx]}';
+        }
+      }
+      return s.name;
+    }
+
+    final dayPlans = <DayPlan>[];
+    var totalUnfit = 0;
+
+    for (var d = 0; d < days; d++) {
+      // Günü döndür: gün d, sıradaki d'inci dersten başlar.
+      final rotated = [
+        for (var i = 0; i < subjectsPool.length; i++)
+          subjectsPool[(i + d) % subjectsPool.length],
+      ];
+
+      final blocks = <PlanBlock>[];
+      var remaining = perDayCapacity;
+      for (var b = 0; b < blocksPerDay; b++) {
+        if (duration > remaining) {
+          totalUnfit++;
+          continue;
+        }
+        final subject = rotated[b % rotated.length];
+        blocks.add(PlanBlock(
+          title: titleFor(subject),
+          subjectId: subject.id,
+          minutes: duration,
+          order: b,
+          priority: priority,
+        ));
+        remaining -= duration;
+      }
+
+      if (blocks.isNotEmpty) {
+        dayPlans.add(DayPlan(
+          date: DateTime(startDate.year, startDate.month, startDate.day)
+              .add(Duration(days: d)),
+          blocks: blocks,
+        ));
+      }
+    }
+
+    final reason = examSoon
+        ? 'Sınava $examDays gün — haftalık program, öncelikler yüksek 📌'
+        : 'Önümüzdeki ${dayPlans.length} güne dengeli bir program 🗓️';
+
+    return WeekPlanResult(
+      days: dayPlans,
+      reason: reason,
+      unfitCount: totalUnfit,
+    );
+  }
 }
 
 class PlanBlock {
@@ -168,4 +257,31 @@ class PlanResult {
 
   int get plannedMinutes => blocks.fold(0, (s, b) => s + b.minutes);
   bool get isEmpty => blocks.isEmpty;
+}
+
+/// Tek bir günün planı — [WeekPlanResult] içinde.
+class DayPlan {
+  final DateTime date;
+  final List<PlanBlock> blocks;
+
+  const DayPlan({required this.date, required this.blocks});
+
+  int get minutes => blocks.fold(0, (s, b) => s + b.minutes);
+}
+
+/// [PlanBuilder.buildWeek] çıktısı — güne göre gruplu bloklar.
+class WeekPlanResult {
+  final List<DayPlan> days;
+  final String reason;
+  final int unfitCount;
+
+  const WeekPlanResult({
+    required this.days,
+    required this.reason,
+    this.unfitCount = 0,
+  });
+
+  bool get isEmpty => days.isEmpty;
+  int get totalBlocks => days.fold(0, (s, d) => s + d.blocks.length);
+  List<PlanBlock> get allBlocks => [for (final d in days) ...d.blocks];
 }

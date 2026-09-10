@@ -142,4 +142,72 @@ void main() {
     expect(run().blocks.map((b) => b.subjectId).toList(),
         run().blocks.map((b) => b.subjectId).toList());
   });
+
+  group('buildWeek', () {
+    final start = DateTime(2026, 9, 14); // Pazartesi
+
+    test('7 gün, her gün dolu, tarihler ardışık', () {
+      final w = PlanBuilder.buildWeek(
+        orderedSubjects: subjects,
+        hoursPerDay: 2,
+        startDate: start,
+      );
+      expect(w.days.length, 7);
+      expect(w.days.first.date, start);
+      expect(w.days.last.date, start.add(const Duration(days: 6)));
+      // 2 saat / 45 dk = 2 blok/gün
+      expect(w.days.every((d) => d.blocks.length == 2), isTrue);
+      expect(w.totalBlocks, 14);
+    });
+
+    test('odak her gün döner — ilk blok her gün farklı derse kayar', () {
+      final w = PlanBuilder.buildWeek(
+        orderedSubjects: subjects,
+        hoursPerDay: 1,
+        startDate: start,
+        days: 3,
+      );
+      expect(w.days[0].blocks.first.subjectId, 'id-Matematik');
+      expect(w.days[1].blocks.first.subjectId, 'id-Fizik');
+      expect(w.days[2].blocks.first.subjectId, 'id-Kimya');
+    });
+
+    test('işaretlenmemiş konular hafta boyunca bir kez tüketilir', () {
+      final w = PlanBuilder.buildWeek(
+        orderedSubjects: [_sub('Matematik')],
+        uncoveredTopics: {
+          'id-Matematik': ['Türev', 'İntegral', 'Limit'],
+        },
+        hoursPerDay: 1,
+        startDate: start,
+        days: 5,
+      );
+      final titles = w.allBlocks.map((b) => b.title).toList();
+      expect(titles.take(3).toList(),
+          ['Matematik: Türev', 'Matematik: İntegral', 'Matematik: Limit']);
+      // Konular bitince düz ders adına düşer, tekrar etmez.
+      expect(titles.where((t) => t == 'Matematik: Türev').length, 1);
+      expect(titles.skip(3).every((t) => t == 'Matematik'), isTrue);
+    });
+
+    test('sınav yakınsa öncelik yüksek + gerekçe', () {
+      final w = PlanBuilder.buildWeek(
+        orderedSubjects: subjects,
+        hoursPerDay: 2,
+        startDate: start,
+        examDays: 12,
+      );
+      expect(w.allBlocks.every((b) => b.priority == TaskPriority.high), isTrue);
+      expect(w.reason.contains('12 gün'), isTrue);
+    });
+
+    test('ders yoksa boş sonuç', () {
+      final w = PlanBuilder.buildWeek(
+        orderedSubjects: const [],
+        hoursPerDay: 3,
+        startDate: start,
+      );
+      expect(w.isEmpty, isTrue);
+    });
+  });
 }

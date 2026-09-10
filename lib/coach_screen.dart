@@ -36,10 +36,17 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   bool _delegate = false;
   bool _askedRecurrence = false;
 
+  // Devralma modunda: bugün mü (false), önümüzdeki 7 gün mü (true), henüz
+  // sorulmadı mı (null).
+  bool? _wantsWeek;
+
   // Onaya sunulmuş plan (varsa). Tek görev ya da çok görevli gün planı.
   List<PlanBlock>? _pending;
   String _pendingRecurrence = 'none';
   bool _pendingIsDay = false;
+
+  // Onaya sunulmuş haftalık program (varsa) — güne göre gruplu.
+  WeekPlanResult? _pendingWeek;
 
   bool _hasInput = false;
 
@@ -86,8 +93,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final examLine = (examDate != null && daysUntilExam(examDate) >= 0)
         ? ' Sınava ${daysUntilExam(examDate)} gün var.'
         : '';
-    _say('Bugün nasıl planlayalım?$examLine Ne çalışmak istediğini ve ne '
-        'kadar vaktin olduğunu yaz — ya da "sen ayarla" de, ben kurayım.');
+    _say('Nasıl planlayalım?$examLine Ne çalışmak istediğini ve ne kadar '
+        'vaktin olduğunu yaz — ya da "sen ayarla" de, ben kurayım '
+        '(bugüne ya da "bu hafta" dersen 7 güne).');
   }
 
   // --- Girdi işleme ----------------------------------------------
@@ -100,6 +108,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       r'\b(bitir|kapat|yeter|işim bitti|isim bitti|bu kadar|sağ ol|sag ol|teşekkür|tesekkur|yok(?: bu kadar)?)\b');
   static final _delegateRe = RegExp(
       r'\b(sen ayarla|sen yap|sen kur|sen karar|sana bırak|sana birak|sen bil|bilmiyorum|fark etmez|farketmez|önemli değil|onemli degil)\b');
+  static final _weekIntentRe = RegExp(
+      r'(bu hafta|haftalık program|haftalik program|haftalık plan|haftalik plan|hafta boyunca|7 gün|7 gun|yedi gün|yedi gun|bir haftalık|bir haftalik)');
+  static final _todayIntentRe = RegExp(
+      r'(sadece bugün|sadece bugun|sadece bu gün|bugün olsun|bugun olsun|tek gün|tek gun|sadece bugüne|sadece bugune)');
 
   void _onSend() {
     final raw = _input.text.trim();
@@ -117,7 +129,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (_restart.hasMatch(low)) {
       _draft.reset();
       _pending = null;
+      _pendingWeek = null;
       _delegate = false;
+      _wantsWeek = null;
       _askedRecurrence = false;
       _say('Tamam, temizledim. Baştan anlat bakalım.');
       return;
@@ -128,6 +142,24 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
 
     if (_delegateRe.hasMatch(low)) _delegate = true;
+
+    if (_delegate) {
+      if (_weekIntentRe.hasMatch(low)) {
+        _wantsWeek = true;
+      } else if (_todayIntentRe.hasMatch(low)) {
+        _wantsWeek = false;
+      } else if (_draft.minutes != null && _wantsWeek == null) {
+        // "bugün mü / bu hafta mı" sorusuna serbest cevap.
+        if (low.contains('hafta')) {
+          _wantsWeek = true;
+        } else if (low.contains('bugün') ||
+            low.contains('bugun') ||
+            low.contains('gün') ||
+            low.contains('gun')) {
+          _wantsWeek = false;
+        }
+      }
+    }
 
     final parsed = PlanParser.parse(raw, subjects: ref.read(subjectProvider));
     _merge(parsed, raw);
@@ -180,12 +212,21 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (_delegate) {
       if (_draft.minutes == null) {
         _say(_pick([
-          'Tamam, ben kurayım. Bugün toplam ne kadar vaktin var?',
-          'Olur, devralıyorum. Kaç saatin var bugün?',
+          'Tamam, ben kurayım. Günde ortalama ne kadar vaktin var?',
+          'Olur, devralıyorum. Günde kaç saatin var?',
         ]));
         return;
       }
-      _proposeDay();
+      if (_wantsWeek == null) {
+        _say('Sadece bugüne mi, yoksa önümüzdeki 7 güne bir program mı? '
+            '("bugün" ya da "bu hafta")');
+        return;
+      }
+      if (_wantsWeek!) {
+        _proposeWeek();
+      } else {
+        _proposeDay();
+      }
       return;
     }
 
@@ -227,6 +268,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
   ];
 
+  static const _weekdayShort = [
+    'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz',
+  ];
+
   String _dayLabel(DateTime d) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -234,6 +279,15 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (diff == 0) return 'Bugün';
     if (diff == 1) return 'Yarın';
     return '${d.day} ${_months[d.month - 1]}';
+  }
+
+  String _weekdayLabel(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = DateTime(d.year, d.month, d.day).difference(today).inDays;
+    if (diff == 0) return 'Bugün';
+    if (diff == 1) return 'Yarın';
+    return '${_weekdayShort[d.weekday - 1]} ${d.day} ${_months[d.month - 1]}';
   }
 
   String _hhmm(int h, int m) =>
@@ -340,7 +394,106 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         '"ekle" de ya da değiştirmek istediğini söyle.');
   }
 
+  void _proposeWeek() {
+    final subjects = ref.read(subjectProvider);
+    final allTasks = ref.read(taskProvider);
+    final examDate = ref.read(statsProvider).examDate;
+    final examDays = examDate == null ? null : daysUntilExam(examDate);
+
+    // Konu Takip: kapsama oranları + ders başına işaretlenmemiş konular.
+    final coverage = ref.read(coverageBySubjectProvider);
+    final coveragePercent = <String, double>{
+      for (final e in coverage.entries)
+        if (e.value.hasTopics) e.key: e.value.ratio,
+    };
+    final uncovered = <String, List<String>>{};
+    for (final t in ref.read(topicProvider)) {
+      if (t.status != TopicStatus.reviewed && t.status != TopicStatus.studied) {
+        uncovered.putIfAbsent(t.subjectId, () => []).add(t.name);
+      }
+    }
+
+    final advisorIds = StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: allTasks,
+      examDate: examDate,
+      limit: subjects.length,
+      coveragePercent: coveragePercent,
+    ).map((s) => s.subjectId).toList();
+
+    final ordered = <SubjectModel>[
+      for (final id in advisorIds) subjects.firstWhere((s) => s.id == id),
+      for (final s in subjects)
+        if (!advisorIds.contains(s.id)) s,
+    ];
+
+    final n0 = DateTime.now();
+    final today = DateTime(n0.year, n0.month, n0.day);
+    final hoursPerDay = (_draft.minutes! / 60).round().clamp(1, 8);
+
+    final week = PlanBuilder.buildWeek(
+      orderedSubjects: ordered,
+      uncoveredTopics: uncovered,
+      hoursPerDay: hoursPerDay,
+      startDate: today,
+      examDays: examDays,
+    );
+
+    if (week.isEmpty) {
+      _say('Program çıkmadı — günde biraz daha vakit yazar mısın?');
+      _draft.minutes = null;
+      return;
+    }
+
+    _pendingWeek = week;
+    _pending = week.allBlocks;
+    _pendingIsDay = true;
+    _pendingRecurrence = 'none';
+
+    final buf = StringBuffer()
+      ..writeln(week.reason)
+      ..writeln();
+    for (final d in week.days) {
+      buf.writeln('${_weekdayLabel(d.date)} · '
+          '${d.blocks.map((b) => b.title).join(', ')}');
+    }
+    buf
+      ..writeln()
+      ..write('Toplam ${week.totalBlocks} görev, ${week.days.length} gün.\n\n'
+          '"ekle" de ya da değiştirmek istediğini söyle.');
+    _say(buf.toString());
+  }
+
   void _commit() {
+    // Haftalık program: her bloğu kendi gününün dueDate'iyle yaz.
+    final week = _pendingWeek;
+    if (week != null) {
+      final notifier = ref.read(taskProvider.notifier);
+      var count = 0;
+      for (final day in week.days) {
+        for (final b in day.blocks) {
+          notifier.addTask(
+            title: b.title,
+            subjectId: b.subjectId.isEmpty ? null : b.subjectId,
+            dueDate: day.date,
+            priority: b.priority,
+            estimatedMinutes: b.minutes,
+            difficulty: TopicDifficulty.medium,
+          );
+          count++;
+        }
+      }
+      _pendingWeek = null;
+      _pending = null;
+      _draft.reset();
+      _delegate = false;
+      _wantsWeek = null;
+      _askedRecurrence = false;
+      _say('$count görev ${week.days.length} güne yayıldı 👍 '
+          'Başka bir şey var mı?');
+      return;
+    }
+
     final blocks = _pending;
     if (blocks == null) return;
     final notifier = ref.read(taskProvider.notifier);
@@ -387,6 +540,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _pending = null;
     _draft.reset();
     _delegate = false;
+    _wantsWeek = null;
     _askedRecurrence = false;
     _say(n == 1
         ? 'Eklendi 👍 Başka bir şey planlayalım mı?'
