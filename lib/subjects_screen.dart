@@ -5,7 +5,6 @@ import 'app_text_styles.dart';
 import 'subject_provider.dart';
 import 'subject_model.dart';
 import 'add_subject_sheet.dart';
-import 'add_task_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_snackbar.dart';
@@ -20,16 +19,6 @@ class SubjectsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Derslerim', style: AppTextStyles.heading2),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.playlist_add, color: AppColors.primary),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AddTaskScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: subjects.isEmpty
           ? Center(

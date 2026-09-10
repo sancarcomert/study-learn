@@ -48,8 +48,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
   // her göreve sessizce süre ekliyordu (amatör). Artık kullanıcı seçmezse yok.
   int? _selectedDuration;
 
-  TopicDifficulty _selectedDifficulty = TopicDifficulty.medium;
-
   // 'none' / 'daily' / 'weekly' — sadece yeni görev eklerken kullanılır,
   // düzenleme modunda hiç gösterilmez (V1: seri yönetimi kapsam dışı).
   String _recurrence = 'none';
@@ -91,8 +89,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
       _selectedDuration = task.estimatedMinutes;
 
-      _selectedDifficulty = task.difficulty;
-
 
       if (task.scheduledTime != null) {
 
@@ -106,7 +102,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       _detailsExpanded = task.scheduledTime != null ||
           !_isSameDay(task.dueDate, DateTime.now()) ||
           task.priority != TaskPriority.medium ||
-          task.difficulty != TopicDifficulty.medium ||
           task.estimatedMinutes != null;
 
     }
@@ -235,32 +230,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
   }
 
 
-  String _difficultyLabel(TopicDifficulty difficulty) {
-    switch (difficulty) {
-      case TopicDifficulty.easy:
-        return "Kolay";
-      case TopicDifficulty.medium:
-        return "Orta";
-      case TopicDifficulty.hard:
-        return "Zor";
-    }
-  }
-
-
-  Color _difficultyColor(TopicDifficulty difficulty) {
-    switch (difficulty) {
-      case TopicDifficulty.easy:
-        return AppColors.success;
-      case TopicDifficulty.medium:
-        return AppColors.priorityMedium;
-      case TopicDifficulty.hard:
-        return AppColors.danger;
-    }
-  }
-
-
-
-
   void _submit() {
 
 
@@ -317,9 +286,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             estimatedMinutes:
                 _selectedDuration,
 
-            difficulty:
-                _selectedDifficulty,
-
           );
 
 
@@ -331,7 +297,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             startDate: _selectedDate,
             recurrenceRule: _recurrence,
             priority: _selectedPriority,
-            difficulty: _selectedDifficulty,
             scheduledTimeOfDay: _selectedTime,
             estimatedMinutes: _selectedDuration,
           );
@@ -359,9 +324,6 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
             estimatedMinutes:
                 _selectedDuration,
-
-            difficulty:
-                _selectedDifficulty,
 
           );
 
@@ -841,32 +803,6 @@ Widget build(BuildContext context) {
                                   onTap: () {
                                     setState(() {
                                       _selectedPriority = priority;
-                                    });
-                                  },
-                                );
-                              }).toList(),
-                            ),
-
-
-                            const SizedBox(height: 24),
-
-
-                            const Eyebrow(text: "ZORLUK"),
-
-                            const SizedBox(height: 10),
-
-                            Wrap(
-                              spacing: 8,
-                              children: TopicDifficulty.values.map((difficulty) {
-                                final isSelected = _selectedDifficulty == difficulty;
-
-                                return _SubjectChip(
-                                  label: _difficultyLabel(difficulty),
-                                  color: _difficultyColor(difficulty),
-                                  isSelected: isSelected,
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedDifficulty = difficulty;
                                     });
                                   },
                                 );
