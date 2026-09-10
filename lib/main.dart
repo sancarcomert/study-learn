@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
+import 'backup_service.dart';
 import 'hive_boxes.dart';
 import 'notification_service.dart';
 
@@ -28,6 +31,11 @@ void main() async {
   });
 
   await HiveBoxes.init();
+
+  // Günde bir kez cihaza sessiz yerel yedek (best-effort — açılışı bloke
+  // etmez, hata durumunda hiçbir şey yapmaz). docs/rakip_analizi §6 A1.
+  unawaited(BackupService.writeDailySnapshot());
+
   await NotificationService.instance.initialize();
   await initializeDateFormatting('tr_TR', null);
   runApp(

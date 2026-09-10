@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "com.example.study_planner"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker / share_plus üzerinden gelen flutter_plugin_android_lifecycle
+    // compileSdk 36 istiyor; Flutter varsayılanı henüz daha düşük.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

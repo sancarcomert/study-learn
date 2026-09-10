@@ -8,6 +8,7 @@ import 'subject_provider.dart';
 import 'subjects_screen.dart';
 import 'task_provider.dart';
 import 'tap_scale.dart';
+import 'widgets/data_backup_section.dart';
 import 'widgets/eyebrow.dart';
 
 void _showEditNameDialog(BuildContext context, WidgetRef ref, String? currentName) {
@@ -258,6 +259,10 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: 28),
+
+          const DataBackupSection(),
         ],
       ),
     );
