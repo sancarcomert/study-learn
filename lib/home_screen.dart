@@ -18,6 +18,9 @@ import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'daily_closeout_provider.dart';
 import 'daily_closeout_sheet.dart';
+import 'level_provider.dart';
+import 'level_system.dart';
+import 'widgets/animated_progress_bar.dart';
 import 'widgets/task_tile.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
@@ -518,6 +521,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 20),
+
+                  // 3.5) SEVİYE — türetilmiş merdiven (P0-2)
+                  TapScale(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
+                    child: _LevelBar(level: ref.watch(levelProvider)),
+                  ),
+
                   const SizedBox(height: 28),
 
                   // 4) BENTO GRID
@@ -680,6 +693,54 @@ class _HintStrip extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Home'daki ince seviye çubuğu (P0-2). Dokun → Profil (tam merdiven).
+class _LevelBar extends StatelessWidget {
+  final LevelInfo level;
+
+  const _LevelBar({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'SEVİYE ${level.level}',
+                style: AppTextStyles.eyebrow.copyWith(color: AppColors.primary),
+              ),
+              const SizedBox(width: 8),
+              Text('· ${level.title}', style: AppTextStyles.caption),
+              const Spacer(),
+              Text(
+                level.progress >= 1
+                    ? 'seviye atladın 🎉'
+                    : 'sonrakine ${level.xpToNextLevel} XP',
+                style: AppTextStyles.caption,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          AnimatedProgressBar(
+            value: level.progress,
+            color: AppColors.primary,
+            backgroundColor: AppColors.surfaceVariant,
+            height: 6,
           ),
         ],
       ),

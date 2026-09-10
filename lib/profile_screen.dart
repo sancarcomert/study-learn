@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'level_provider.dart';
+import 'level_system.dart';
 import 'stats_provider.dart';
 import 'subject_provider.dart';
 import 'subjects_screen.dart';
 import 'task_provider.dart';
 import 'tap_scale.dart';
 import 'user_stats_model.dart';
+import 'widgets/animated_progress_bar.dart';
 import 'widgets/data_backup_section.dart';
 import 'widgets/eyebrow.dart';
 
@@ -233,6 +236,12 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
+          const Eyebrow(text: 'SEVİYE'),
+          const SizedBox(height: 10),
+          _LevelCard(level: ref.watch(levelProvider)),
+
+          const SizedBox(height: 28),
+
           const Eyebrow(text: 'SERİ'),
           const SizedBox(height: 10),
           Row(
@@ -347,6 +356,63 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 28),
 
           const DataBackupSection(),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelCard extends StatelessWidget {
+  final LevelInfo level;
+
+  const _LevelCard({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    final nextRank = level.atTopRank
+        ? 'En üst rütbedesin ✦'
+        : '${LevelSystem.ranks[LevelSystem.ranks.indexOf(level.title) + 1]}'
+            ' rütbesine ${level.levelsToNextRank} seviye';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text('Seviye ${level.level}', style: AppTextStyles.heading2),
+              const SizedBox(width: 10),
+              Text(level.title,
+                  style: AppTextStyles.body
+                      .copyWith(color: AppColors.primary)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(nextRank, style: AppTextStyles.caption),
+          const SizedBox(height: 14),
+          AnimatedProgressBar(
+            value: level.progress,
+            color: AppColors.primary,
+            backgroundColor: AppColors.surfaceVariant,
+            height: 8,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            level.progress >= 1
+                ? 'Bir sonraki seviyeye hazırsın 🎉'
+                : 'Sonraki seviye: ${level.xpToNextLevel} XP · '
+                    'her tamamlanan görev, korunan seri ve işaretlenen konu '
+                    'XP kazandırır.',
+            style: AppTextStyles.caption,
+          ),
         ],
       ),
     );
