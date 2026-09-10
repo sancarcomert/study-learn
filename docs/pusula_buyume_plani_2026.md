@@ -61,9 +61,12 @@ kapat", erişilebilirlik geçişi.
 | P0-6 | **Odak seansı: duraklat + geçmişi düzenle/sil.** | Rakiplerin #1 eksik-özellik şikayeti. `focus_sessions` box var, ekran yok. | Orta |
 | P0-7 | **Bildirim metinlerini kişiselleştir** — kuru "Görev zamanı geldi" değil; "Günaydın 👋 bugün 2 blok var" / "Sınava 82 gün — bugünkü tek şey: türev". | rabbit'in tek gerçek övgüsü bildirimler. | Küçük |
 | P0-8 | **İlk-60-saniye + boş durum cilası** — ilk açılış sıcak, boş durumlar sistemli. | "Ürün ince hissettiriyor" riskini kapatır. | Küçük |
+| P0-9 | **Deneme / net takibi** — TYT/AYT D-Y-net girişi + trend grafiği. Soru YOK, sadece skor → kapsam çizgisini geçmez. | 11–12 + mezun (kitlenin yarısı) için temel beklenti; her rakipte var. "Kapsam kayması" endişesi abartılıydı. | Orta (yeni izole modül) |
+| P0-10 | **Paylaşılabilir kart** — tek dokunuşla temiz görsel ("12 günlük serim 🔥" / "Bu hafta 18 görev"). Kutlama anında, nag değil. | Öğrenci story'sine atar → bedava dağıtım. | Küçük |
 
-**Yayına GİRMEYECEK (kapsam sözleşmesi):** soru bankası · video · **genel/Türkiye
-lider tablosu** · reklam · zorunlu hesap. Gerçek LLM asistan.
+**Yayına GİRMEYECEK (kapsam sözleşmesi):** soru bankası · video içerik · **Türkiye-geneli
+global lider tablosu** (küçük opt-in haftalık ligler Faz 3'te olabilir) · reklam ·
+zorunlu hesap · LLM ile ders anlatan asistan.
 
 ---
 
@@ -94,12 +97,14 @@ Reklam yok. Motor = **ASO + içerik + topluluk + sezon zamanlaması.**
 - Açıklamada "yapmadıklarımız" manifestosu — arama değil, **tıklayınca ikna** eder.
 
 ### 4b. İçerik (asıl büyüme motoru — TR study-tok/gram devasa)
-- **Haftada 3–5 kısa video** (TikTok + Instagram Reels + YouTube Shorts):
-  - "study with me" + ekranda Pusula
-  - YKS çalışma taktiği / "programımı nasıl kuruyorum"
-  - "reklamsız, verini almayan bir planlayıcı yaptım" — hikaye paylaşılır
-- Tutarlılık > kalite. 3 ay istikrarlı post = dönüşen kitle.
-- Bio'da tek link (Play).
+Kullanıcı video/edit yapmayı kabul etti — iki koldan yürür:
+- **Ekran-kaydı klipleri** (yüz yok, konuşma yok, ~10 dk iş): "widget böyle",
+  "koça yazınca ne oluyor", "Bugünü kapat ritüeli". X / Reddit / Discord / Reels.
+- **Tam kısa video** (gerekiyorsa): "study with me" + ekranda Pusula, "programımı
+  nasıl kuruyorum", "reklamsız, verini almayan planlayıcı yaptım" (hikaye paylaşılır).
+- **Tohumlama (en yüksek kaldıraç):** 5–50k takipçili study hesaplarına IG DM →
+  app'i bedava ver, dürüst story/video atsınlar. Video reach'lerini ödünç alırsın.
+- Tutarlılık > kalite. 3 ay istikrarlı post = dönüşen kitle. Bio'da tek link (Play).
 
 ### 4c. Topluluk (seeding — spam değil, gerçekten faydalı ol)
 - r/YKS, YKS Discord sunucuları, ekşi, yksforum, Technopat — sorulara cevap ver,
@@ -130,7 +135,7 @@ Reklam yok. Motor = **ASO + içerik + topluluk + sezon zamanlaması.**
 
 | Faz | Ne | Kaba süre |
 |---|---|---|
-| **Faz 0 — Yayına hazırlık** | P0-1…P0-8 + Play kaydı, ikon, ekran görüntüleri, gizlilik politikası (veri toplamıyoruz → kolay), kapalı test | ~4–6 hafta |
+| **Faz 0 — Yayına hazırlık** | P0-1…P0-10 + Play kaydı, ikon, ekran görüntüleri, gizlilik politikası (veri toplamıyoruz → kolay), kapalı test | ~6–10 hafta (8+ madde, solo dev) |
 | **Faz 1 — Yayın + büyüme** | Play'de yayın · ASO · haftalık 3–5 video · forum/discord seeding · mikro-influencer. Geri bildirime göre hızlı yamalar. | Sürekli, ilk 3 ay yoğun |
 | **Faz 2 — Backend (Supabase)** | Ancak gerçek kullanıcı + geri bildirim varsa: Auth, şema, RLS, bulut yedek. | Faz 1'den ~2–3 ay sonra |
 | **Faz 3 — Plus + ligler + LLM planlayıcı** | Para kazanma başlar. Haftalık ligler. Dar-kapsam LLM (sadece plan kurar). | Faz 2 sonrası |
