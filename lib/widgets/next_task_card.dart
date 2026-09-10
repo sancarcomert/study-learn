@@ -69,15 +69,20 @@ for (final s in subjects) {
 
     final now = DateTime.now();
     final difference = scheduled.difference(now);
+    final hhmm =
+        "${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}";
 
     String status;
 
     if (task!.isCompleted) {
       status = "Tamamlandı 🎉";
-    } else if (difference.inMinutes > 0) {
-      status = "${difference.inMinutes} dakika sonra başlayacak";
+    } else if (difference.inMinutes <= 0) {
+      status = "Başlama saati geçti";
+    } else if (difference.inMinutes >= 90) {
+      // Uzun bekleme: "412 dakika sonra" yerine net saat.
+      status = "$hhmm'de başlayacak";
     } else {
-      status = "Başlama zamanı geldi";
+      status = "${difference.inMinutes} dakika sonra başlayacak";
     }
 
     // Kartın tamamı, TaskTile'da zaten kullanılan aynı düzenleme

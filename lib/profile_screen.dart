@@ -112,7 +112,7 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'SERİN'),
+          const Eyebrow(text: 'SERİ'),
           const SizedBox(height: 10),
           Row(
             children: [

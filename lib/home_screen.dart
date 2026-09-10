@@ -338,8 +338,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final examDate = stats.examDate;
 
     final now = DateTime.now();
+    // "Sıradaki görev" / durum satırı YALNIZ bugünün zamanlı görevlerini
+    // dikkate alır. Başka güne planlı bir görev "685 dakika sonra" gibi
+    // saçma metinler üretiyordu.
     final scheduledIncomplete = allTasks
-        .where((task) => task.scheduledTime != null && !task.isCompleted)
+        .where((task) =>
+            task.scheduledTime != null &&
+            !task.isCompleted &&
+            task.scheduledTime!.year == now.year &&
+            task.scheduledTime!.month == now.month &&
+            task.scheduledTime!.day == now.day)
         .toList()
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
 
