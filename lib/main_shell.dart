@@ -4,6 +4,7 @@ import 'tasks_screen.dart';
 import 'plan_screen.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
+import 'widget_service.dart';
 import 'widgets/app_bottom_nav.dart';
 
 class MainShell extends StatefulWidget {
@@ -13,7 +14,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -23,6 +24,31 @@ class _MainShellState extends State<MainShell> {
     StatsScreen(),
     ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Uygulama arka plana alınırken (kullanıcı görev işaretleyip Home'a
+    // döndüğünde widget doğru görünsün) ve öne geldiğinde (gün değiştiyse
+    // geri sayım yenilensin) ana ekran widget'ını tazele.
+    // docs/rakip_analizi §6 B1.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.resumed) {
+      WidgetService.sync();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

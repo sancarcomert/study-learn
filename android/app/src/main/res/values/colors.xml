@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pusula — Midnight Dark + Champagne Gold. app_colors.dart ile aynı. -->
+    <color name="pusula_ground">#0F1115</color>
+    <color name="pusula_surface">#1A1C22</color>
+    <color name="pusula_gold">#D4AF6A</color>
+    <color name="pusula_text">#F0ECE1</color>
+    <color name="pusula_text_dim">#AFABA3</color>
+</resources>

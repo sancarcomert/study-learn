@@ -10,6 +10,7 @@ import 'app.dart';
 import 'backup_service.dart';
 import 'hive_boxes.dart';
 import 'notification_service.dart';
+import 'widget_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,9 @@ void main() async {
   // Günde bir kez cihaza sessiz yerel yedek (best-effort — açılışı bloke
   // etmez, hata durumunda hiçbir şey yapmaz). docs/rakip_analizi §6 A1.
   unawaited(BackupService.writeDailySnapshot());
+
+  // Ana ekran widget'ını güncel tut (best-effort). docs/rakip_analizi §6 B1.
+  unawaited(WidgetService.sync());
 
   await NotificationService.instance.initialize();
   await initializeDateFormatting('tr_TR', null);
