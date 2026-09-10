@@ -7,6 +7,7 @@ import 'tap_scale.dart';
 import 'subject_provider.dart';
 import 'task_provider.dart';
 import 'stats_provider.dart';
+import 'user_stats_model.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/eyebrow.dart';
 
@@ -21,6 +22,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _nameController = TextEditingController();
   final _customSubjectController = TextEditingController();
   String? _selectedSubject;
+  int? _selectedGrade; // 9–12 = lise, 13 = Mezun
+
+  static const List<(int, String)> _grades = [
+    (9, '9'),
+    (10, '10'),
+    (11, '11'),
+    (12, '12'),
+    (UserStatsModel.mezun, 'Mezun'),
+  ];
 
   static const List<String> _commonSubjects = [
     'Matematik',
@@ -66,11 +76,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // MainShell'e geçişi burada elle YAPMIYORUZ: app.dart zaten
     // statsProvider.hasCompletedOnboarding'i izliyor ve bu flag true
     // olunca home'u reaktif olarak MainShell'e çeviriyor.
+    final stats = ref.read(statsProvider.notifier);
+
     final name = _nameController.text.trim();
-    if (name.isNotEmpty) {
-      ref.read(statsProvider.notifier).updateUserName(name);
+    if (name.isNotEmpty) stats.updateUserName(name);
+
+    if (_selectedGrade != null) {
+      stats.setGradeLevel(_selectedGrade);
+      // Sınıfa göre nazik bir varsayılan günlük hedef: 11–12 + mezun yoğun
+      // dönemde, 2 görev/gün daha gerçekçi. 9–10 alışkanlık kuruyor → 1'de kal.
+      if (UserStatsModel.isExamFocused(_selectedGrade)) {
+        stats.updateDailyGoal(2);
+      }
     }
-    ref.read(statsProvider.notifier).markOnboardingCompleted();
+
+    stats.markOnboardingCompleted();
   }
 
   @override
@@ -110,6 +130,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     hintText: 'Adın soyadın',
                   ),
                   onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 28),
+
+                const Eyebrow(text: 'SINIF'),
+                const SizedBox(height: 10),
+                Text(
+                  'Planı ve tonu sana göre ayarlayalım.',
+                  style: AppTextStyles.bodySecondary,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _grades.map((g) {
+                    final selected = _selectedGrade == g.$1;
+                    return TapScale(
+                      onTap: () => setState(
+                          () => _selectedGrade = selected ? null : g.$1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.tonal(AppColors.primary),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          g.$2,
+                          style: AppTextStyles.body.copyWith(
+                            color:
+                                selected ? AppColors.ink : AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
 
                 const SizedBox(height: 28),

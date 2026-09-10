@@ -313,6 +313,7 @@ class BackupService {
         'examDate': s.examDate?.toIso8601String(),
         'focusMinutes': s.focusMinutes,
         'hasSeenTaskHints': s.hasSeenTaskHints,
+        'gradeLevel': s.gradeLevel,
       };
 
   static UserStatsModel _statsFromMap(Map<String, dynamic> m) => UserStatsModel(
@@ -332,6 +333,7 @@ class BackupService {
         examDate: _date(m['examDate']),
         focusMinutes: (m['focusMinutes'] as num?)?.toInt() ?? 0,
         hasSeenTaskHints: (m['hasSeenTaskHints'] as bool?) ?? false,
+        gradeLevel: (m['gradeLevel'] as num?)?.toInt(),
       );
 
   // ------------------------------------------------------------------ UTIL

@@ -136,6 +136,7 @@ void main() {
         examDate: DateTime(2027, 6, 20),
         focusMinutes: 125,
         hasSeenTaskHints: true,
+        gradeLevel: 12,
       ),
     );
   }
@@ -189,6 +190,7 @@ void main() {
     expect(stats.longestStreak, 9);
     expect(stats.dailyGoal, 2);
     expect(stats.userName, 'Ayşe');
+    expect(stats.gradeLevel, 12);
     expect(stats.examDate, DateTime(2027, 6, 20));
     expect(stats.focusMinutes, 125);
     expect(stats.hasSeenTaskHints, true);

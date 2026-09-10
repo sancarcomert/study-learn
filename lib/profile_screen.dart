@@ -8,6 +8,7 @@ import 'subject_provider.dart';
 import 'subjects_screen.dart';
 import 'task_provider.dart';
 import 'tap_scale.dart';
+import 'user_stats_model.dart';
 import 'widgets/data_backup_section.dart';
 import 'widgets/eyebrow.dart';
 
@@ -35,6 +36,56 @@ void _showEditNameDialog(BuildContext context, WidgetRef ref, String? currentNam
             Navigator.pop(dialogContext);
           },
           child: const Text('Kaydet'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showGradePicker(BuildContext context, WidgetRef ref, int? current) {
+  const options = [9, 10, 11, 12, UserStatsModel.mezun];
+  showDialog(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Sınıfını seç'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final g in options)
+            TapScale(
+              onTap: () {
+                ref.read(statsProvider.notifier).setGradeLevel(g);
+                Navigator.pop(dialogContext);
+              },
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: g == current
+                      ? AppColors.primary
+                      : AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  UserStatsModel.gradeLabel(g),
+                  style: AppTextStyles.body.copyWith(
+                    color: g == current
+                        ? AppColors.ink
+                        : AppColors.textPrimary,
+                    fontWeight:
+                        g == current ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Vazgeç'),
         ),
       ],
     ),
@@ -96,7 +147,9 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${subjects.length} ders • $completedCount görev tamamlandı',
+                          stats.gradeLevel != null
+                              ? '${UserStatsModel.gradeLabel(stats.gradeLevel)} • ${subjects.length} ders • $completedCount görev'
+                              : '${subjects.length} ders • $completedCount görev tamamlandı',
                           style: AppTextStyles.bodySecondary,
                         ),
                       ],
@@ -107,6 +160,37 @@ class ProfileScreen extends ConsumerWidget {
                     color: AppColors.textSecondary,
                     size: 18,
                   ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          const Eyebrow(text: 'SINIF'),
+          const SizedBox(height: 10),
+          TapScale(
+            onTap: () => _showGradePicker(context, ref, stats.gradeLevel),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppColors.softShadow,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.school_outlined,
+                      size: 20, color: AppColors.primary),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      UserStatsModel.gradeLabel(stats.gradeLevel),
+                      style: AppTextStyles.body,
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.textSecondary),
                 ],
               ),
             ),

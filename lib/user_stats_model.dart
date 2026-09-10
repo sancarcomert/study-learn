@@ -67,6 +67,13 @@ class UserStatsModel extends HiveObject {
   @HiveField(12, defaultValue: false)
   bool hasSeenTaskHints;
 
+  // Kullanıcının sınıfı — kişiselleştirme için (onboarding'de sorulur,
+  // Profil'den değiştirilir). 9–12 = lise sınıfı, 13 = Mezun. Nullable:
+  // girmeyen / eski kayıtlarda null; UI "belirtilmemiş" gösterir ve
+  // varsayılan (nazik) davranışa düşer.
+  @HiveField(13)
+  int? gradeLevel;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -83,5 +90,18 @@ class UserStatsModel extends HiveObject {
     this.examDate,
     this.focusMinutes = 0,
     this.hasSeenTaskHints = false,
+    this.gradeLevel,
   });
+
+  /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.
+  static const int mezun = 13;
+
+  static String gradeLabel(int? g) => switch (g) {
+        null => 'Sınıf belirtilmedi',
+        mezun => 'Mezun',
+        _ => '$g. sınıf',
+      };
+
+  /// Sınava odaklı ton (11–12 + mezun) mu, alışkanlık odaklı (9–10) mu?
+  static bool isExamFocused(int? g) => g != null && (g >= 11);
 }

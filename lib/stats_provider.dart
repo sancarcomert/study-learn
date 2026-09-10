@@ -37,6 +37,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       examDate: _stats.examDate,
       focusMinutes: _stats.focusMinutes,
       hasSeenTaskHints: _stats.hasSeenTaskHints,
+      gradeLevel: _stats.gradeLevel,
     );
   }
 
@@ -164,6 +165,15 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   void addFocusMinutes(int minutes) {
     if (minutes <= 0) return;
     _stats.focusMinutes += minutes;
+    _stats.save();
+    _emit();
+  }
+
+  // Kullanıcının sınıfını kaydeder (9–12 = lise, 13 = Mezun, null = temizle).
+  // Kişiselleştirme için: ton, günlük hedef varsayılanı, sınav odağı.
+  void setGradeLevel(int? level) {
+    if (level != null && (level < 9 || level > UserStatsModel.mezun)) return;
+    _stats.gradeLevel = level;
     _stats.save();
     _emit();
   }
