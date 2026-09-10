@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'app_colors.dart';
 import 'hive_boxes.dart';
 
 /// Ana ekran widget'ını besleyen tek kaynak (docs/rakip_analizi §6 B1).
@@ -59,6 +61,66 @@ class WidgetService {
       await HomeWidget.updateWidget(androidName: _androidProvider);
     } catch (_) {
       // Widget güncellemesi best-effort — uygulama akışını asla etkilemez.
+    }
+  }
+
+  /// Widget'ı ana ekrana ekleme teklifi. **Sadece bir kez** ve **doğru anda**:
+  /// kullanıcı ilk kez sınav tarihi girdiğinde (yani geri sayımı gerçekten
+  /// önemsediğinde ve widget hemen anlamlı veri göstereceği zaman). Onboarding'e
+  /// konmadı — orası bilinçli olarak yalın, ve o an widget boş görünürdü.
+  ///
+  /// "Görüldü" bayrağı `home_widget`'in kendi SharedPreferences'ında tutulur —
+  /// hiçbir model/provider'a dokunmaz.
+  static Future<void> maybeOfferPin(BuildContext context) async {
+    try {
+      final seen =
+          await HomeWidget.getWidgetData<bool>('pin_prompt_seen') ?? false;
+      if (seen) return;
+
+      final supported =
+          await HomeWidget.isRequestPinWidgetSupported() ?? false;
+      if (!supported) {
+        // Launcher desteklemiyorsa bir daha deneme.
+        await HomeWidget.saveWidgetData<bool>('pin_prompt_seen', true);
+        return;
+      }
+
+      if (!context.mounted) return;
+      final add = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Sayacı ana ekrana ekle'),
+          content: const Text(
+            'Sınav geri sayımını ve bugünkü görev durumunu telefonunun ana '
+            'ekranından tek bakışta gör. İstediğin zaman kaldırabilirsin.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Şimdi değil'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text(
+                'Ekle',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      await HomeWidget.saveWidgetData<bool>('pin_prompt_seen', true);
+
+      if (add == true) {
+        await sync(); // widget ilk anında güncel veriyle açılsın
+        await HomeWidget.requestPinWidget(androidName: _androidProvider);
+      }
+    } catch (_) {
+      // Teklif best-effort — akışı asla bozmaz.
     }
   }
 }

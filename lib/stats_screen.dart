@@ -13,6 +13,7 @@ import 'subject_model.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'topic_provider.dart';
+import 'widget_service.dart';
 import 'widgets/animated_progress_bar.dart';
 
 /// Görevin "çalışıldığı gün" — tamamlanma tarihi (yoksa vade tarihi), saat sıfır.
@@ -116,7 +117,14 @@ class StatsScreen extends ConsumerWidget {
                 firstDate: today,
                 lastDate: DateTime(today.year + 3, today.month, today.day),
               );
-              if (picked != null) notifier.setExamDate(picked);
+              if (picked != null) {
+                notifier.setExamDate(picked);
+                // İlk kez sınav tarihi giriliyorsa, widget'ı ana ekrana
+                // ekleme teklifi (bir kez). docs/rakip_analizi §6 B1.
+                if (stored == null && context.mounted) {
+                  await WidgetService.maybeOfferPin(context);
+                }
+              }
             },
             onClear: () =>
                 ref.read(statsProvider.notifier).setExamDate(null),
