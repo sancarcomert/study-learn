@@ -13,6 +13,7 @@ dependencies:
   google_fonts: ^6.3.0
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.5.1
+  collection: ^1.19.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   uuid: ^4.4.0

@@ -41,7 +41,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final subjectName = _selectedSubject ?? _customSubjectController.text.trim();
     if (subjectName.isEmpty) return;
 
-    final colorValue = AppColors.subjectPalette.first.value;
+    final colorValue = AppColors.subjectPalette.first.toARGB32();
     ref.read(subjectProvider.notifier).addSubject(subjectName, colorValue);
 
     final newSubjects = ref.read(subjectProvider);

@@ -33,8 +33,8 @@ class AchievementCard extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               color: unlocked
-                  ? AppColors.warning.withOpacity(0.15)
-                  : Colors.grey.withOpacity(0.15),
+                  ? AppColors.warning.withValues(alpha: 0.15)
+                  : Colors.grey.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(

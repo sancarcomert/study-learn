@@ -101,7 +101,7 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Icon(
+                  const Icon(
                     Icons.edit_outlined,
                     color: AppColors.textSecondary,
                     size: 18,
@@ -246,7 +246,9 @@ class ProfileScreen extends ConsumerWidget {
                   label: 'Odak seansı',
                   minutes: stats.focusMinutes,
                 ),
-                Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.12)),
+                Divider(
+                    height: 1,
+                    color: AppColors.textSecondary.withValues(alpha: 0.12)),
                 _StudyTimeRow(
                   icon: Icons.check_circle_outline,
                   iconColor: AppColors.secondary,

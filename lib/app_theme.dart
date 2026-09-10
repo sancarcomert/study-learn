@@ -90,7 +90,7 @@ class AppTheme {
 
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariant,
-        selectedColor: AppColors.primary.withOpacity(.12),
+        selectedColor: AppColors.primary.withValues(alpha: .12),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),

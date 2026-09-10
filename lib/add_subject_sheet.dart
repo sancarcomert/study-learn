@@ -54,10 +54,12 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
       ref.read(subjectProvider.notifier).updateSubject(
             widget.subjectToEdit!.id,
             name,
-            _selectedColor.value,
+            _selectedColor.toARGB32(),
           );
     } else {
-      ref.read(subjectProvider.notifier).addSubject(name, _selectedColor.value);
+      ref
+          .read(subjectProvider.notifier)
+          .addSubject(name, _selectedColor.toARGB32());
     }
     Navigator.of(context).pop();
   }
@@ -95,7 +97,8 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
             Wrap(
               spacing: 12,
               children: AppColors.subjectPalette.map((color) {
-                final isSelected = color.value == _selectedColor.value;
+                final isSelected =
+                    color.toARGB32() == _selectedColor.toARGB32();
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = color),
                   child: Container(

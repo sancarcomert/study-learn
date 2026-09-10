@@ -61,9 +61,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: dayTasks.isEmpty
-                ? Center(
+                ? const Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(24),
                       child: EmptyStateCard(
                         icon: Icons.event_available,
                         message: 'Bu gün için görev yok.',
@@ -252,7 +252,7 @@ class _TimelineRow extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: color.withOpacity(0.25),
+                      color: color.withValues(alpha: 0.25),
                     ),
                   ),
               ],
@@ -297,7 +297,7 @@ class _TimelineRow extends StatelessWidget {
                             ),
                           ),
                           if (task.isCompleted)
-                            Icon(
+                            const Icon(
                               Icons.check_circle_outline,
                               color: AppColors.success,
                               size: 18,

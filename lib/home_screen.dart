@@ -275,7 +275,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       barrierDismissible: true,
       builder: (dialogContext) {
         Future.delayed(const Duration(seconds: 2), () {
-          if (Navigator.canPop(dialogContext)) {
+          if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
             Navigator.pop(dialogContext);
           }
         });

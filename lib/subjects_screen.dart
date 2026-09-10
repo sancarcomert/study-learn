@@ -21,9 +21,9 @@ class SubjectsScreen extends ConsumerWidget {
         title: Text('Derslerim', style: AppTextStyles.heading2),
       ),
       body: subjects.isEmpty
-          ? Center(
+          ? const Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(24),
                 child: EmptyStateCard(
                   icon: Icons.menu_book_outlined,
                   message: 'Henüz ders eklemedin.\nAşağıdaki + butonuna dokun.',
@@ -149,7 +149,7 @@ class _SubjectCard extends StatelessWidget {
               Expanded(
                 child: Text(subject.name, style: AppTextStyles.body),
               ),
-              Icon(
+              const Icon(
                 Icons.chevron_right,
                 color: AppColors.textSecondary,
               ),

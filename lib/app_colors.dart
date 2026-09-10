@@ -40,7 +40,7 @@ class AppColors {
 
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.45),
+          color: Colors.black.withValues(alpha: 0.45),
           blurRadius: 24,
           spreadRadius: 0,
           offset: const Offset(0, 10),
@@ -49,11 +49,11 @@ class AppColors {
 
   static List<BoxShadow> get softShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.30),
+          color: Colors.black.withValues(alpha: 0.30),
           blurRadius: 14,
           offset: const Offset(0, 4),
         ),
       ];
 
-  static Color tonal(Color base) => base.withOpacity(0.14);
+  static Color tonal(Color base) => base.withValues(alpha: 0.14);
 }

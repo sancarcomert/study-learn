@@ -234,7 +234,7 @@ class TaskTile extends ConsumerWidget {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: priorityColor.withOpacity(0.15),
+              color: priorityColor.withValues(alpha: 0.15),
             ),
             boxShadow: AppColors.cardShadow,
           ),
@@ -460,7 +460,7 @@ class _SubjectChip extends StatelessWidget {
       ),
 
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
 
@@ -508,7 +508,7 @@ class _InfoChip extends StatelessWidget {
       ),
 
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
 

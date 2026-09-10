@@ -397,7 +397,7 @@ Widget build(BuildContext context) {
 
                       color:
                           AppColors.primary
-                              .withOpacity(0.1),
+                              .withValues(alpha: 0.1),
 
                       borderRadius:
                           BorderRadius.circular(12),
@@ -573,7 +573,7 @@ Widget build(BuildContext context) {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.info_outline,
                             size: 16,
                             color: AppColors.warning,
@@ -662,14 +662,15 @@ Widget build(BuildContext context) {
                                 ),
 
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withOpacity(0.08),
+                                  color: AppColors.secondary
+                                      .withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
 
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.calendar_today,
                                       size: 16,
                                       color: AppColors.secondary,
@@ -708,8 +709,10 @@ Widget build(BuildContext context) {
 
                                 decoration: BoxDecoration(
                                   color: _selectedTime != null
-                                      ? AppColors.secondary.withOpacity(0.12)
-                                      : AppColors.secondary.withOpacity(0.06),
+                                      ? AppColors.secondary
+                                          .withValues(alpha: 0.12)
+                                      : AppColors.secondary
+                                          .withValues(alpha: 0.06),
 
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -717,7 +720,7 @@ Widget build(BuildContext context) {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.schedule,
                                       size: 18,
                                       color: AppColors.secondary,
@@ -743,7 +746,7 @@ Widget build(BuildContext context) {
                                             _selectedTime = null;
                                           });
                                         },
-                                        child: Icon(
+                                        child: const Icon(
                                           Icons.close,
                                           size: 16,
                                           color: AppColors.secondary,
@@ -865,7 +868,7 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Container(
             height: 1,
-            color: AppColors.textSecondary.withOpacity(0.15),
+            color: AppColors.textSecondary.withValues(alpha: 0.15),
           ),
         ),
       ],
@@ -905,7 +908,7 @@ class _SubjectChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? color
-              : color.withOpacity(0.15),
+              : color.withValues(alpha: 0.15),
 
           borderRadius:
               BorderRadius.circular(20),
