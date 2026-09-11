@@ -738,20 +738,25 @@ class _HighlightingController extends TextEditingController {
     final spans = PlanParser.parse(t, subjects: subjects).spans;
     if (spans.isEmpty) return TextSpan(style: style, text: t);
 
+    // Tek renk (marka altını) — tarih/saat/süre/ders için ayrı renkler
+    // denendi ("anlamsız/tutarsız" geri bildirimi) + arka plan dolgusu
+    // ("çirkin/kaba" geri bildirimi, TextSpan.backgroundColor köşeli
+    // dikdörtgen çiziyor, yuvarlatılamıyor). Artık tek soru: "anlaşıldı mı,
+    // anlaşılmadı mı" — kalın + altın metin, kutu yok.
+    const highlight = TextStyle(
+      color: AppColors.primary,
+      fontWeight: FontWeight.w700,
+    );
+
     final children = <InlineSpan>[];
     var cursor = 0;
     for (final s in spans) {
       if (s.start > cursor) {
         children.add(TextSpan(text: t.substring(cursor, s.start), style: style));
       }
-      final color = _colorFor(s.kind);
       children.add(TextSpan(
         text: t.substring(s.start, s.end),
-        style: style?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-          backgroundColor: color.withValues(alpha: 0.18),
-        ),
+        style: style?.merge(highlight) ?? highlight,
       ));
       cursor = s.end;
     }
@@ -760,14 +765,6 @@ class _HighlightingController extends TextEditingController {
     }
     return TextSpan(style: style, children: children);
   }
-
-  Color _colorFor(PlanSpanKind kind) => switch (kind) {
-        PlanSpanKind.date => AppColors.secondary,
-        PlanSpanKind.time => AppColors.success,
-        PlanSpanKind.duration => AppColors.warning,
-        PlanSpanKind.recurrence => AppColors.info,
-        PlanSpanKind.subject => AppColors.primary,
-      };
 }
 
 /// Değişebilir plan taslağı — sohbet ilerledikçe dolar.
