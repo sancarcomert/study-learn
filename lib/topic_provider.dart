@@ -73,8 +73,33 @@ class TopicNotifier extends StateNotifier<List<TopicModel>> {
     _reload();
   }
 
-  void deleteTopic(String id) {
+  // Geri Al akışı için: silmeden önce alanların bağımsız bir kopyasını
+  // döndürür (silinen HiveObject'in kendisi kullanılamaz — box'tan
+  // silindikten sonra artık geçerli değildir). null dönerse konu zaten
+  // yok demektir. Desen task_provider.dart'taki deleteTask ile aynı.
+  TopicModel? deleteTopic(String id) {
+    final index = state.indexWhere((t) => t.id == id);
+    if (index == -1) return null;
+
+    final original = state[index];
+    final snapshot = TopicModel(
+      id: original.id,
+      subjectId: original.subjectId,
+      name: original.name,
+      status: original.status,
+      createdAt: original.createdAt,
+      updatedAt: original.updatedAt,
+    );
+
     _repository.delete(id);
+    _reload();
+
+    return snapshot;
+  }
+
+  // "Geri Al" ile deleteTopic'in döndürdüğü kopyayı aynı id ile geri ekler.
+  void restoreTopic(TopicModel topic) {
+    _repository.add(topic);
     _reload();
   }
 

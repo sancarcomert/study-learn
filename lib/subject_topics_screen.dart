@@ -127,9 +127,51 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                               child: const Icon(Icons.delete_outline,
                                   color: AppColors.danger),
                             ),
-                            onDismissed: (_) => ref
-                                .read(topicProvider.notifier)
-                                .deleteTopic(t.id),
+                            confirmDismiss: (_) async {
+                              return await showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: const Text("Konu silinsin mi?"),
+                                      content: const Text(
+                                        "Kısa süreliğine geri alabilirsin.",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text("Vazgeç"),
+                                        ),
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: AppColors.danger,
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text("Sil"),
+                                        ),
+                                      ],
+                                    ),
+                                  ) ??
+                                  false;
+                            },
+                            onDismissed: (_) {
+                              // Notifier'ı burada, ref hâlâ geçerliyken
+                              // yakalayıp doğrudan kullanıyoruz — "GERİ AL"
+                              // gecikmeli çalıştığı için ref'i closure
+                              // içinde tekrar okumak, ait olduğu widget
+                              // dispose olduğunda Riverpod hatasına yol
+                              // açabilir (bkz. task_tile.dart).
+                              final notifier =
+                                  ref.read(topicProvider.notifier);
+                              final deleted = notifier.deleteTopic(t.id);
+                              if (deleted != null) {
+                                AppSnackBar.undo(
+                                  context,
+                                  '"${deleted.name}" silindi',
+                                  onUndo: () => notifier.restoreTopic(deleted),
+                                );
+                              }
+                            },
                             child: _TopicRow(
                               name: t.name,
                               status: t.status,
