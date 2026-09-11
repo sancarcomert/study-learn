@@ -1084,20 +1084,34 @@ class _RelaxModeCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           // "Aslında biraz daha çalışacağım" — bugünü yeniden açar (kaydı
-          // siler), kart kaybolup yerini yeniden görev listesi alır.
-          // Ayrı TapScale: dış karttaki (düzenle) dokunmayla çakışmasın.
+          // siler), kart kaybolup yerini yeniden görev listesi alır. Ayrı
+          // TapScale: dış karttaki (düzenle) dokunmayla çakışmasın. Diğer
+          // ikincil aksiyon çiplerinin (ör. "Detayları Gizle") aynı dili —
+          // tonal dolgu + ikon — burada da, altı çizili düz metin yerine.
           TapScale(
             onTap: onReopen,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                'Bugünü yeniden aç',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textMuted,
-                  decoration: TextDecoration.underline,
-                ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.tonal(AppColors.textSecondary),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.replay_outlined,
+                      size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Bugünü yeniden aç',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
