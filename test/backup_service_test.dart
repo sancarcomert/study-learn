@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:study_planner/backup_service.dart';
 import 'package:study_planner/daily_closeout_model.dart';
+import 'package:study_planner/deneme_model.dart';
 import 'package:study_planner/focus_session_model.dart';
 import 'package:study_planner/hive_boxes.dart';
 import 'package:study_planner/subject_model.dart';
@@ -29,7 +30,9 @@ void main() {
       ..registerAdapter(TopicStatusAdapter())
       ..registerAdapter(TopicModelAdapter())
       ..registerAdapter(FocusSessionAdapter())
-      ..registerAdapter(DailyCloseoutAdapter());
+      ..registerAdapter(DailyCloseoutAdapter())
+      ..registerAdapter(DenemeSectionScoreAdapter())
+      ..registerAdapter(DenemeEntryAdapter());
   });
 
   tearDownAll(() async {
@@ -44,6 +47,7 @@ void main() {
     await Hive.openBox<TopicModel>(HiveBoxes.topicsBoxName);
     await Hive.openBox<FocusSession>(HiveBoxes.focusSessionsBoxName);
     await Hive.openBox<DailyCloseout>(HiveBoxes.dailyCloseoutsBoxName);
+    await Hive.openBox<DenemeEntry>(HiveBoxes.denemelerBoxName);
   });
 
   tearDown(() async {
@@ -53,6 +57,7 @@ void main() {
     await Hive.deleteBoxFromDisk(HiveBoxes.topicsBoxName);
     await Hive.deleteBoxFromDisk(HiveBoxes.focusSessionsBoxName);
     await Hive.deleteBoxFromDisk(HiveBoxes.dailyCloseoutsBoxName);
+    await Hive.deleteBoxFromDisk(HiveBoxes.denemelerBoxName);
   });
 
   Future<void> seed() async {
@@ -121,6 +126,19 @@ void main() {
         closedAt: DateTime(2026, 9, 10, 22, 15),
       ),
     );
+    await HiveBoxes.denemeler.put(
+      'd1',
+      DenemeEntry(
+        id: 'd1',
+        examType: 'TYT',
+        name: '3D Yayınları Deneme 5',
+        date: DateTime(2026, 9, 8),
+        sections: [
+          DenemeSectionScore(subject: 'Türkçe', correct: 35, wrong: 4, blank: 1),
+          DenemeSectionScore(subject: 'Matematik', correct: 28, wrong: 8, blank: 4),
+        ],
+      ),
+    );
     await HiveBoxes.stats.put(
       'main',
       UserStatsModel(
@@ -152,6 +170,7 @@ void main() {
     expect(summary.tasks, 2);
     expect(summary.topics, 1);
     expect(summary.focusSessions, 1);
+    expect(summary.denemeler, 1);
 
     final subject = HiveBoxes.subjects.get('s1')!;
     expect(subject.name, 'Matematik · İ ğ ü ş ö ç');
@@ -184,6 +203,14 @@ void main() {
     expect(closeout.intent, 'Yarın türev tekrarı — İş çıkışı');
     expect(closeout.completedTasks, 3);
     expect(closeout.closedAt, DateTime(2026, 9, 10, 22, 15));
+
+    final deneme = HiveBoxes.denemeler.get('d1')!;
+    expect(deneme.examType, 'TYT');
+    expect(deneme.name, '3D Yayınları Deneme 5');
+    expect(deneme.date, DateTime(2026, 9, 8));
+    expect(deneme.sections.length, 2);
+    expect(deneme.sections[0].subject, 'Türkçe');
+    expect(deneme.totalNet, closeTo(34 + 26, 0.001)); // 35-1 + 28-2
 
     final stats = HiveBoxes.stats.get('main')!;
     expect(stats.currentStreak, 4);

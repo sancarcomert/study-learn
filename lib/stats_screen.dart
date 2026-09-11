@@ -6,6 +6,8 @@ import 'widgets/achievement_card.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/exam_countdown.dart';
 import 'widgets/activity_heatmap.dart';
+import 'deneme_model.dart';
+import 'deneme_provider.dart';
 import 'focus_session_provider.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
@@ -65,6 +67,8 @@ class StatsScreen extends ConsumerWidget {
 
     final focusByDay = ref.watch(focusMinutesByDayProvider);
     final focusWeekMin = ref.watch(focusThisWeekMinutesProvider);
+    final denemeCount = ref.watch(denemeProvider).length;
+    final latestDeneme = ref.watch(latestDenemeProvider);
     return Scaffold(
       appBar: AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
       body: ListView(
@@ -246,6 +250,23 @@ class StatsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _SubjectDistribution(tasks: completedTasks, subjects: subjects),
+
+          const SizedBox(height: 28),
+          const Eyebrow(text: 'DENEME NETİ'),
+          const SizedBox(height: 4),
+          Text(
+            'Son eklediğin TYT/AYT denemesi. Tümünü Plan → Deneme '
+            'Takip\'te gör.',
+            style: AppTextStyles.caption,
+          ),
+          const SizedBox(height: 12),
+          if (latestDeneme == null)
+            const _InfoBox(
+              text: 'Henüz deneme eklemedin. Plan → Deneme Takip\'ten '
+                  'ilk netini girebilirsin.',
+            )
+          else
+            _DenemeSummaryCard(entry: latestDeneme, count: denemeCount),
 
          const SizedBox(height: 28),
          const Eyebrow(text: 'BAŞARILAR'),
@@ -565,6 +586,53 @@ class _InfoBox extends StatelessWidget {
         boxShadow: AppColors.softShadow,
       ),
       child: Text(text, style: AppTextStyles.bodySecondary),
+    );
+  }
+}
+
+class _DenemeSummaryCard extends StatelessWidget {
+  final DenemeEntry entry;
+  final int count;
+  const _DenemeSummaryCard({required this.entry, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.tonal(AppColors.secondary),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              entry.examType,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              count == 1 ? '1 deneme kaydettin' : '$count deneme kaydettin',
+              style: AppTextStyles.body,
+            ),
+          ),
+          Text(
+            entry.totalNet.toStringAsFixed(2),
+            style: AppTextStyles.heading3.copyWith(color: AppColors.primary),
+          ),
+        ],
+      ),
     );
   }
 }

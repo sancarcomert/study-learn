@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../app_colors.dart';
 import '../app_text_styles.dart';
 import '../backup_service.dart';
+import '../deneme_provider.dart';
 import '../focus_session_provider.dart';
 import '../stats_provider.dart';
 import '../subject_provider.dart';
@@ -192,11 +193,14 @@ class _DataBackupSectionState extends ConsumerState<DataBackupSection> {
         ref.invalidate(focusSessionProvider);
         ref.invalidate(statsRepositoryProvider);
         ref.invalidate(statsProvider);
+        ref.invalidate(denemeRepositoryProvider);
+        ref.invalidate(denemeProvider);
         if (mounted) {
           AppSnackBar.success(
             context,
             '${summary.subjects} ders · ${summary.tasks} görev · '
-            '${summary.topics} konu geri yüklendi.',
+            '${summary.topics} konu · ${summary.denemeler} deneme '
+            'geri yüklendi.',
           );
         }
       } on BackupException catch (e) {

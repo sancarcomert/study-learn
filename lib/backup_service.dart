@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import 'daily_closeout_model.dart';
+import 'deneme_model.dart';
 import 'focus_session_model.dart';
 import 'hive_boxes.dart';
 import 'subject_model.dart';
@@ -46,6 +47,7 @@ class BackupService {
       'focusSessions': HiveBoxes.focusSessions.values.map(_focusToMap).toList(),
       'dailyCloseouts':
           HiveBoxes.dailyCloseouts.values.map(_closeoutToMap).toList(),
+      'denemeler': HiveBoxes.denemeler.values.map(_denemeToMap).toList(),
       'stats': stats == null ? null : _statsToMap(stats),
     };
   }
@@ -84,6 +86,7 @@ class BackupService {
     final List<TopicModel> topics;
     final List<FocusSession> focus;
     final List<DailyCloseout> closeouts;
+    final List<DenemeEntry> denemeler;
     final UserStatsModel? stats;
     try {
       subjects = _mapList(data['subjects']).map(_subjectFromMap).toList();
@@ -92,6 +95,7 @@ class BackupService {
       focus = _mapList(data['focusSessions']).map(_focusFromMap).toList();
       closeouts =
           _mapList(data['dailyCloseouts']).map(_closeoutFromMap).toList();
+      denemeler = _mapList(data['denemeler']).map(_denemeFromMap).toList();
       final s = data['stats'];
       stats = s is Map ? _statsFromMap(s.cast<String, dynamic>()) : null;
     } catch (_) {
@@ -119,6 +123,10 @@ class BackupService {
     for (final c in closeouts) {
       await HiveBoxes.dailyCloseouts.put(c.id, c);
     }
+    await HiveBoxes.denemeler.clear();
+    for (final d in denemeler) {
+      await HiveBoxes.denemeler.put(d.id, d);
+    }
     if (stats != null) {
       await HiveBoxes.stats.put('main', stats);
     }
@@ -128,6 +136,7 @@ class BackupService {
       tasks: tasks.length,
       topics: topics.length,
       focusSessions: focus.length,
+      denemeler: denemeler.length,
     );
   }
 
@@ -188,7 +197,8 @@ class BackupService {
                 _mapList(decoded['tasks']).length +
                 _mapList(decoded['topics']).length +
                 _mapList(decoded['focusSessions']).length +
-                _mapList(decoded['dailyCloseouts']).length;
+                _mapList(decoded['dailyCloseouts']).length +
+                _mapList(decoded['denemeler']).length;
           }
         } catch (_) {}
         return SnapshotInfo(path: f.path, takenAt: taken, itemCount: items);
@@ -299,6 +309,37 @@ class BackupService {
         closedAt: _date(m['closedAt']) ?? DateTime.now(),
       );
 
+  static Map<String, dynamic> _denemeSectionToMap(DenemeSectionScore s) => {
+        'subject': s.subject,
+        'correct': s.correct,
+        'wrong': s.wrong,
+        'blank': s.blank,
+      };
+
+  static DenemeSectionScore _denemeSectionFromMap(Map<String, dynamic> m) =>
+      DenemeSectionScore(
+        subject: (m['subject'] as String?) ?? '',
+        correct: (m['correct'] as num?)?.toInt() ?? 0,
+        wrong: (m['wrong'] as num?)?.toInt() ?? 0,
+        blank: (m['blank'] as num?)?.toInt() ?? 0,
+      );
+
+  static Map<String, dynamic> _denemeToMap(DenemeEntry e) => {
+        'id': e.id,
+        'examType': e.examType,
+        'name': e.name,
+        'date': e.date.toIso8601String(),
+        'sections': e.sections.map(_denemeSectionToMap).toList(),
+      };
+
+  static DenemeEntry _denemeFromMap(Map<String, dynamic> m) => DenemeEntry(
+        id: m['id'] as String,
+        examType: (m['examType'] as String?) ?? 'TYT',
+        name: m['name'] as String?,
+        date: _date(m['date']) ?? DateTime.now(),
+        sections: _mapList(m['sections']).map(_denemeSectionFromMap).toList(),
+      );
+
   static Map<String, dynamic> _statsToMap(UserStatsModel s) => {
         'currentStreak': s.currentStreak,
         'longestStreak': s.longestStreak,
@@ -368,12 +409,14 @@ class ImportSummary {
   final int tasks;
   final int topics;
   final int focusSessions;
+  final int denemeler;
 
   const ImportSummary({
     required this.subjects,
     required this.tasks,
     required this.topics,
     required this.focusSessions,
+    this.denemeler = 0,
   });
 }
 

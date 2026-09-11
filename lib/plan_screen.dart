@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'coach_screen.dart';
+import 'deneme_screen.dart';
 import 'focus_screen.dart';
 import 'konu_takip_screen.dart';
 import 'tap_scale.dart';
@@ -46,6 +47,16 @@ class PlanScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FocusScreen()),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PlanEntry(
+            icon: Icons.insights_outlined,
+            title: "Deneme Takip",
+            subtitle: "TYT/AYT netini gir, trendini gör",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DenemeScreen()),
             ),
           ),
         ],
