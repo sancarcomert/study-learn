@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'about_screen.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'rank_ladder_screen.dart';
@@ -372,6 +373,39 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 28),
 
           const DataBackupSection(),
+
+          const SizedBox(height: 28),
+
+          const Eyebrow(text: 'HAKKINDA'),
+          const SizedBox(height: 10),
+          TapScale(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppColors.softShadow,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield_outlined,
+                      size: 20, color: AppColors.primary),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      'Verin sende — gizlilik ve şeffaflık',
+                      style: AppTextStyles.body,
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.textSecondary),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
