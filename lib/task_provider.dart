@@ -379,3 +379,48 @@ final todayTasksProvider =
   }).toList();
 
 });
+
+DateTime _taskCompletionDay(TaskModel t) {
+  final d = t.completedAt ?? t.dueDate;
+  return DateTime(d.year, d.month, d.day);
+}
+
+/// Gün (saat sıfır) → o gün tamamlanan görev sayısı.
+final tasksCompletedByDayProvider = Provider<Map<DateTime, int>>((ref) {
+  final all = ref.watch(taskProvider);
+  final map = <DateTime, int>{};
+  for (final t in all) {
+    if (!t.isCompleted) continue;
+    final d = _taskCompletionDay(t);
+    map[d] = (map[d] ?? 0) + 1;
+  }
+  return map;
+});
+
+int _weekSum(Map<DateTime, int> byDay, DateTime start, DateTime end) {
+  var total = 0;
+  byDay.forEach((day, count) {
+    if (!day.isBefore(start) && day.isBefore(end)) total += count;
+  });
+  return total;
+}
+
+/// Bu haftanın (Pazartesi–bugün) tamamlanan görev sayısı.
+final tasksCompletedThisWeekProvider = Provider<int>((ref) {
+  final byDay = ref.watch(tasksCompletedByDayProvider);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final monday = today.subtract(Duration(days: today.weekday - 1));
+  final nextMonday = monday.add(const Duration(days: 7));
+  return _weekSum(byDay, monday, nextMonday);
+});
+
+/// Geçen haftanın (Pazartesi–Pazar) tamamlanan görev sayısı.
+final tasksCompletedLastWeekProvider = Provider<int>((ref) {
+  final byDay = ref.watch(tasksCompletedByDayProvider);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final monday = today.subtract(Duration(days: today.weekday - 1));
+  final lastMonday = monday.subtract(const Duration(days: 7));
+  return _weekSum(byDay, lastMonday, monday);
+});

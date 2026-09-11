@@ -449,6 +449,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final completedCount = todayTasks.where((t) => t.isCompleted).length;
     final totalCount = todayTasks.length;
 
+    // P0-4: bu hafta / geçen hafta tamamlanan görev karşılaştırması.
+    final thisWeekCompleted = ref.watch(tasksCompletedThisWeekProvider);
+    final lastWeekCompleted = ref.watch(tasksCompletedLastWeekProvider);
+
     // "Bugünü kapat" ritüeli (B3): akşam, henüz kapatılmadıysa entry kartı;
     // sabah, dün bir niyet yazıldıysa nazik hatırlatma.
     final todayCloseout = ref.watch(todayCloseoutProvider);
@@ -599,6 +603,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ],
                   ),
+
+                  if (thisWeekCompleted > 0) ...[
+                    const SizedBox(height: 12),
+                    _WeekCompareStrip(
+                      thisWeek: thisWeekCompleted,
+                      lastWeek: lastWeekCompleted,
+                    ),
+                  ],
 
                   if (upcomingTask != null) ...[
                     const SizedBox(height: 28),
@@ -788,6 +800,51 @@ class _RankStrip extends StatelessWidget {
                 const SizedBox(height: 8),
                 RankBar(info: info, height: 10),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Bu hafta geçen haftandan öndesin" (P0-4) — tek satır, kaygı değil
+/// cesaretlendirme tonu. `thisWeek` 0 iken çağıran yerde hiç gösterilmiyor.
+class _WeekCompareStrip extends StatelessWidget {
+  final int thisWeek;
+  final int lastWeek;
+
+  const _WeekCompareStrip({required this.thisWeek, required this.lastWeek});
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = thisWeek - lastWeek;
+    final String tail;
+    if (lastWeek == 0) {
+      tail = 'geçen hafta kayıt yok';
+    } else if (diff > 0) {
+      tail = 'geçen haftadan +$diff';
+    } else if (diff < 0) {
+      tail = 'geçen hafta $lastWeek görevdin — devam';
+    } else {
+      tail = 'geçen haftayla aynı tempo';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights_outlined, size: 18, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Bu hafta $thisWeek görev · $tail',
+              style:
+                  AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
