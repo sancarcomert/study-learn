@@ -12,6 +12,8 @@ class FocusSessionRepository {
   List<FocusSession> getAll() => _box.values.toList();
 
   Future<void> add(FocusSession s) => _box.put(s.id, s);
+
+  Future<void> delete(String id) => _box.delete(id);
 }
 
 final focusSessionRepositoryProvider =
@@ -33,11 +35,42 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
     ));
     state = _repo.getAll();
   }
+
+  /// Siler ve "Geri Al" için bir kopyasını döndürür. Not: Profil'deki
+  /// kümülatif `UserStatsModel.focusMinutes` toplamı bundan etkilenmez —
+  /// rütbe/seri gibi o da geriye gitmez, yalnız bu günlük kayıt
+  /// (günlük/haftalık grafiklerin kaynağı) siliniyor.
+  FocusSession? deleteSession(String id) {
+    final index = state.indexWhere((s) => s.id == id);
+    if (index == -1) return null;
+    final original = state[index];
+    final snapshot = FocusSession(
+      id: original.id,
+      endedAt: original.endedAt,
+      minutes: original.minutes,
+      mode: original.mode,
+    );
+    _repo.delete(id);
+    state = _repo.getAll();
+    return snapshot;
+  }
+
+  void restoreSession(FocusSession session) {
+    _repo.add(session);
+    state = _repo.getAll();
+  }
 }
 
 final focusSessionProvider =
     StateNotifierProvider<FocusSessionNotifier, List<FocusSession>>((ref) {
   return FocusSessionNotifier(ref.watch(focusSessionRepositoryProvider));
+});
+
+/// Tüm seanslar, en yeniden en eskiye — geçmiş ekranı için.
+final focusSessionsDescendingProvider = Provider<List<FocusSession>>((ref) {
+  final all = List<FocusSession>.from(ref.watch(focusSessionProvider));
+  all.sort((a, b) => b.endedAt.compareTo(a.endedAt));
+  return all;
 });
 
 /// Gün (saat sıfır) → o gün ölçülen toplam odak dakikası.

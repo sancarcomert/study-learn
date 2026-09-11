@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'focus_history_screen.dart';
 import 'focus_session_provider.dart';
 import 'stats_provider.dart';
 import 'tap_scale.dart';
@@ -289,7 +290,18 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         if (!didPop) _exit();
       },
       child: Scaffold(
-        appBar: AppBar(title: Text('Odak', style: AppTextStyles.heading2)),
+        appBar: AppBar(
+          title: Text('Odak', style: AppTextStyles.heading2),
+          actions: [
+            IconButton(
+              tooltip: 'Geçmiş',
+              icon: const Icon(Icons.history_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const FocusHistoryScreen()),
+              ),
+            ),
+          ],
+        ),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
