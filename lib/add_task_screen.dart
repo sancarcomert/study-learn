@@ -611,10 +611,30 @@ Widget build(BuildContext context) {
                       _detailsExpanded = !_detailsExpanded;
                     });
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  // Önceden çıplak bir metin satırıydı — iki kart arasında
+                  // asılı kalıyordu. Artık kendi hafif kabuğu var, "Planlama"
+                  // kartının kapısı gibi okunuyor.
+                  child: Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.tonal(AppColors.primary),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        Text(
+                          _detailsExpanded
+                              ? "Detayları Gizle"
+                              : "Detayları Ekle",
+                          style: AppTextStyles.bodySecondary.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
                         AnimatedRotation(
                           turns: _detailsExpanded ? 0.5 : 0,
                           duration: const Duration(milliseconds: 200),
@@ -623,16 +643,6 @@ Widget build(BuildContext context) {
                             Icons.keyboard_arrow_down,
                             color: AppColors.primary,
                             size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _detailsExpanded
-                              ? "Detayları Gizle"
-                              : "Detayları Ekle",
-                          style: AppTextStyles.bodySecondary.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
@@ -649,10 +659,6 @@ Widget build(BuildContext context) {
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
-                            const SizedBox(height: 16),
-
-                            const _SectionHeader(title: "Planlama"),
 
                             const SizedBox(height: 16),
 
@@ -687,6 +693,7 @@ Widget build(BuildContext context) {
                                       _SubjectChip(
                                         label: "Bugün",
                                         color: AppColors.secondary,
+                                        icon: Icons.calendar_today_outlined,
                                         isSelected: _isDateToday,
                                         onTap: () => setState(() {
                                           _selectedDate = DateTime.now();
@@ -695,6 +702,7 @@ Widget build(BuildContext context) {
                                       _SubjectChip(
                                         label: "Yarın",
                                         color: AppColors.secondary,
+                                        icon: Icons.calendar_today_outlined,
                                         isSelected: _isDateTomorrow,
                                         onTap: () => setState(() {
                                           _selectedDate = DateTime.now()
@@ -706,6 +714,7 @@ Widget build(BuildContext context) {
                                             ? _formatDate(_selectedDate)
                                             : "Özel",
                                         color: AppColors.secondary,
+                                        icon: Icons.calendar_today_outlined,
                                         isSelected: _isCustomDate,
                                         onTap: _pickDate,
                                       ),
@@ -730,6 +739,7 @@ Widget build(BuildContext context) {
                                       _SubjectChip(
                                         label: "Belirtme",
                                         color: AppColors.textSecondary,
+                                        icon: Icons.notifications_off_outlined,
                                         isSelected: _selectedTime == null,
                                         onTap: () => setState(() {
                                           _selectedTime = null;
@@ -739,6 +749,7 @@ Widget build(BuildContext context) {
                                         _SubjectChip(
                                           label: t.format(context),
                                           color: AppColors.secondary,
+                                          icon: Icons.schedule_outlined,
                                           isSelected: _selectedTime == t,
                                           onTap: () => setState(() {
                                             _selectedTime = t;
@@ -749,6 +760,7 @@ Widget build(BuildContext context) {
                                             ? _selectedTime!.format(context)
                                             : "Özel",
                                         color: AppColors.secondary,
+                                        icon: Icons.schedule_outlined,
                                         isSelected: _isCustomTime,
                                         onTap: _pickTime,
                                       ),
@@ -774,7 +786,13 @@ Widget build(BuildContext context) {
 
                                       return _SubjectChip(
                                         label: "$minutes dk",
-                                        color: AppColors.primary,
+                                        // CTA hiyerarşisi (CLAUDE.md): altın
+                                        // yalnız birincil pozitif aksiyon
+                                        // (Görevi Ekle) için — burada da
+                                        // kullanılması "her yer altın"
+                                        // izlenimi veriyordu.
+                                        color: AppColors.secondary,
+                                        icon: Icons.timer_outlined,
                                         isSelected: isSelected,
                                         // Seçili çipe tekrar dokun → süreyi
                                         // kaldır.
@@ -810,6 +828,7 @@ Widget build(BuildContext context) {
                                       return _SubjectChip(
                                         label: _priorityLabel(priority),
                                         color: _priorityColor(priority),
+                                        icon: Icons.flag_outlined,
                                         isSelected: isSelected,
                                         onTap: () {
                                           setState(() {
@@ -857,46 +876,23 @@ Widget build(BuildContext context) {
  // _AddTaskScreenState kapanışı
 
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: AppTextStyles.heading3,
-        ),
-
-        const SizedBox(width: 12),
-
-        Expanded(
-          child: Container(
-            height: 1,
-            color: AppColors.textSecondary.withValues(alpha: 0.15),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-
 class _SubjectChip extends StatelessWidget {
 
   final String label;
   final Color color;
   final bool isSelected;
   final VoidCallback onTap;
+  // Todoist'in rozet deseni (docs/rakip_analizi_ve_yon_2026-09.md) — her
+  // kategori (tarih/saat/süre/öncelik) kendi ikonunu taşır, salt metin
+  // yerine. DERS/TEKRAR çipleri kendi rengiyle zaten ayrışıyor, ikonsuz.
+  final IconData? icon;
 
   const _SubjectChip({
     required this.label,
     required this.color,
     required this.isSelected,
     required this.onTap,
+    this.icon,
   });
 
 
@@ -935,6 +931,9 @@ class _SubjectChip extends StatelessWidget {
           children: [
             if (isSelected) ...[
               Icon(Icons.check, size: 15, color: fgColor),
+              const SizedBox(width: 5),
+            ] else if (icon != null) ...[
+              Icon(icon, size: 15, color: fgColor),
               const SizedBox(width: 5),
             ],
             Text(
