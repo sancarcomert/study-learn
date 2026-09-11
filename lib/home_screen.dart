@@ -747,7 +747,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // "dinlenme modu" kartı alır (kullanıcı bulgusu: kapatınca
                   // görev listesi hâlâ orada durmak yanlış hissettiriyordu).
                   if (todayCloseout != null)
-                    _RelaxModeCard(closeout: todayCloseout)
+                    _RelaxModeCard(
+                      closeout: todayCloseout,
+                      onReopen: () => ref
+                          .read(dailyCloseoutProvider.notifier)
+                          .reopenToday(),
+                    )
                   else ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1013,7 +1018,8 @@ class _YesterdayIntentLine extends StatelessWidget {
 /// zamanlayıcı/sıfırlama gerekmiyor.
 class _RelaxModeCard extends StatelessWidget {
   final DailyCloseout closeout;
-  const _RelaxModeCard({required this.closeout});
+  final VoidCallback onReopen;
+  const _RelaxModeCard({required this.closeout, required this.onReopen});
 
   @override
   Widget build(BuildContext context) {
@@ -1078,6 +1084,23 @@ class _RelaxModeCard extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(height: 14),
+          // "Aslında biraz daha çalışacağım" — bugünü yeniden açar (kaydı
+          // siler), kart kaybolup yerini yeniden görev listesi alır.
+          // Ayrı TapScale: dış karttaki (düzenle) dokunmayla çakışmasın.
+          TapScale(
+            onTap: onReopen,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                'Bugünü yeniden aç',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textMuted,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       ),

@@ -12,6 +12,8 @@ class DailyCloseoutRepository {
   List<DailyCloseout> getAll() => _box.values.toList();
 
   Future<void> put(DailyCloseout c) => _box.put(c.id, c);
+
+  Future<void> delete(String id) => _box.delete(id);
 }
 
 final dailyCloseoutRepositoryProvider =
@@ -39,6 +41,16 @@ class DailyCloseoutNotifier extends StateNotifier<List<DailyCloseout>> {
       focusMinutes: focusMinutes,
       closedAt: now,
     ));
+    state = _repo.getAll();
+  }
+
+  /// "Aslında biraz daha çalışacağım" — bugünü yeniden açar (kaydı siler),
+  /// Home'daki dinlenme modu kalkıp görev listesine döner.
+  Future<void> reopenToday() async {
+    final today = DateTime.now();
+    final key =
+        DailyCloseout.dayKey(DateTime(today.year, today.month, today.day));
+    await _repo.delete(key);
     state = _repo.getAll();
   }
 }
