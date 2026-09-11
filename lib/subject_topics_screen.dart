@@ -74,9 +74,12 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
         TopicStatus.reviewed => 'Tekrar edildi',
       };
 
+  // CTA hiyerarşisi: altın yalnız birincil aksiyon için — "çalışıldı"
+  // potansiyel olarak düzinelerce satırı boyayabiliyordu, secondary
+  // (indigo) üç durumlu merdivene (muted→secondary→success) daha uygun.
   static Color _statusColor(TopicStatus s) => switch (s) {
         TopicStatus.notStarted => AppColors.textMuted,
-        TopicStatus.studied => AppColors.primary,
+        TopicStatus.studied => AppColors.secondary,
         TopicStatus.reviewed => AppColors.success,
       };
 

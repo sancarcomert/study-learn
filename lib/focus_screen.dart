@@ -415,41 +415,51 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
                 const SizedBox(height: 24),
                 if (!isBreak)
-                  Wrap(
-                    spacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: _blockOptions.map((min) {
-                      final selected = _blockMin == min;
-                      return TapScale(
-                        onTap: _running
-                            ? () {}
-                            : () => setState(() => _blockMin = min),
-                        child: Opacity(
-                          opacity: _running ? 0.4 : 1,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.tonal(AppColors.primary),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '$min dk',
-                              style: AppTextStyles.body.copyWith(
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.surfaceVariant),
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: _blockOptions.map((min) {
+                        final selected = _blockMin == min;
+                        return TapScale(
+                          onTap: _running
+                              ? () {}
+                              : () => setState(() => _blockMin = min),
+                          child: Opacity(
+                            opacity: _running ? 0.4 : 1,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                // CTA hiyerarşisi: altın yalnız Başlat/Duraklat
+                                // butonu için.
                                 color: selected
-                                    ? AppColors.ink
-                                    : AppColors.primary,
-                                fontWeight: FontWeight.w600,
+                                    ? AppColors.secondary
+                                    : AppColors.tonal(AppColors.secondary),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '$min dk',
+                                style: AppTextStyles.body.copyWith(
+                                  color: selected
+                                      ? Colors.white
+                                      : AppColors.secondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   )
                 else
                   Center(
@@ -578,13 +588,14 @@ class _ModeToggle extends StatelessWidget {
           height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            // CTA hiyerarşisi: altın yalnız Başlat/Duraklat butonu için.
+            color: selected ? AppColors.secondary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             label,
             style: AppTextStyles.body.copyWith(
-              color: selected ? AppColors.ink : AppColors.textSecondary,
+              color: selected ? Colors.white : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),

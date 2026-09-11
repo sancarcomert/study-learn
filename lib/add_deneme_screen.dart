@@ -235,7 +235,14 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
                   const SizedBox(height: 24),
                   const Eyebrow(text: 'BÖLÜMLER'),
                   const SizedBox(height: 10),
-                  Wrap(
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.surfaceVariant),
+                    ),
+                    child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: _suggested.map((name) {
@@ -274,6 +281,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
                         ),
                       );
                     }).toList(),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   ..._sections.asMap().entries.map((entry) {

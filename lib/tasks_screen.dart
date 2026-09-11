@@ -256,8 +256,13 @@ class _DaySelectorStrip extends StatelessWidget {
                     height: 36,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color:
-                          isSelected ? AppColors.primary : Colors.transparent,
+                      // CTA hiyerarşisi: altın yalnız "bugün" işareti için
+                      // (CLAUDE.md'nin kendi belirttiği istisna) — sadece
+                      // görüntülemek için seçilen gün bir aksiyon değil,
+                      // secondary (indigo) kullanılır.
+                      color: isSelected
+                          ? AppColors.secondary
+                          : Colors.transparent,
                       shape: BoxShape.circle,
                       border: (!isSelected && isToday)
                           ? Border.all(color: AppColors.primary, width: 1.4)
@@ -267,7 +272,7 @@ class _DaySelectorStrip extends StatelessWidget {
                       '${day.day}',
                       style: AppTextStyles.body.copyWith(
                         color: isSelected
-                            ? AppColors.ink
+                            ? Colors.white
                             : AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),

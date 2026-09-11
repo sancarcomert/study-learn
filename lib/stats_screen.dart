@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'tap_scale.dart';
 import 'widgets/achievement_card.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/exam_countdown.dart';
@@ -475,20 +476,28 @@ class _SubjectDistributionState extends State<_SubjectDistribution> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            _PeriodChip(
-              label: 'Bu hafta',
-              selected: !_month,
-              onTap: () => setState(() => _month = false),
-            ),
-            const SizedBox(width: 8),
-            _PeriodChip(
-              label: 'Bu ay',
-              selected: _month,
-              onTap: () => setState(() => _month = true),
-            ),
-          ],
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceVariant),
+          ),
+          child: Row(
+            children: [
+              _PeriodChip(
+                label: 'Bu hafta',
+                selected: !_month,
+                onTap: () => setState(() => _month = false),
+              ),
+              const SizedBox(width: 8),
+              _PeriodChip(
+                label: 'Bu ay',
+                selected: _month,
+                onTap: () => setState(() => _month = true),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         if (widget.subjects.isEmpty)
@@ -549,20 +558,22 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
+          // CTA hiyerarşisi: altın yalnız birincil aksiyon için — bu bir
+          // dönem seçici, secondary (indigo) daha doğru.
           color: selected
-              ? AppColors.primary
-              : AppColors.tonal(AppColors.primary),
+              ? AppColors.secondary
+              : AppColors.tonal(AppColors.secondary),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: selected ? AppColors.ink : AppColors.primary,
+            color: selected ? Colors.white : AppColors.secondary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -656,7 +667,7 @@ class _ExamDateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = examDate;
-    return GestureDetector(
+    return TapScale(
       onTap: onPick,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -701,7 +712,7 @@ class _ExamDateCard extends StatelessWidget {
             if (date == null)
               const Icon(Icons.add, size: 20, color: AppColors.textSecondary)
             else
-              GestureDetector(
+              TapScale(
                 onTap: onClear,
                 child: const Icon(Icons.close,
                     size: 18, color: AppColors.textMuted),
@@ -722,7 +733,7 @@ class _GoalButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
       onTap: onTap,
       child: Container(
         width: 32,

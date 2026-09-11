@@ -242,13 +242,15 @@ class ExamTypeToggle extends StatelessWidget {
           height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            // CTA hiyerarşisi: altın yalnız birincil aksiyon (ör. Kaydet)
+            // için — bu bir TYT/AYT seçici.
+            color: selected ? AppColors.secondary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             value,
             style: AppTextStyles.body.copyWith(
-              color: selected ? AppColors.ink : AppColors.textSecondary,
+              color: selected ? Colors.white : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),

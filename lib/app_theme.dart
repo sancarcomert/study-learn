@@ -128,11 +128,15 @@ class AppTheme {
         ),
       ),
 
-      // Dialog içindeki TextButton'lar (Vazgeç/Sil gibi) artık
-      // ColorScheme'in ürettiği rastgele tona değil, marka rengine bağlı.
+      // CTA hiyerarşisi: altın yalnız birincil pozitif aksiyon için.
+      // Stilsiz her TextButton önceden varsayılan olarak altın oluyordu —
+      // dialoglarda "Vazgeç"/"Şimdi Değil" gibi nötr butonlar, yanındaki
+      // (genelde o da stilsiz→altın) onay butonuyla renk çakışması
+      // yaratıyordu, hiyerarşi kayboluyordu. Yıkıcı aksiyonlar zaten kendi
+      // rengini (danger) açıkça override ediyor, onlar etkilenmez.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: AppColors.textSecondary,
         ),
       ),
     );

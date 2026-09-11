@@ -506,10 +506,13 @@ class _InfoChip extends StatelessWidget {
   final String text;
   final Color color;
 
+  // CTA hiyerarşisi: altın yalnız birincil aksiyon için — bu rozet süre/
+  // tekrar gibi bilgi etiketlerinde varsayılan olarak her görev kartında
+  // tekrarlanıyordu, "her yer altın" izlenimini seyreltiyordu.
   const _InfoChip({
     required this.icon,
     required this.text,
-    this.color = AppColors.primary,
+    this.color = AppColors.secondary,
   });
 
   @override

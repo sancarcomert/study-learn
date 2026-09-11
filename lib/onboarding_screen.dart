@@ -141,36 +141,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   style: AppTextStyles.bodySecondary,
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _grades.map((g) {
-                    final selected = _selectedGrade == g.$1;
-                    return TapScale(
-                      onTap: () => setState(
-                          () => _selectedGrade = selected ? null : g.$1),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.tonal(AppColors.primary),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          g.$2,
-                          style: AppTextStyles.body.copyWith(
-                            color:
-                                selected ? AppColors.ink : AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.surfaceVariant),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _grades.map((g) {
+                      final selected = _selectedGrade == g.$1;
+                      return TapScale(
+                        onTap: () => setState(
+                            () => _selectedGrade = selected ? null : g.$1),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            // CTA hiyerarşisi: altın yalnız "Başlayalım"
+                            // butonu için.
+                            color: selected
+                                ? AppColors.secondary
+                                : AppColors.tonal(AppColors.secondary),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            g.$2,
+                            style: AppTextStyles.body.copyWith(
+                              color: selected
+                                  ? Colors.white
+                                  : AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
                 ),
 
                 const SizedBox(height: 28),
@@ -183,43 +194,53 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _commonSubjects.map((subject) {
-                    final isSelected = _selectedSubject == subject;
-                    return TapScale(
-                      onTap: () {
-                        setState(() {
-                          if (_selectedSubject == subject) {
-                            _selectedSubject = null;
-                          } else {
-                            _selectedSubject = subject;
-                            _customSubjectController.clear();
-                          }
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.tonal(AppColors.primary),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          subject,
-                          style: AppTextStyles.body.copyWith(
-                            color: isSelected ? AppColors.ink : AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.surfaceVariant),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _commonSubjects.map((subject) {
+                      final isSelected = _selectedSubject == subject;
+                      return TapScale(
+                        onTap: () {
+                          setState(() {
+                            if (_selectedSubject == subject) {
+                              _selectedSubject = null;
+                            } else {
+                              _selectedSubject = subject;
+                              _customSubjectController.clear();
+                            }
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.secondary
+                                : AppColors.tonal(AppColors.secondary),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            subject,
+                            style: AppTextStyles.body.copyWith(
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
                 ),
 
                 const SizedBox(height: 16),

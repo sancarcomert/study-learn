@@ -68,17 +68,16 @@ void _showGradePicker(BuildContext context, WidgetRef ref, int? current) {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
+                  // CTA hiyerarşisi: altın yalnız birincil aksiyon için.
                   color: g == current
-                      ? AppColors.primary
+                      ? AppColors.secondary
                       : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   UserStatsModel.gradeLabel(g),
                   style: AppTextStyles.body.copyWith(
-                    color: g == current
-                        ? AppColors.ink
-                        : AppColors.textPrimary,
+                    color: g == current ? Colors.white : AppColors.textPrimary,
                     fontWeight:
                         g == current ? FontWeight.w700 : FontWeight.w500,
                   ),

@@ -4,6 +4,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'subject_model.dart';
 import 'subject_provider.dart';
+import 'tap_scale.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/eyebrow.dart';
@@ -99,7 +100,7 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
               children: AppColors.subjectPalette.map((color) {
                 final isSelected =
                     color.toARGB32() == _selectedColor.toARGB32();
-                return GestureDetector(
+                return TapScale(
                   onTap: () => setState(() => _selectedColor = color),
                   child: Container(
                     width: 36,
