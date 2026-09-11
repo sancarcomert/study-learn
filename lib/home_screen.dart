@@ -66,6 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.read(statsProvider.notifier).checkStreakBroken();
       await _maybeShowNotificationPermissionPrompt();
       if (mounted) await _maybeShowCarryOverPrompt();
+      if (mounted) await _maybeScheduleStreakRisk();
     });
 
     _liveClockTicker = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -127,6 +128,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (continueRequested == true) {
       await NotificationService.instance.requestPermissions();
     }
+  }
+
+  /// Seri riski bildirimi (P0-3) — günlük hedef akşama kadar
+  /// tutturulmazsa 20:30'da hatırlatır. Oturum başına bir kez (Home ilk
+  /// açıldığında) zamanlanır; hedef o gün içinde tutturulursa
+  /// `goalReachedEventProvider` dinleyicisi bunu iptal eder — zaten
+  /// bitirmiş birine "serin kırılabilir" demeyelim.
+  static String _streakRiskId(DateTime day) =>
+      'streak_risk_${day.year}-${day.month}-${day.day}';
+
+  Future<void> _maybeScheduleStreakRisk() async {
+    final stats = ref.read(statsProvider);
+    final today = DateTime.now();
+
+    final completedToday = ref.read(taskProvider).where((t) =>
+        t.isCompleted &&
+        t.dueDate.year == today.year &&
+        t.dueDate.month == today.month &&
+        t.dueDate.day == today.day).length;
+
+    if (completedToday >= stats.dailyGoal) return;
+
+    final target = DateTime(today.year, today.month, today.day, 20, 30);
+    if (target.isBefore(today)) return;
+
+    final streak = stats.currentStreak;
+    final body = streak > 0
+        ? '$streak günlük serin bugün kırılabilir. Tek bir görev yeter 🔥'
+        : 'Bugünü tamamlayarak yeni bir seri başlat 🔥';
+
+    await NotificationService.instance.scheduleNotification(
+      id: _streakRiskId(today),
+      category: NotificationCategory.streakWarning,
+      title: 'Bugün henüz bitmedi',
+      body: body,
+      dateTime: target,
+    );
   }
 
   /// Önceki günlerden kalan tamamlanmamış görevleri topluca bugüne taşımayı
@@ -392,6 +430,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     ref.listen<int>(goalReachedEventProvider, (previous, next) {
       if (previous != null && next > previous) {
+        // Hedef tutturuldu — akşama zamanlanmış "serin kırılabilir"
+        // uyarısı artık anlamsız, iptal et.
+        NotificationService.instance.cancelNotification(
+          _streakRiskId(DateTime.now()),
+          NotificationCategory.streakWarning,
+        );
         final t = DateTime.now();
         final today = DateTime(t.year, t.month, t.day);
         if (_celebratedOn == today) return;

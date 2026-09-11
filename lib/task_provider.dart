@@ -27,11 +27,18 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   Future<void> _scheduleReminder(TaskModel task) async {
     if (task.scheduledTime == null || task.isCompleted) return;
 
+    // Sadece görevin kendi verisiyle (süre) — ek provider bağımlılığı
+    // eklemeden kuru "Görev zamanı geldi" yerine biraz daha somut bir metin.
+    final minutes = task.estimatedMinutes;
+    final body = (minutes != null && minutes > 0)
+        ? '$minutes dakikalık vaktin geldi. Hazır mısın?'
+        : 'Vaktin geldi. Hazır mısın?';
+
     await NotificationService.instance.scheduleNotification(
       id: task.id,
       category: NotificationCategory.taskReminder,
       title: task.title,
-      body: 'Görev zamanı geldi',
+      body: body,
       dateTime: task.scheduledTime!,
     );
   }
