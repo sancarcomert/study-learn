@@ -92,3 +92,44 @@ final latestDenemeProvider = Provider<DenemeEntry?>((ref) {
   final all = ref.watch(denemeProvider); // zaten tarihe göre azalan sıralı
   return all.isEmpty ? null : all.first;
 });
+
+/// Bir sınav türü için özet: ortalama net, en iyi net, deneme sayısı.
+/// Ham kayıt listesini "nerede duruyorum" bilgisine çevirir — Deneme
+/// Takip'in analiz katmanı.
+class DenemeSummary {
+  final double average;
+  final double best;
+  final int count;
+  const DenemeSummary({required this.average, required this.best, required this.count});
+}
+
+final denemeSummaryProvider =
+    Provider.family<DenemeSummary?, String>((ref, examType) {
+  final entries = ref.watch(denemeByTypeProvider(examType));
+  if (entries.isEmpty) return null;
+  final nets = entries.map((e) => e.totalNet).toList();
+  final avg = nets.reduce((a, b) => a + b) / nets.length;
+  final best = nets.reduce((a, b) => a > b ? a : b);
+  return DenemeSummary(average: avg, best: best, count: entries.length);
+});
+
+/// Bölüm bazında ortalama net — bir sınav türü için tüm denemelerdeki aynı
+/// isimli bölümlerin ortalaması, en düşükten en yükseğe sıralı. Ham log'u
+/// "hangi derste zayıfım" içgörüsüne çevirir.
+final denemeSubjectAveragesProvider =
+    Provider.family<List<MapEntry<String, double>>, String>((ref, examType) {
+  final entries = ref.watch(denemeByTypeProvider(examType));
+  final sums = <String, double>{};
+  final counts = <String, int>{};
+  for (final e in entries) {
+    for (final s in e.sections) {
+      sums[s.subject] = (sums[s.subject] ?? 0) + s.net;
+      counts[s.subject] = (counts[s.subject] ?? 0) + 1;
+    }
+  }
+  final result = sums.entries
+      .map((e) => MapEntry(e.key, e.value / counts[e.key]!))
+      .toList()
+    ..sort((a, b) => a.value.compareTo(b.value));
+  return result;
+});

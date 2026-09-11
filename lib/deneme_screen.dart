@@ -36,6 +36,8 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
     final descending = ascending.reversed.toList();
     final chartEntries =
         ascending.length > 8 ? ascending.sublist(ascending.length - 8) : ascending;
+    final summary = ref.watch(denemeSummaryProvider(_type));
+    final subjectAverages = ref.watch(denemeSubjectAveragesProvider(_type));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -75,6 +77,34 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                     ),
                   )
                 else ...[
+                  if (summary != null) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatTile(
+                            value: summary.average.toStringAsFixed(1),
+                            label: 'ortalama net',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatTile(
+                            value: summary.best.toStringAsFixed(1),
+                            label: 'en iyi net',
+                            valueColor: AppColors.success,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatTile(
+                            value: '${summary.count}',
+                            label: summary.count == 1 ? 'deneme' : 'deneme',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                  ],
                   const Eyebrow(text: 'NET TRENDİ'),
                   const SizedBox(height: 4),
                   Text(
@@ -92,6 +122,35 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                     ),
                     child: _NetTrendChart(entries: chartEntries),
                   ),
+                  if (subjectAverages.isNotEmpty) ...[
+                    const SizedBox(height: 26),
+                    const Eyebrow(text: 'BÖLÜM ORTALAMASI'),
+                    const SizedBox(height: 4),
+                    Text(
+                      'En düşükten en yükseğe — zayıf olduğun bölüm en üstte.',
+                      style: AppTextStyles.caption,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppColors.softShadow,
+                      ),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < subjectAverages.length; i++)
+                            _SubjectAverageRow(
+                              subject: subjectAverages[i].key,
+                              average: subjectAverages[i].value,
+                              isLast: i == subjectAverages.length - 1,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 26),
                 const Eyebrow(text: 'GEÇMİŞ'),
@@ -196,6 +255,81 @@ class ExamTypeToggle extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color? valueColor;
+
+  const _StatTile({required this.value, required this.label, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: AppTextStyles.heading2
+                .copyWith(color: valueColor ?? AppColors.textPrimary),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: AppTextStyles.caption, textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubjectAverageRow extends StatelessWidget {
+  final String subject;
+  final double average;
+  final bool isLast;
+
+  const _SubjectAverageRow({
+    required this.subject,
+    required this.average,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subject,
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(
+                average.toStringAsFixed(1),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!isLast)
+          Divider(
+              height: 1,
+              color: AppColors.textSecondary.withValues(alpha: 0.12)),
+      ],
     );
   }
 }
