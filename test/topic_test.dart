@@ -60,5 +60,30 @@ void main() {
       expect(TopicCatalog.forSubject('Astroloji'), isEmpty);
       expect(TopicCatalog.hasCatalog('Astroloji'), isFalse);
     });
+
+    test('maxGrade: kümülatif ve sınıf sınırını aşmıyor (P0-11)', () {
+      final g9 = TopicCatalog.forSubject('Matematik', maxGrade: 9);
+      final g10 = TopicCatalog.forSubject('Matematik', maxGrade: 10);
+      final g12 = TopicCatalog.forSubject('Matematik', maxGrade: 12);
+      final all = TopicCatalog.forSubject('Matematik');
+
+      expect(g9, isNotEmpty);
+      expect(g9, isNot(contains('Türev'))); // 12. sınıf konusu
+      expect(g10, contains('Fonksiyonlar')); // 10. sınıf konusu
+      expect(g10, isNot(contains('Türev')));
+      expect(g12, contains('Türev'));
+      expect(g12.length, all.length); // 12/mezun tüm listeyi görür
+
+      // kümülatif: 9 ⊆ 10 ⊆ 12
+      expect(g9.every((t) => g10.contains(t)), isTrue);
+      expect(g10.every((t) => g12.contains(t)), isTrue);
+    });
+
+    test('maxGrade verilmezse eski davranış (tüm liste)', () {
+      expect(
+        TopicCatalog.forSubject('Matematik'),
+        TopicCatalog.forSubject('Matematik', maxGrade: null),
+      );
+    });
   });
 }

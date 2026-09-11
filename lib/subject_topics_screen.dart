@@ -3,13 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'stats_provider.dart';
 import 'topic_catalog.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
+import 'user_stats_model.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
+
+/// Kullanıcının sınıfına göre kataloğun üst sınırı (P0-11, kümülatif).
+/// Sınıf belirtilmemişse `null` — sınırsız/tüm liste (eski davranış).
+/// Mezun, 12. sınıfla aynı üst sınırı görür (YKS'ye hazırlanan konular).
+int? _maxGradeFor(int? grade) {
+  if (grade == null) return null;
+  return grade == UserStatsModel.mezun ? 12 : grade;
+}
 
 /// Bir dersin konu listesi. Satıra dokun → durum döngüsü
 /// (başlanmadı → çalışıldı → tekrar). Sola kaydır → sil.
@@ -45,7 +55,10 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
   }
 
   void _addCatalog() {
-    final catalog = TopicCatalog.forSubject(widget.subjectName);
+    final catalog = TopicCatalog.forSubject(
+      widget.subjectName,
+      maxGrade: _maxGradeFor(ref.read(statsProvider).gradeLevel),
+    );
     if (catalog.isEmpty) return;
     final added =
         ref.read(topicProvider.notifier).addMany(widget.subjectId, catalog);
@@ -77,7 +90,10 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
   Widget build(BuildContext context) {
     final topics = ref.watch(topicsForSubjectProvider(widget.subjectId));
     final covered = topics.where((t) => t.isCovered).length;
-    final catalog = TopicCatalog.forSubject(widget.subjectName);
+    final catalog = TopicCatalog.forSubject(
+      widget.subjectName,
+      maxGrade: _maxGradeFor(ref.watch(statsProvider).gradeLevel),
+    );
     final showCatalogButton =
         catalog.isNotEmpty && topics.length < catalog.length;
 
