@@ -29,6 +29,7 @@ import 'profile_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_snackbar.dart';
+import 'widgets/share_card.dart';
 import 'notification_service.dart';
 import 'dart:async';
 
@@ -318,17 +319,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showGoalCelebration() {
+    final streak = ref.read(statsProvider).currentStreak;
+    final weekTasks = ref.read(tasksCompletedThisWeekProvider);
+
     showDialog(
       context: context,
       barrierColor: Colors.black26,
       barrierDismissible: true,
       builder: (dialogContext) {
-        Future.delayed(const Duration(seconds: 2), () {
-          if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
-            Navigator.pop(dialogContext);
-          }
-        });
-
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _goalConfetti.play();
@@ -357,15 +355,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: const Column(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("🎉", style: TextStyle(fontSize: 40)),
-                    SizedBox(height: 12),
-                    Text(
+                    const Text("🎉", style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 12),
+                    const Text(
                       "Günlük hedef tamamlandı!",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    TapScale(
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        showShareCardSheet(
+                          context,
+                          streak: streak,
+                          weekTasks: weekTasks,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.tonal(AppColors.primary),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.ios_share_outlined,
+                                size: 16, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Paylaş',
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
