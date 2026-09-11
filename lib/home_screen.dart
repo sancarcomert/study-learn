@@ -233,6 +233,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  /// "Günü Bitir" akışının ilk adımı: bugüne ait bitirilmemiş görev varsa
+  /// kapanış özetinden ÖNCE sorar. Sabahki "geçmiş günden kalan" hatırlatması
+  /// (_maybeShowCarryOverPrompt) hâlâ bir güvenlik ağı olarak duruyor — bu
+  /// akışı hiç kullanmayan/o gün kapatmayan kullanıcı için.
+  Future<void> _closeOutToday() async {
+    await _maybeAskCarryForwardTonight();
+    if (mounted) showDailyCloseoutSheet(context);
+  }
+
+  Future<void> _maybeAskCarryForwardTonight() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final unfinished = ref
+        .read(taskProvider)
+        .where((t) =>
+            !t.isCompleted &&
+            t.dueDate.year == today.year &&
+            t.dueDate.month == today.month &&
+            t.dueDate.day == today.day)
+        .toList();
+    if (unfinished.isEmpty || !mounted) return;
+
+    final n = unfinished.length;
+    final move = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.nightlight_outlined,
+            color: AppColors.primary, size: 30),
+        title: Text(n == 1
+            ? 'Bitiremediğin 1 görev var'
+            : 'Bitiremediğin $n görev var'),
+        content: const Text('Yarına taşıyalım mı?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Kalsın'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Yarına Taşı'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || move != true) return;
+
+    final tomorrow = today.add(const Duration(days: 1));
+    final notifier = ref.read(taskProvider.notifier);
+    for (final t in unfinished) {
+      final st = t.scheduledTime;
+      notifier.updateTask(
+        t,
+        title: t.title,
+        subjectId: t.subjectId,
+        dueDate: tomorrow,
+        priority: t.priority,
+        scheduledTime: st == null
+            ? null
+            : DateTime(
+                tomorrow.year, tomorrow.month, tomorrow.day, st.hour, st.minute),
+        estimatedMinutes: t.estimatedMinutes,
+        difficulty: t.difficulty,
+      );
+    }
+    if (mounted) {
+      AppSnackBar.success(context,
+          n == 1 ? 'Görev yarına taşındı' : '$n görev yarına taşındı');
+    }
+  }
+
   String _greeting(String? name) {
     final hour = DateTime.now().hour;
     final base = hour < 12
@@ -652,7 +723,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   if (showCloseOutCard) ...[
                     const SizedBox(height: 28),
                     _CloseOutCard(
-                      onTap: () => showDailyCloseoutSheet(context),
+                      onTap: _closeOutToday,
                       onDismiss: () =>
                           setState(() => _closeOutDismissed = true),
                     ),
