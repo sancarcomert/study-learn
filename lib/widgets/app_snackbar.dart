@@ -71,7 +71,12 @@ class AppSnackBar {
     Duration? duration,
     SnackBarAction? action,
   }) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    // Art arda tetiklenen SnackBar'lar (ör. peşpeşe silme) varsayılan
+    // olarak kuyruklanır — öncekini elle kaydırmadan yenisi görünmez.
+    // Her yeni SnackBar bir öncekinin yerini anında alsın diye önce temizle.
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
       SnackBar(
         duration: duration ?? const Duration(seconds: 4),
         action: action,
