@@ -144,8 +144,73 @@ Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHu
     arka planda/kapalıyken düşüyor mu, P0-10 paylaşım sheet'i + görsel render,
     P0-11 bir dersin konu listesi sınıfa göre gerçekten daralıyor mu.
 
+- ✅ **Cihazda test turu — bug avı + genel profesyonelleştirme** (`0594ccc`→`4174027`,
+  ~10 commit, hepsi cihazda ADB ile test edildi; `dangerouslyDisableSandbox`
+  değil, `adb.exe` yolu bulunup Bash'ten çağrıldı — dokunma enjeksiyonu bu
+  cihazda çalışmadı (Samsung "USB hata ayıklama — Güvenlik ayarları" kapalı),
+  screencap + kullanıcı elle etkileşim + ekran görüntüsü döngüsüyle test edildi).
+  - **Bug:** art arda silme sonrası "GERİ AL" SnackBar'ları kuyruklanıyordu
+    (Flutter varsayılanı) → `AppSnackBar._show` artık `clearSnackBars()` çağırıyor.
+  - **Add Task ekranı yeniden tasarımı** — kullanıcı "rakiplere bak" dedi,
+    gerçekten Play Store'da rabbit./Pakodemy/Ders Takip AI + Todoist (NYT/PCMag
+    2025 ödüllü) incelendi (ekran görüntüleri okunarak). Sonuç: TARİH/SAAT
+    hazır çipler (Bugün/Yarın/Özel, native picker azaltıldı), tüm kontroller
+    kart içine alındı (çıplak sayfa yerine), `_SubjectChip` artık `TapScale`
+    kullanıyor (önceden çıplak `GestureDetector` — "seçim oturmuyor" hissinin
+    kaynağıydı), her çip kategorisi kendi ikonunu taşıyor (Todoist rozet deseni).
+  - **Uygulama geneli tutarlılık taraması**: aynı üç sorun (TapScale eksik,
+    kartsız çip yığını, CTA-dışı altın kullanımı) bir Explore ajanıyla `lib/`
+    genelinde taranıp 11 dosyada düzeltildi — en yüksek etkili tekil değişiklik
+    `widgets/task_tile.dart`'taki `_InfoChip` varsayılan rengi (Home+Görevler'deki
+    HER görev kartını etkiliyordu). `app_theme.dart`'ta sistemik tek satır:
+    `textButtonTheme` varsayılanı `primary`→`textSecondary` (dialog'larda
+    "Vazgeç" butonları artık onay butonuyla altın çakışması yapmıyor).
+  - **Koç'ta canlı yazı vurgulama**: `plan_parser.dart`'a `PlanSpanKind`/`PlanSpan`
+    eklendi (`consumed` listesi artık her parçanın hangi alana ait olduğunu +
+    ham metindeki konumunu taşıyor, `parse()`'ın public imzası değişmedi, 3 yeni
+    test). `coach_screen.dart`'ta `_HighlightingController` (özel
+    `TextEditingController`, `buildTextSpan` override) — yazarken tanınan
+    tarih/saat/süre/ders kalın+altın renkte vurgulanıyor (Todoist referansı).
+    İlk halde 5 farklı renk + arka plan kutusu denendi, kullanıcı "çirkin/
+    anlamsız" dedi → tek altın renk + kutu yok'a sadeleştirildi.
+  - **"Bugünü Kapat" akışı yeniden düşünüldü** (kullanıcı: kapatınca görev
+    listesi hâlâ duruyordu, "dinlenme moduna" geçmesi gerekiyordu):
+    `_closeOutToday()` artık önce bugüne ait bitmemiş görev varsa "yarına
+    taşıyalım mı?" soruyor, sonra kapanış sheet'ini açıyor. Kapatıldıktan sonra
+    Home'daki "BUGÜNKÜ GÖREVLER" listesinin yerini `_RelaxModeCard` alıyor
+    (sakin "Bugünü kapattın" + varsa yarın niyeti) — ertesi gün
+    `todayCloseoutProvider` doğal olarak null'a döner, ekstra zamanlayıcı yok.
+    `daily_closeout_provider.dart`'a `reopenToday()` eklendi ("aslında biraz
+    daha çalışacağım" için bugünü yeniden açma).
+  - **Bug (cihazda bulundu):** kısa başlıklı + saat rozetli görev kartlarında
+    "BOTTOM OVERFLOWED BY 36 PIXELS" — kök neden `IntrinsicHeight`+`Wrap`
+    kombinasyonu (bilinen Flutter kısıtı, uzun başlıklarda gizli kalıyordu).
+    `task_tile.dart`'ta öncelik çubuğu artık `Stack`+`Positioned` ile,
+    intrinsic hesaplamaya hiç ihtiyaç duymadan.
+  - Hepsi `flutter analyze` 0 + 115/115 test; `task_provider`/`subject_provider`/
+    `stats_provider`/`topic_provider` + repository/model'lerine dokunulmadı
+    (yalnız `daily_closeout_provider.dart`'a — bu dört korumalı dosyanın
+    dışında, kullanıcı onayıyla `close()`'un aynı deseninde `reopenToday()`).
+- ✅ **Derin rekabet & GTM stratejisi** (`c7ac65f`): kullanıcı "kum tanesinden
+  uzaya" derinlikte bir analiz istedi — 3 paralel araştırma ajanı (fiyatlandırma
+  mimarisi, UI/UX + dark pattern anatomisi, şikayet madenciliği) mevcut iki
+  rakip dosyasının üzerine inşa edildi (tekrarlamadı, derinleştirdi).
+  `docs/pusula_savas_plani_2026-09.md` — 5 sütun (rakip değer teklifi, UI/UX
+  anatomisi, kuruşu kuruşuna fiyatlandırma, kategorize şikayet + 4 yapısal kör
+  nokta, 3 moat + 3 katil özellik + 3 büyüme hilesi) + aksiyon matrix'i. HTML/
+  görsel versiyonu Pusula'nın kendi Midnight Dark + Champagne Gold kimliğiyle
+  Artifact olarak da yayınlandı.
+
 **Sonra:** `pusula_buyume_plani_2026.md`'deki Faz 1 — Play Store yayın
 hazırlığı (ikon, ekran görüntüleri, açıklama, gizlilik politikası, kapalı
-test). Faz 2 (Supabase backend) ancak Faz 1'den gerçek kullanıcı/geri
-bildirim geldikten sonra; Faz 0 maddeleriyle paralel yürütülmedi, Faz 2 ile
-de paralel yürütülmeyecek.
+test) + `pusula_savas_plani_2026-09.md`'deki Aksiyon Planı Matrix'inin P0
+maddeleri (Hakkında'ya "Verin Sende" şeffaflık sayfası, Play açıklamasına
+şikayet-kaynaklı anahtar kelimeler, Konu Takip/Deneme'nin "rakiplerin
+çözemediği" konumlandırması). Faz 2 (Supabase backend) ancak Faz 1'den
+gerçek kullanıcı/geri bildirim geldikten sonra; Faz 0 maddeleriyle paralel
+yürütülmedi, Faz 2 ile de paralel yürütülmeyecek.
+
+**Hâlâ cihazda doğrulanmadı** (önceki oturumdan kalan, bu oturumda da
+tekrar test edilmedi): P0-5 bildirimi gerçekten arka planda/kapalıyken
+düşüyor mu, P0-11'de bir dersin konu listesi sınıfa göre gerçekten
+daralıyor mu.
