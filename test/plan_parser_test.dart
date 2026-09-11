@@ -242,4 +242,36 @@ void main() {
       expect(p.title, 'deneme sınavı analizi');
     });
   });
+
+  group('canlı vurgulama (spans)', () {
+    test('tarih + süre + ders ayrı span olarak işaretlenir', () {
+      final p = PlanParser.parse('yarın 2 saat matematik',
+          subjects: subjects, now: now);
+      expect(p.spans, hasLength(3));
+      expect(p.spans[0].kind, PlanSpanKind.date);
+      expect(p.spans[0].start, 0);
+      expect(p.spans[0].end, 5);
+      expect(p.spans[1].kind, PlanSpanKind.duration);
+      expect(p.spans[2].kind, PlanSpanKind.subject);
+      expect(p.spans[2].start, 13);
+      expect(p.spans[2].end, 22);
+    });
+
+    test('büyük/küçük harf farkı span konumunu bozmaz', () {
+      const input = 'Yarın Matematik çalışacağım';
+      final p = PlanParser.parse(input, subjects: subjects, now: now);
+      final dateSpan =
+          p.spans.firstWhere((s) => s.kind == PlanSpanKind.date);
+      expect(
+        input.substring(dateSpan.start, dateSpan.end).toLowerCase(),
+        'yarın',
+      );
+    });
+
+    test('sinyalsiz girdide span yok', () {
+      final p = PlanParser.parse('deneme sınavı analizi',
+          subjects: subjects, now: now);
+      expect(p.spans, isEmpty);
+    });
+  });
 }

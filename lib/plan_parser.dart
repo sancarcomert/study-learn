@@ -24,8 +24,10 @@ class PlanParser {
 
     final lower = _trLower(raw);
 
-    // Ayrıştırma sırasında başlıktan silinecek ham metin parçaları.
-    final consumed = <String>[];
+    // Ayrıştırma sırasında başlıktan silinecek ham metin parçaları — her biri
+    // hangi alanı temsil ettiğini de taşır (bkz. [PlanSpanKind]), böylece
+    // çağıran taraf (Koç ekranı) girdiyi canlı renklendirebilir.
+    final consumed = <_Consumed>[];
 
     final duration = _parseDuration(lower, consumed);
     final recurrence = _parseRecurrence(lower, consumed);
@@ -37,6 +39,7 @@ class PlanParser {
     final subjectMatch = _parseSubject(lower, raw, subjects, consumed);
 
     final title = _cleanTitle(raw, consumed, fallback: subjectMatch?.name);
+    final spans = _locateSpans(raw, consumed);
 
     return ParsedPlan(
       title: title,
@@ -47,6 +50,7 @@ class PlanParser {
       recurrence: recurrence,
       hour: time?.hour,
       minute: time?.minute,
+      spans: spans,
     );
   }
 
@@ -61,7 +65,7 @@ class PlanParser {
   static final RegExp _nGibi =
       RegExp(r'(\d{1,2})\s*(gibi|te|ta|de|da)\b');
 
-  static _Time? _parseTime(String lower, List<String> consumed) {
+  static _Time? _parseTime(String lower, List<_Consumed> consumed) {
     final eveningHint = RegExp(r'akşam|aksam|gece|öğleden sonra|ogleden sonra')
         .hasMatch(lower);
     final morningHint = lower.contains('sabah') || lower.contains('öğlen') ||
@@ -72,7 +76,7 @@ class PlanParser {
       final h = int.parse(hm.group(1)!);
       final m = int.parse(hm.group(2)!);
       if (h < 24 && m < 60) {
-        consumed.add(hm.group(0)!);
+        consumed.add(_Consumed(hm.group(0)!, PlanSpanKind.time));
         return _Time(h, m);
       }
     }
@@ -81,7 +85,7 @@ class PlanParser {
     if (sN != null) {
       final h = int.parse(sN.group(1)!);
       if (h < 24) {
-        consumed.add(sN.group(0)!);
+        consumed.add(_Consumed(sN.group(0)!, PlanSpanKind.time));
         return _Time(_resolveHour(h, eveningHint, morningHint), 0);
       }
     }
@@ -90,7 +94,7 @@ class PlanParser {
     if (g != null) {
       final h = int.parse(g.group(1)!);
       if (h >= 1 && h < 24) {
-        consumed.add(g.group(0)!);
+        consumed.add(_Consumed(g.group(0)!, PlanSpanKind.time));
         return _Time(_resolveHour(h, eveningHint, morningHint), 0);
       }
     }
@@ -105,31 +109,31 @@ class PlanParser {
       final digits = near.group(2) ?? near.group(3)!;
       final h = int.parse(digits);
       if (h >= 1 && h < 24) {
-        consumed.add(near.group(0)!);
+        consumed.add(_Consumed(near.group(0)!, PlanSpanKind.time));
         return _Time(_resolveHour(h, eveningHint, morningHint), 0);
       }
     }
 
     if (RegExp(r'öğleden sonra|ogleden sonra').hasMatch(lower)) {
-      consumed.add('öğleden sonra');
-      consumed.add('ogleden sonra');
+      consumed.add(const _Consumed('öğleden sonra', PlanSpanKind.time));
+      consumed.add(const _Consumed('ogleden sonra', PlanSpanKind.time));
       return const _Time(14, 0);
     }
     if (lower.contains('sabah')) {
-      consumed.add('sabah');
+      consumed.add(const _Consumed('sabah', PlanSpanKind.time));
       return const _Time(9, 0);
     }
     if (RegExp(r'öğlen|oglen|öğle|ogle').hasMatch(lower)) {
-      consumed.add('öğlen');
-      consumed.add('öğle');
+      consumed.add(const _Consumed('öğlen', PlanSpanKind.time));
+      consumed.add(const _Consumed('öğle', PlanSpanKind.time));
       return const _Time(12, 30);
     }
     if (lower.contains('akşam') || lower.contains('aksam')) {
-      consumed.add('akşam');
+      consumed.add(const _Consumed('akşam', PlanSpanKind.time));
       return const _Time(19, 0);
     }
     if (lower.contains('gece')) {
-      consumed.add('gece');
+      consumed.add(const _Consumed('gece', PlanSpanKind.time));
       return const _Time(21, 0);
     }
     return null;
@@ -163,16 +167,16 @@ class PlanParser {
     'bes': 5,
   };
 
-  static int? _parseDuration(String lower, List<String> consumed) {
+  static int? _parseDuration(String lower, List<_Consumed> consumed) {
     final half = _halfHour.firstMatch(lower);
     if (half != null) {
-      consumed.add(half.group(0)!);
+      consumed.add(_Consumed(half.group(0)!, PlanSpanKind.duration));
       return 30;
     }
 
     final wordHour = _wordHours.firstMatch(lower);
     if (wordHour != null) {
-      consumed.add(wordHour.group(0)!);
+      consumed.add(_Consumed(wordHour.group(0)!, PlanSpanKind.duration));
       final base = _numberWords[wordHour.group(1)!] ?? 1;
       final hasHalf = wordHour.group(2) != null;
       return base * 60 + (hasHalf ? 30 : 0);
@@ -180,7 +184,7 @@ class PlanParser {
 
     final h = _hoursDecimal.firstMatch(lower);
     if (h != null) {
-      consumed.add(h.group(0)!);
+      consumed.add(_Consumed(h.group(0)!, PlanSpanKind.duration));
       final whole = int.tryParse(h.group(1)!) ?? 0;
       final fracDigits = h.group(2);
       var minutes = whole * 60;
@@ -193,7 +197,7 @@ class PlanParser {
 
     final m = _minutes.firstMatch(lower);
     if (m != null) {
-      consumed.add(m.group(0)!);
+      consumed.add(_Consumed(m.group(0)!, PlanSpanKind.duration));
       final value = int.tryParse(m.group(1)!) ?? 0;
       return value > 0 ? value : null;
     }
@@ -219,21 +223,22 @@ class PlanParser {
 
   static final RegExp _inNDays = RegExp(r'(\d+)\s*gün\s*sonra');
 
-  static DateTime? _parseDate(String lower, DateTime today, List<String> consumed) {
+  static DateTime? _parseDate(
+      String lower, DateTime today, List<_Consumed> consumed) {
     if (RegExp(r'öbür\s*gün|öbürgün|obur\s*gun').hasMatch(lower)) {
-      consumed.add('öbür gün');
-      consumed.add('öbürgün');
-      consumed.add('obur gun');
+      consumed.add(const _Consumed('öbür gün', PlanSpanKind.date));
+      consumed.add(const _Consumed('öbürgün', PlanSpanKind.date));
+      consumed.add(const _Consumed('obur gun', PlanSpanKind.date));
       return today.add(const Duration(days: 2));
     }
     if (lower.contains('yarın') || lower.contains('yarin')) {
-      consumed.add('yarın');
-      consumed.add('yarin');
+      consumed.add(const _Consumed('yarın', PlanSpanKind.date));
+      consumed.add(const _Consumed('yarin', PlanSpanKind.date));
       return today.add(const Duration(days: 1));
     }
     if (lower.contains('bugün') || lower.contains('bugun')) {
-      consumed.add('bugün');
-      consumed.add('bugun');
+      consumed.add(const _Consumed('bugün', PlanSpanKind.date));
+      consumed.add(const _Consumed('bugun', PlanSpanKind.date));
       return today;
     }
     // "bu akşam / bu sabah / bu gece / bu öğlen" — hepsi bugünü kasteder.
@@ -244,23 +249,23 @@ class PlanParser {
     }
     if (RegExp(r'haftaya|(gelecek|önümüzdeki|onumuzdeki)\s+hafta')
         .hasMatch(lower)) {
-      consumed.add('haftaya');
-      consumed.add('gelecek hafta');
-      consumed.add('önümüzdeki hafta');
-      consumed.add('onumuzdeki hafta');
+      consumed.add(const _Consumed('haftaya', PlanSpanKind.date));
+      consumed.add(const _Consumed('gelecek hafta', PlanSpanKind.date));
+      consumed.add(const _Consumed('önümüzdeki hafta', PlanSpanKind.date));
+      consumed.add(const _Consumed('onumuzdeki hafta', PlanSpanKind.date));
       return today.add(const Duration(days: 7));
     }
 
     final nDays = _inNDays.firstMatch(lower);
     if (nDays != null) {
-      consumed.add(nDays.group(0)!);
+      consumed.add(_Consumed(nDays.group(0)!, PlanSpanKind.date));
       final n = int.tryParse(nDays.group(1)!) ?? 0;
       if (n > 0) return today.add(Duration(days: n));
     }
 
     for (final entry in _weekdays) {
       if (_containsWord(lower, entry.key)) {
-        consumed.add(entry.key);
+        consumed.add(_Consumed(entry.key, PlanSpanKind.date));
         return _nextWeekday(today, entry.value);
       }
     }
@@ -272,11 +277,11 @@ class PlanParser {
   /// "her" ile birlikte geçtiğinde tetiklenir; yalın "pazartesi" bunu değil
   /// [_parseDate]'i kullanır.
   static DateTime? _parseRecurringWeekday(
-      String lower, DateTime today, List<String> consumed) {
+      String lower, DateTime today, List<_Consumed> consumed) {
     for (final entry in _weekdays) {
       final pattern = RegExp('her\\s+${entry.key}');
       if (pattern.hasMatch(lower)) {
-        consumed.add('her ${entry.key}');
+        consumed.add(_Consumed('her ${entry.key}', PlanSpanKind.date));
         return _nextWeekday(today, entry.value);
       }
     }
@@ -291,18 +296,18 @@ class PlanParser {
 
   // --- Tekrar -----------------------------------------------------------
 
-  static String _parseRecurrence(String lower, List<String> consumed) {
+  static String _parseRecurrence(String lower, List<_Consumed> consumed) {
     if (RegExp(r'her\s*gün|hergün|her\s+(sabah|akşam|aksam)').hasMatch(lower)) {
-      consumed.add('her gün');
-      consumed.add('hergün');
-      consumed.add('her sabah');
-      consumed.add('her akşam');
+      consumed.add(const _Consumed('her gün', PlanSpanKind.recurrence));
+      consumed.add(const _Consumed('hergün', PlanSpanKind.recurrence));
+      consumed.add(const _Consumed('her sabah', PlanSpanKind.recurrence));
+      consumed.add(const _Consumed('her akşam', PlanSpanKind.recurrence));
       return 'daily';
     }
     if (RegExp(r'her\s+hafta|haftalık|haftalik').hasMatch(lower)) {
-      consumed.add('her hafta');
-      consumed.add('haftalık');
-      consumed.add('haftalik');
+      consumed.add(const _Consumed('her hafta', PlanSpanKind.recurrence));
+      consumed.add(const _Consumed('haftalık', PlanSpanKind.recurrence));
+      consumed.add(const _Consumed('haftalik', PlanSpanKind.recurrence));
       return 'weekly';
     }
     for (final entry in _weekdays) {
@@ -319,14 +324,14 @@ class PlanParser {
     String lower,
     String raw,
     List<SubjectModel> subjects,
-    List<String> consumed,
+    List<_Consumed> consumed,
   ) {
     // 1) Kullanıcının kendi ders adlarıyla birebir/içerik eşleşmesi.
     for (final s in subjects) {
       final name = _trLower(s.name);
       if (name.isEmpty) continue;
       if (_containsWord(lower, name) || lower.contains(name)) {
-        consumed.add(s.name);
+        consumed.add(_Consumed(s.name, PlanSpanKind.subject));
         return _SubjectMatch(s.id, s.name);
       }
     }
@@ -377,12 +382,12 @@ class PlanParser {
 
   static String _cleanTitle(
     String raw,
-    List<String> consumed, {
+    List<_Consumed> consumed, {
     String? fallback,
   }) {
     var out = raw;
     for (final piece in consumed) {
-      out = _stripWord(out, piece);
+      out = _stripWord(out, piece.text);
     }
     for (final filler in _fillers) {
       out = _stripWord(out, filler);
@@ -408,6 +413,36 @@ class PlanParser {
       return raw.trim();
     }
     return out;
+  }
+
+  // --- Canlı vurgulama (Koç ekranı) -------------------------------------
+
+  /// [consumed] parçalarının [raw] içindeki gerçek konumlarını bulur —
+  /// büyük/küçük harf duyarsız, çakışmaları önceliğe göre (parser'ın kendi
+  /// alan sırası: süre → tekrar → saat → tarih → ders) eler. Bazı [consumed]
+  /// girdileri (ör. eşanlamlı "öbür gün"/"öbürgün" varyantları) [raw] içinde
+  /// hiç geçmeyebilir — bulunamayanlar sessizce atlanır.
+  static List<PlanSpan> _locateSpans(String raw, List<_Consumed> consumed) {
+    final claimed = List<bool>.filled(raw.length, false);
+    final spans = <PlanSpan>[];
+
+    for (final piece in consumed) {
+      if (piece.text.isEmpty) continue;
+      final match =
+          RegExp(RegExp.escape(piece.text), caseSensitive: false).firstMatch(raw);
+      if (match == null) continue;
+      final start = match.start;
+      final end = match.end;
+      final overlaps = claimed.sublist(start, end).any((c) => c);
+      if (overlaps) continue;
+      for (var i = start; i < end; i++) {
+        claimed[i] = true;
+      }
+      spans.add(PlanSpan(start, end, piece.kind));
+    }
+
+    spans.sort((a, b) => a.start.compareTo(b.start));
+    return spans;
   }
 
   // --- Yardımcılar ---------------------------------------------------
@@ -449,6 +484,27 @@ class PlanParser {
   }
 }
 
+/// [PlanParser.parse] içinde bir alanın hangi ham metin parçasından geldiğini
+/// (kind) taşıyan iç kayıt — başlık temizliği ve canlı vurgulama ikisi de
+/// bunu kullanır.
+class _Consumed {
+  final String text;
+  final PlanSpanKind kind;
+  const _Consumed(this.text, this.kind);
+}
+
+/// Koç ekranının giriş kutusunda canlı vurgulama için alan türü.
+enum PlanSpanKind { date, time, duration, recurrence, subject }
+
+/// [raw] girdi içinde `[start, end)` aralığının hangi alana ait olarak
+/// tanındığını taşır — UI bunu renklendirmek için kullanır.
+class PlanSpan {
+  final int start;
+  final int end;
+  final PlanSpanKind kind;
+  const PlanSpan(this.start, this.end, this.kind);
+}
+
 /// [PlanParser.parse] çıktısı. Tüm alanlar opsiyonel — ne yakalandıysa o dolu.
 class ParsedPlan {
   /// Temizlenmiş görev başlığı (tarih/süre/tekrar ifadeleri çıkarılmış).
@@ -465,6 +521,10 @@ class ParsedPlan {
   /// 'none' | 'daily' | 'weekly' — `taskProvider.addRecurringTask` ile aynı sözlük.
   final String recurrence;
 
+  /// Ham girdi içinde hangi karakter aralığının hangi alana karşılık geldiği
+  /// — Koç ekranındaki canlı vurgulama için (bkz. [PlanSpanKind]).
+  final List<PlanSpan> spans;
+
   const ParsedPlan({
     required this.title,
     this.subjectId,
@@ -474,6 +534,7 @@ class ParsedPlan {
     this.hour,
     this.minute,
     this.recurrence = 'none',
+    this.spans = const [],
   });
 
   const ParsedPlan.empty()
@@ -484,7 +545,8 @@ class ParsedPlan {
         durationMinutes = null,
         hour = null,
         minute = null,
-        recurrence = 'none';
+        recurrence = 'none',
+        spans = const [];
 
   bool get hasTime => hour != null;
 

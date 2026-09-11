@@ -29,7 +29,7 @@ class CoachScreen extends ConsumerStatefulWidget {
 
 class _CoachScreenState extends ConsumerState<CoachScreen> {
   final _scroll = ScrollController();
-  final _input = TextEditingController();
+  final _input = _HighlightingController();
   final List<_Turn> _turns = [];
 
   final _Draft _draft = _Draft();
@@ -627,6 +627,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Koç'un yazarken tarih/saat/süre/dersi canlı renklendirebilmesi için
+    // güncel ders listesini denetleyiciye taşı (bkz. _HighlightingController).
+    _input.subjects = ref.watch(subjectProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -711,6 +715,59 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       ),
     );
   }
+}
+
+/// Koç'un yazarken tanıdığı tarih/saat/süre/tekrar/ders ifadelerini metnin
+/// içinde canlı renklendirir — Todoist'in "yarın 4pm" vurgusuyla aynı fikir
+/// (docs/rakip_analizi_ve_yon_2026-09.md araştırması), kullanıcı yazdığının
+/// gerçekten anlaşıldığını göndermeden önce görsün diye. Her tuş vuruşunda
+/// [PlanParser.parse] zaten çağrılıyor olurdu (onSend'de de öyle) — kısa
+/// cümle üzerinde regex taraması, ek maliyeti yok.
+class _HighlightingController extends TextEditingController {
+  List<SubjectModel> subjects = const [];
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final t = text;
+    if (t.isEmpty) return TextSpan(style: style, text: t);
+
+    final spans = PlanParser.parse(t, subjects: subjects).spans;
+    if (spans.isEmpty) return TextSpan(style: style, text: t);
+
+    final children = <InlineSpan>[];
+    var cursor = 0;
+    for (final s in spans) {
+      if (s.start > cursor) {
+        children.add(TextSpan(text: t.substring(cursor, s.start), style: style));
+      }
+      final color = _colorFor(s.kind);
+      children.add(TextSpan(
+        text: t.substring(s.start, s.end),
+        style: style?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+          backgroundColor: color.withValues(alpha: 0.18),
+        ),
+      ));
+      cursor = s.end;
+    }
+    if (cursor < t.length) {
+      children.add(TextSpan(text: t.substring(cursor), style: style));
+    }
+    return TextSpan(style: style, children: children);
+  }
+
+  Color _colorFor(PlanSpanKind kind) => switch (kind) {
+        PlanSpanKind.date => AppColors.secondary,
+        PlanSpanKind.time => AppColors.success,
+        PlanSpanKind.duration => AppColors.warning,
+        PlanSpanKind.recurrence => AppColors.info,
+        PlanSpanKind.subject => AppColors.primary,
+      };
 }
 
 /// Değişebilir plan taslağı — sohbet ilerledikçe dolar.
