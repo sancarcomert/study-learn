@@ -60,6 +60,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // göstermeyiz (ertesi gün yeniden çıkar).
   bool _closeOutDismissed = false;
 
+  // "Yarına taşıyalım mı?" sorusu oturum başına bir kez — "Kalsın" dedikten
+  // sonra kartı tekrar açınca (düzenlemek için) yeniden sorulmasın.
+  bool _carryForwardTonightAsked = false;
+
   @override
   void initState() {
     super.initState();
@@ -243,6 +247,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _maybeAskCarryForwardTonight() async {
+    if (_carryForwardTonightAsked || !mounted) return;
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final unfinished = ref
@@ -255,6 +261,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .toList();
     if (unfinished.isEmpty || !mounted) return;
 
+    _carryForwardTonightAsked = true;
     final n = unfinished.length;
     final move = await showDialog<bool>(
       context: context,
@@ -556,14 +563,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final thisWeekCompleted = ref.watch(tasksCompletedThisWeekProvider);
     final lastWeekCompleted = ref.watch(tasksCompletedLastWeekProvider);
 
-    // "Bugünü kapat" ritüeli (B3): akşam, henüz kapatılmadıysa entry kartı;
-    // sabah, dün bir niyet yazıldıysa nazik hatırlatma.
+    // "Bugünü kapat" ritüeli (B3): akşam entry kartı (kapatılmışsa "düzenle"
+    // durumunda, kaybolmuyor — bkz. _CloseOutCard doc); sabah, dün bir niyet
+    // yazıldıysa nazik hatırlatma.
     final todayCloseout = ref.watch(todayCloseoutProvider);
     final yesterdayIntent = ref.watch(yesterdayIntentProvider);
     // Akşam eşiği: çalışma gününün sonu. 18:00'dan itibaren "günü kapat".
     final isEvening = now.hour >= 18;
-    final showCloseOutCard =
-        isEvening && todayCloseout == null && !_closeOutDismissed;
+    final showCloseOutCard = isEvening && !_closeOutDismissed;
     final showYesterdayIntent = !isEvening &&
         todayCloseout == null &&
         yesterdayIntent != null &&
@@ -726,6 +733,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onTap: _closeOutToday,
                       onDismiss: () =>
                           setState(() => _closeOutDismissed = true),
+                      closed: todayCloseout != null,
                     ),
                   ],
 
@@ -989,11 +997,22 @@ class _YesterdayIntentLine extends StatelessWidget {
 
 /// Akşam Home'da beliren "Bugünü kapat" giriş kartı (B3). Dokun → özet
 /// sayfası. "×" → bu oturumda gizle (ertesi gün yeniden çıkar).
+///
+/// [closed] true ise (bugün zaten kapatıldıysa) kart KAYBOLMUYOR — önceden
+/// kapatınca bir daha hiç çıkmıyordu, ama `daily_closeout_sheet.dart` zaten
+/// "zaten kapatıldıysa → Güncelle" moduna sahipti; kart kaybolunca o moda
+/// ulaşacak hiçbir giriş noktası kalmıyordu (kullanıcı bulgusu). Artık
+/// "düzenle" durumuna geçiyor, aynı sheet'i açıyor.
 class _CloseOutCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDismiss;
+  final bool closed;
 
-  const _CloseOutCard({required this.onTap, required this.onDismiss});
+  const _CloseOutCard({
+    required this.onTap,
+    required this.onDismiss,
+    this.closed = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1014,8 +1033,11 @@ class _CloseOutCard extends StatelessWidget {
                 color: AppColors.tonal(AppColors.secondary),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.nightlight_outlined,
-                  size: 18, color: AppColors.secondary),
+              child: Icon(
+                closed ? Icons.check_circle_outline : Icons.nightlight_outlined,
+                size: 18,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1023,15 +1045,17 @@ class _CloseOutCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Bugünü kapat',
+                    closed ? 'Bugünü kapattın' : 'Bugünü kapat',
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text('Kısa özet, yarına tek cümle',
-                      style: AppTextStyles.caption),
+                  Text(
+                    closed ? 'Düzenlemek için dokun' : 'Kısa özet, yarına tek cümle',
+                    style: AppTextStyles.caption,
+                  ),
                 ],
               ),
             ),
