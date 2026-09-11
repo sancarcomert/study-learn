@@ -1,7 +1,8 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Pusula';
+  // Marka adı henüz kesinleşmedi — karar verilene kadar nötr/işlevsel isim.
+  static const String appName = 'Çalışma Planlayıcı';
   static const int defaultDailyGoal = 3;
 
   static const List<String> motivationMessages = [

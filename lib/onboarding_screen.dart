@@ -112,7 +112,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const Eyebrow(text: 'BAŞLANGIÇ'),
                 const SizedBox(height: 6),
-                Text('Pusula\'ya hoş geldin 👋', style: AppTextStyles.heading1),
+                Text('Hoş geldin 👋', style: AppTextStyles.heading1),
                 const SizedBox(height: 8),
                 Text(
                   'Kısaca tanışalım, hemen başlıyoruz.',

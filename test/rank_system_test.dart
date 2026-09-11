@@ -36,23 +36,23 @@ void main() {
     });
 
     test('isim ve renk rütbeyle eşleşir', () {
-      expect(RankSystem.fromXp(0).name, 'Yolcu');
-      expect(RankSystem.fromXp(250).name, 'Çırak');
-      expect(RankSystem.fromXp(6000).name, 'Pusula');
+      expect(RankSystem.fromXp(0).name, 'Aday');
+      expect(RankSystem.fromXp(250).name, 'Gayretli');
+      expect(RankSystem.fromXp(6000).name, 'Zirve');
       expect(RankSystem.fromXp(6000).colorHex, RankSystem.colors[5]);
     });
   });
 
   group('ilerleme', () {
-    test('Çırak ortası → progress ~0.5', () {
-      // Çırak: 250..700 → 450 aralık. 250 + 225 = 475 → yarısı.
+    test('Gayretli ortası → progress ~0.5', () {
+      // Gayretli: 250..700 → 450 aralık. 250 + 225 = 475 → yarısı.
       final r = RankSystem.fromXp(475);
       expect(r.rank, 2);
       expect(r.xpIntoRank, 225);
       expect(r.xpForRank, 450);
       expect(r.progress, closeTo(0.5, 0.001));
       expect(r.xpToNextRank, 225);
-      expect(r.nextName, 'Kalfa');
+      expect(r.nextName, 'Disiplinli');
     });
 
     test('en üst rütbede progress 1, xpToNext 0', () {
@@ -60,30 +60,30 @@ void main() {
       expect(r.atMax, isTrue);
       expect(r.progress, 1);
       expect(r.xpToNextRank, 0);
-      expect(r.nextName, 'Pusula');
+      expect(r.nextName, 'Zirve');
     });
   });
 
   group('gerçekçi senaryolar', () {
-    test('1. gün (1 görev + 1 hedef günü) → Yolcu, 40 XP', () {
+    test('1. gün (1 görev + 1 hedef günü) → Aday, 40 XP', () {
       final r = RankSystem.compute(
           completedTasks: 1, goalDays: 1, coveredTopics: 0);
       expect(r.xp, 40);
       expect(r.rank, 1);
     });
 
-    test('~1 hafta → Çırak', () {
+    test('~1 hafta → Gayretli', () {
       final r = RankSystem.compute(
           completedTasks: 7, goalDays: 7, coveredTopics: 2);
       expect(r.xp, 70 + 210 + 24); // 304
-      expect(r.name, 'Çırak');
+      expect(r.name, 'Gayretli');
     });
 
-    test('~1 ay → Kalfa', () {
+    test('~1 ay → Disiplinli', () {
       final r = RankSystem.compute(
           completedTasks: 30, goalDays: 28, coveredTopics: 15);
       expect(r.xp, 300 + 840 + 180); // 1320
-      expect(r.name, 'Kalfa');
+      expect(r.name, 'Disiplinli');
     });
 
     test('rütbe asla gerilemez — girdi sayaçları hep artar', () {

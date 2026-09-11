@@ -1,50 +1,45 @@
 <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="g5" x1="0.16" y1="0.02" x2="0.62" y2="1">
+    <linearGradient id="g5" x1="0.18" y1="0.05" x2="0.6" y2="1">
       <stop offset="0" stop-color="#F5713F"/><stop offset="0.52" stop-color="#E4551F"/><stop offset="1" stop-color="#A2331A"/>
     </linearGradient>
-    <radialGradient id="gl5" cx="0.5" cy="0.42" r="0.62">
-      <stop offset="0" stop-color="#FCB49B" stop-opacity="0.46"/>
+    <radialGradient id="gl5" cx="0.5" cy="0.46" r="0.6">
+      <stop offset="0" stop-color="#FCB49B" stop-opacity="0.42"/>
       <stop offset="1" stop-color="#FCB49B" stop-opacity="0"/>
     </radialGradient>
-    <path id="lp" d="M60 26 L64.5 60 L55.5 60 Z"/>
-    <path id="sp" d="M60 41 L62.6 60 L57.4 60 Z"/>
-    <path id="tk" d="M60 2.5 L60 -3.5"/>
-    <path id="ck" d="M60 3.5 L60 -7.5"/>
-    <path id="nb" d="M55.5 8 L60 2 L64.5 8 Z"/>
+    <path id="tk" d="M60 20.0 L60 24.0"/>
   </defs>
-  <circle cx="60" cy="58" r="55" fill="url(#gl5)"/>
-  <circle cx="60" cy="60" r="58" fill="none" stroke="#FCB49B" stroke-opacity="0.46" stroke-width="1.5"/>
-  <circle cx="60" cy="60" r="50.5" fill="none" stroke="#FCB49B" stroke-opacity="0.22" stroke-width="1"/>
-  <g stroke="#FCB49B" stroke-opacity="0.65" stroke-width="2"><use href="#tk" transform="rotate(0.0 60 60)"/><use href="#tk" transform="rotate(22.5 60 60)"/><use href="#tk" transform="rotate(45.0 60 60)"/><use href="#tk" transform="rotate(67.5 60 60)"/><use href="#tk" transform="rotate(90.0 60 60)"/><use href="#tk" transform="rotate(112.5 60 60)"/><use href="#tk" transform="rotate(135.0 60 60)"/><use href="#tk" transform="rotate(157.5 60 60)"/><use href="#tk" transform="rotate(180.0 60 60)"/><use href="#tk" transform="rotate(202.5 60 60)"/><use href="#tk" transform="rotate(225.0 60 60)"/><use href="#tk" transform="rotate(247.5 60 60)"/><use href="#tk" transform="rotate(270.0 60 60)"/><use href="#tk" transform="rotate(292.5 60 60)"/><use href="#tk" transform="rotate(315.0 60 60)"/><use href="#tk" transform="rotate(337.5 60 60)"/></g>
-  <g stroke="#FCB49B" stroke-opacity="0.85" stroke-width="2.4" stroke-linecap="round"><use href="#ck" transform="rotate(0 60 60)"/><use href="#ck" transform="rotate(90 60 60)"/><use href="#ck" transform="rotate(180 60 60)"/><use href="#ck" transform="rotate(270 60 60)"/></g>
-  <g fill="#FCB49B" fill-opacity="0.85" stroke="#521E0D" stroke-opacity="0.4" stroke-width="0.7" stroke-linejoin="round"><use href="#nb" transform="rotate(0 60 60)"/><use href="#nb" transform="rotate(60 60 60)"/><use href="#nb" transform="rotate(120 60 60)"/><use href="#nb" transform="rotate(180 60 60)"/><use href="#nb" transform="rotate(240 60 60)"/><use href="#nb" transform="rotate(300 60 60)"/></g>
-  <path d="M60 6 L106 33 L106 87 L60 114 L14 87 L14 33 Z" fill="none" stroke="#521E0D" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M60 6 L106 33 L106 87 L60 114 L14 87 L14 33 Z" fill="url(#g5)" stroke="#F5713F" stroke-width="2.4" stroke-linejoin="round"/>
-  <g stroke="none">
-    <path d="M60 60 L14 33 L60 6 Z" fill="#FFFFFF" fill-opacity="0.20"/>
-    <path d="M60 60 L60 6 L106 33 Z" fill="#FFFFFF" fill-opacity="0.09"/>
-    <path d="M60 60 L14 87 L14 33 Z" fill="#000000" fill-opacity="0.04"/>
-    <path d="M60 60 L106 33 L106 87 Z" fill="#000000" fill-opacity="0.10"/>
-    <path d="M60 60 L60 114 L14 87 Z" fill="#000000" fill-opacity="0.13"/>
-    <path d="M60 60 L106 87 L60 114 Z" fill="#000000" fill-opacity="0.20"/>
+  <circle cx="60" cy="63" r="58" fill="url(#gl5)"/>
+  <g fill="#E4551F" stroke="#521E0D" stroke-opacity="0.35" stroke-width="0.7">
+    <path d="M72.5 4.3 L98.6 17.0 L87.0 30.8 L68.7 21.9 Z"/>
+    <path d="M47.5 4.3 L21.4 17.0 L33.0 30.8 L51.3 21.9 Z"/>
   </g>
-  <g stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="1">
-    <path d="M60 60 L60 6 M60 60 L106 33 M60 60 L106 87 M60 60 L60 114 M60 60 L14 87 M60 60 L14 33"/>
+  <g>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(72.6 12.5) rotate(14.0)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(47.4 12.5) rotate(-14.0)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(89.2 20.0) rotate(34.1)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(30.8 20.0) rotate(-34.1)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(102.2 32.6) rotate(54.3)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(17.8 32.6) rotate(-54.3)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(110.1 49.0) rotate(74.4)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(9.9 49.0) rotate(-74.4)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(111.8 67.1) rotate(94.6)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(8.2 67.1) rotate(-94.6)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(107.2 84.7) rotate(114.7)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(12.8 84.7) rotate(-114.7)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(96.9 99.7) rotate(134.9)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(23.1 99.7) rotate(-134.9)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(82.0 110.1) rotate(155.0)"/>
+    <path d="M -4.50 0 Q 0 2.10 4.50 0 Q 0 -2.10 -4.50 0 Z" fill="#E4551F" stroke="#521E0D" stroke-width="0.6" stroke-opacity="0.6" transform="translate(38.0 110.1) rotate(-155.0)"/>
+    <circle cx="60.0" cy="114.0" r="3" fill="#E4551F" stroke="#521E0D" stroke-width="0.7" stroke-opacity="0.6"/>
   </g>
-  <path d="M60 16.8 L96.8 38.4 L96.8 81.6 L60 103.2 L23.2 81.6 L23.2 38.4 Z" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1.2" stroke-linejoin="round"/>
-  <path d="M27 37 Q60 15 93 37" fill="none" stroke="#FFFFFF" stroke-opacity="0.24" stroke-width="3.4" stroke-linecap="round"/>
-  <circle cx="60" cy="60" r="17.5" fill="none" stroke="#FCB49B" stroke-opacity="0.5" stroke-width="1.3"/>
-  <circle cx="60" cy="60" r="11" fill="none" stroke="#FCB49B" stroke-opacity="0.36" stroke-width="1"/>
-  <g fill="#FCB49B" fill-opacity="0.8">
-    <circle cx="68.6" cy="39.2" r="1.2"/><circle cx="80.8" cy="51.4" r="1.2"/>
-    <circle cx="80.8" cy="68.6" r="1.2"/><circle cx="68.6" cy="80.8" r="1.2"/>
-    <circle cx="51.4" cy="80.8" r="1.2"/><circle cx="39.2" cy="68.6" r="1.2"/>
-    <circle cx="39.2" cy="51.4" r="1.2"/><circle cx="51.4" cy="39.2" r="1.2"/>
-  </g>
-  <g fill="#FCB49B"><use href="#lp" transform="rotate(90 60 60)"/><use href="#lp" transform="rotate(180 60 60)"/><use href="#lp" transform="rotate(270 60 60)"/></g>
-  <use href="#lp" fill="#FFE0D2"/>
-  <g fill="#FCB49B" fill-opacity="0.92"><use href="#sp" transform="rotate(45 60 60)"/><use href="#sp" transform="rotate(135 60 60)"/><use href="#sp" transform="rotate(225 60 60)"/><use href="#sp" transform="rotate(315 60 60)"/></g>
-  <circle cx="60" cy="60" r="3.7" fill="#FFE0D2"/>
-  <circle cx="60" cy="60" r="1.6" fill="#A2331A"/>
+  <circle cx="60" cy="63" r="45" fill="none" stroke="#521E0D" stroke-width="5"/>
+  <circle cx="60" cy="63" r="44" fill="url(#g5)" stroke="#F5713F" stroke-width="2.4"/>
+  <g stroke="#FCB49B" stroke-opacity="0.55" stroke-width="1.6"><use href="#tk" transform="rotate(0.0 60.0 63.0)"/> <use href="#tk" transform="rotate(11.25 60.0 63.0)"/> <use href="#tk" transform="rotate(22.5 60.0 63.0)"/> <use href="#tk" transform="rotate(33.75 60.0 63.0)"/> <use href="#tk" transform="rotate(45.0 60.0 63.0)"/> <use href="#tk" transform="rotate(56.25 60.0 63.0)"/> <use href="#tk" transform="rotate(67.5 60.0 63.0)"/> <use href="#tk" transform="rotate(78.75 60.0 63.0)"/> <use href="#tk" transform="rotate(90.0 60.0 63.0)"/> <use href="#tk" transform="rotate(101.25 60.0 63.0)"/> <use href="#tk" transform="rotate(112.5 60.0 63.0)"/> <use href="#tk" transform="rotate(123.75 60.0 63.0)"/> <use href="#tk" transform="rotate(135.0 60.0 63.0)"/> <use href="#tk" transform="rotate(146.25 60.0 63.0)"/> <use href="#tk" transform="rotate(157.5 60.0 63.0)"/> <use href="#tk" transform="rotate(168.75 60.0 63.0)"/> <use href="#tk" transform="rotate(180.0 60.0 63.0)"/> <use href="#tk" transform="rotate(191.25 60.0 63.0)"/> <use href="#tk" transform="rotate(202.5 60.0 63.0)"/> <use href="#tk" transform="rotate(213.75 60.0 63.0)"/> <use href="#tk" transform="rotate(225.0 60.0 63.0)"/> <use href="#tk" transform="rotate(236.25 60.0 63.0)"/> <use href="#tk" transform="rotate(247.5 60.0 63.0)"/> <use href="#tk" transform="rotate(258.75 60.0 63.0)"/> <use href="#tk" transform="rotate(270.0 60.0 63.0)"/> <use href="#tk" transform="rotate(281.25 60.0 63.0)"/> <use href="#tk" transform="rotate(292.5 60.0 63.0)"/> <use href="#tk" transform="rotate(303.75 60.0 63.0)"/> <use href="#tk" transform="rotate(315.0 60.0 63.0)"/> <use href="#tk" transform="rotate(326.25 60.0 63.0)"/> <use href="#tk" transform="rotate(337.5 60.0 63.0)"/> <use href="#tk" transform="rotate(348.75 60.0 63.0)"/></g>
+  <ellipse cx="46" cy="48" rx="20" ry="14" fill="#FFFFFF" fill-opacity="0.16" transform="rotate(-25 46 48)"/>
+  <ellipse cx="76" cy="80" rx="20" ry="15" fill="#000000" fill-opacity="0.16" transform="rotate(20 76 80)"/>
+  <circle cx="60" cy="63" r="37" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1.2"/>
+  <path d="M30 44 Q60 24 90 44" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M 60.00 44.00 L 64.47 56.85 L 78.07 57.13 L 67.23 65.35 L 71.17 78.37 L 60.00 70.60 L 48.83 78.37 L 52.77 65.35 L 41.93 57.13 L 55.53 56.85 Z" fill="#FFE0D2" stroke="#521E0D" stroke-width="0.8" stroke-opacity="0.4"/>
+  <circle cx="60" cy="63" r="2.6" fill="#A2331A"/>
 </svg>

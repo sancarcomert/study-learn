@@ -63,14 +63,14 @@ class BackupService {
       throw const BackupException('Dosya okunamadı — geçerli bir yedek değil.');
     }
     if (decoded is! Map) {
-      throw const BackupException('Dosya bir Pusula yedeği gibi görünmüyor.');
+      throw const BackupException('Dosya geçerli bir yedek gibi görünmüyor.');
     }
     return importFromMap(decoded.cast<String, dynamic>());
   }
 
   static Future<ImportSummary> importFromMap(Map<String, dynamic> data) async {
     if (data['format'] != _magic) {
-      throw const BackupException('Bu dosya bir Pusula yedeği değil.');
+      throw const BackupException('Bu dosya geçerli bir yedek değil.');
     }
     final v = data['schemaVersion'];
     if (v is! int || v > schemaVersion) {

@@ -70,7 +70,7 @@ class _DataBackupSectionState extends ConsumerState<DataBackupSection> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Pusula verini yalnızca bu cihazda tutar. Ara sıra dışa aktarıp '
+          'Verin yalnızca bu cihazda tutulur. Ara sıra dışa aktarıp '
           'güvenli bir yere koy. Ayrıca her gün cihazına otomatik yedek alınır.',
           style: AppTextStyles.caption,
         ),
@@ -86,12 +86,12 @@ class _DataBackupSectionState extends ConsumerState<DataBackupSection> {
       final json = BackupService.exportToJsonString();
       final dir = await getTemporaryDirectory();
       final stamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final file = File('${dir.path}/pusula-yedek-$stamp.json');
+      final file = File('${dir.path}/calisma-plani-yedek-$stamp.json');
       await file.writeAsString(json);
       if (!mounted) return;
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/json')],
-        subject: 'Pusula yedeği',
+        subject: 'Çalışma planı yedeği',
       );
     } catch (_) {
       if (mounted) {

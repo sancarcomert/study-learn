@@ -448,10 +448,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: SizedBox(
                 height: 32,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const _BrandMark(),
                     _ProfileRing(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -917,29 +916,6 @@ class _SuggestionStrip extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pusula',
-          style: AppTextStyles.heading2.copyWith(
-            fontSize: 18,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Container(width: 22, height: 2, color: AppColors.primary),
-      ],
     );
   }
 }

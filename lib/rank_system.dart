@@ -20,26 +20,28 @@ class RankSystem {
   /// 6 rütbenin başlangıç XP eşiği.
   static const List<int> thresholds = [0, 250, 700, 1600, 3200, 6000];
 
+  /// Bir öğrencinin sınava hazırlık yolculuğundaki duruşu — zanaat/oyun
+  /// terimi değil, akademik/işlevsel bir ilerleme sıfatı seçildi.
   static const List<String> names = [
-    'Yolcu',
-    'Çırak',
-    'Kalfa',
-    'Usta',
-    'Üstat',
-    'Pusula',
+    'Aday',
+    'Gayretli',
+    'Disiplinli',
+    'Kararlı',
+    'Uzman',
+    'Zirve',
   ];
 
-  /// Rütbe renkleri (ARGB int) — soğuktan sıcağa, oyun rank rampası mantığı.
+  /// Rütbe renkleri (ARGB int) — soğuktan sıcağa bir ilerleme rampası.
   /// UI `Color(RankSystem.colors[rank-1])` ile sarar; bu dosya saf Dart kalır.
   /// R6 (kor kırmızı) bilinçli istisna: uygulamada kırmızı "sil" demek ama
   /// burada buton değil, rütbe kimliği — karışmaz.
   static const List<int> colors = [
-    0xFF74B98C, // Yolcu  — adaçayı yeşili
-    0xFF54C6B8, // Çırak  — deniz köpüğü
-    0xFFE6BC5B, // Kalfa  — altın (marka)
-    0xFFE68C44, // Usta   — turuncu
-    0xFFDD6038, // Üstat  — mercan
-    0xFFE5442E, // Pusula — kor
+    0xFF74B98C, // Aday       — adaçayı yeşili
+    0xFF54C6B8, // Gayretli   — deniz köpüğü
+    0xFFE6BC5B, // Disiplinli — altın
+    0xFFE68C44, // Kararlı    — turuncu
+    0xFFDD6038, // Uzman      — mercan
+    0xFFE5442E, // Zirve      — kor
   ];
 
   static int xpFor({

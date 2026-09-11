@@ -1,10 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// 6 rütbenin amblemi — elle işlenmiş SVG crest'ler (`assets/ranks/rank_N.svg`).
-/// Katmanlı kalkan + pusula motifi rütbeyle zenginleşir: kıvılcım → 8 uçlu
-/// pusula gülü → defne çelengi + taç. Maskot değil; nesne. SVG kendi rengini
-/// taşır (rütbe renk rampasıyla aynı).
+/// 6 rütbenin amblemi — elle işlenmiş akademik madalya SVG'leri
+/// (`assets/ranks/rank_N.svg`). Yıldızlı bir madalya + kurdele; rütbe
+/// yükseldikçe defne çelengi ve kenar tırtılı zenginleşir. Maskot değil,
+/// nesne — eğitim/başarı bağlamına uygun. SVG kendi rengini taşır (rütbe
+/// renk rampasıyla aynı).
 class RankEmblem extends StatelessWidget {
   final int rank; // 1..6
   final double size;
