@@ -6,11 +6,15 @@ Bu dosya, projenin genel bağlamını ve şu anki sprint'in kapsamını tanımla
 
 - Flutter + Riverpod + Hive (yerel veri, henüz backend yok)
 - Uzun vadeli hedef: Türkiye YKS kitlesine odaklı, abonelik bazlı bir ürüne ("Pusula") dönüşmek
-- Tüm stratejik/teknik yol haritası `docs/` klasöründe:
-  - `pusula_yol_haritasi.md` — backend/ödeme/yayın fazları (Faz 1-10)
-  - `pusula_uretim_pazarlama_teknik_recete.md` — MVP kapsamı, kapsam disiplini, pazarlama
-  - `ozellik_kullanilabilirlik_analizi.md` — rakip özellik/kullanılabilirlik analizi
-  - `tasarim_sistemi_referans_analizi.md` — mevcut tasarım sistemi analizi (eski)
+- Tüm stratejik/teknik yol haritası `docs/` klasöründe (2026-09-10'da yenilendi —
+  aşağıdaki üç dosya güncel kaynak; eski `pusula_yol_haritasi.md` vb. isimler
+  artık yok):
+  - `rakip_analizi_ve_yon_2026-09.md` — TR pazar haritası (7 arketip), rakip
+    zayıflıkları, konumlama, riskler
+  - `pazar_arastirmasi_ve_ai_karari_2026-09.md` — rakip yorumu/şikayet analizi,
+    AI'yı "Seviye 1"den çıkarma kararı
+  - `pusula_buyume_plani_2026.md` — **tek işletme planı**: hedef, konum, ürün
+    önceliği (P0-1…P0-11), retention, büyüme motoru, zaman çizelgesi (Faz 0-3)
 
 ## ⚠️ Kesin Kapsam Sınırı (asla önerme/ekleme)
 
@@ -96,7 +100,7 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 ### AI durumu / sınır
 - "Seviye 1": `subject_ai.dart` yerel anahtar-kelime sözlüğü (ders tahmini).
 - **"Seviye 1.5" (yukarıda, tamamlandı):** parser + advisor + builder + Çalışma Koçu. Hepsi yerel/kural tabanlı, salt okunur; görev oluşturma yine `taskProvider.addTask`.
-- "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 1 (Supabase) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
+- "Seviye 2" (gerçek LLM): maliyet + backend gerektirir → **Faz 2 (Supabase, `pusula_buyume_plani_2026.md` numaralandırmasıyla) + abonelik sonrası**, ve **yalnız planlama/ayrıştırma tarafında**. LLM ile ders anlatan/soru çözen asistan = kesin kapsam sınırı (yasak).
 - **Konu Takip modülü — ✅ TAMAMLANDI** (`4423e2f`→`9e0fbe5`). Kalan opsiyonel: haftalık tekrarlı program üretimi (şu an tek günlük), konu bazlı güven/seviye. Ders silinince konuları temizleme `c63fc29`'da yapıldı (aşağıya bak).
 - ✅ **P0-9 — Deneme/net takibi** (`abd138f`, cihazda uçtan uca test): rakip araştırması (en yakın ikizimiz dahil hemen her rakipte var, kendi başına alt-kategori) sonrası öne çekildi. "Soru bankası" değil — soru içeriği hiç tutulmaz, yalnız doğru/yanlış/boş → ÖSYM formülüyle (doğru − yanlış/4) net. `deneme_model.dart` (`DenemeSectionScore` typeId 10, `DenemeEntry` typeId 11) — Konu Takip ile aynı desen, ayrı Hive box (`denemeler`), mevcut modellere dokunulmadı. `deneme_screen.dart` (TYT/AYT sekmesi + net trend bar grafiği + geçmiş liste + kaydırarak sil), `add_deneme_screen.dart` (tarih + opsiyonel isim + TYT/AYT'ye göre önerilen bölüm çipleri + canlı net hesap, alanlara 2 hane sınırı). Plan sekmesi 4. giriş; İstatistik'e "DENEME NETİ" özet kartı. `backup_service.dart` yeni box'ı dışa/içe aktarmaya ekledi.
 - ✅ **Profesyonelleştirme geçişi** (`ca37551` + `96fe32e`, cihazda test): (1) Koç/plan görevlerine artık **saat atanmıyor** — gün-kapsamlı; saat yalnız kullanıcı açıkça söylerse. `PlanBlock.startTime`→`order`. (2) Add Task **SÜRE opsiyonel** (`_selectedDuration` nullable, çipe tekrar dokun=kaldır) — eskiden her göreve zorla 30 dk. (3) "Şu anki saate göre gecikti" yerine Home açılışında **"önceki günlerden N görev — bugüne taşı?"** dialog'u (`task_time_status.isPastDayIncompleteAt`, `updateTask` ile taşıma). (4) Stats "KONU KAPSAMASI" sütun grafiği → sade yatay ilerleme listesi; `coverage_bar_chart.dart` silindi.
@@ -108,4 +112,40 @@ Bu üçü bilinçli olarak dışarıda tutuluyor (solo geliştirici + sıfır b�
 - ✅ **P0-9 sonrası "mevcut özellikleri iyileştir" audit turu** (`dea4a25`+`05e9b5e`+`c63fc29`, hepsi cihazda test): kullanıcı talimatı — yeni özellik değil, var olanı en iyi hale getir. **Görevler sekmesi** tamamla/ertele/sil/uzun-basış menüsü hiç yoktu (yalnız düzenlemeye izin veriyordu) + gün şeridi hep o anki haftaya sabitti → `TaskSwipeActions` (task_tile.dart'tan çıkarıldı) + hafta gezinme eklendi. **Konu Takip'te** kaydırarak silme onay/geri-al olmadan kalıcı siliyordu (uygulamanın her yerindeki desenin dışında) → `topic_provider.dart`'a (kullanıcı onayıyla) `deleteTask/restoreTask` ile aynı desende `deleteTopic`/`restoreTopic` eklendi. **Bug:** ders silinince konuları hiç temizlenmiyordu (zaten var olan ama hiç çağrılmayan `deleteForSubject` bağlandı). **Ölü kod:** `AppConstants` sabitleri, `DarkButton`, `TaskTimeStatusX.isOverdueAt` — hiçbiri kullanılmıyordu, silindi.
 Not: repo lokal-only. `feature/home-redesign` → `master`'a merge edildi. GitHub yok.
 
-**Sonra:** `pusula_yol_haritasi.md`'deki Faz 1 (Supabase backend temeli — şema, RLS, Auth). P1–P3 ile Faz 1 paralel yürütülmez.
+- ✅ **Faz 0 tamamlandı — P0-4/P0-5/P0-8/P0-10/P0-11** (`4db8664`→`da4b7f2`,
+  5 commit, `flutter analyze` 0 + 112/112 test her adımda, cihazda test
+  edilmedi henüz — bkz. aşağıdaki not). `pusula_buyume_plani_2026.md`'deki
+  Faz 0 listesi (P0-1…P0-11) artık **tamamen bitti**.
+  - **P0-5 — odak seansı bildirimi** (`4db8664`): native foreground service
+    yerine hafif çözüm — her segment/faz başlangıcında bitişe exact-mode
+    zamanlanmış tek seferlik bildirim (`NotificationCategory.focusSession`,
+    `scheduleNotification(exact:)`). OS AlarmManager tabanlı, uygulama
+    kapalıyken de tetiklenir; Play Store `specialUse` FGS inceleme riski yok.
+    **Cihazda doğrulanmadı** — asıl kritik test bu.
+  - **P0-4 — haftalık karşılaştırma** (`9a97e07`): `task_provider.dart`'a
+    `tasksCompletedByDayProvider`/`ThisWeek`/`LastWeek`; Home'da
+    `_WeekCompareStrip` (0 görevken gizli, kaygı değil cesaretlendirme tonu).
+  - **P0-10 — paylaşılabilir kart** (`01b4b97`): `widgets/share_card.dart` —
+    `RepaintBoundary`+`toImage()` → PNG → `share_plus` (JSON yedek dışa
+    aktarımıyla aynı desen). Giriş: günlük hedef kutlaması dialog'u (artık
+    2 sn'de otomatik kapanmıyor, "Paylaş" butonu var). Marka adı kesinleşmediği
+    için kartta marka metni yok.
+  - **P0-8 — boş durum tutarlılığı** (`0654559`): Konu Takip'in özel
+    `_EmptyTopics`'i silinip paylaşılan `EmptyStateCard`'a taşındı (yeni
+    opsiyonel `extra` slotu ile). Onboarding "atla" yolu incelendi — çıkmaz
+    sokak değil, `add_task_screen`'de her zaman "Derssiz" seçeneği var.
+  - **P0-11 — sınıfa göre müfredat, kümülatif** (`da4b7f2`): `topic_catalog.dart`
+    her konuya (ad, sınıf) etiketi kazandı — **genel bilinen TYT/AYT sıralamasına
+    göre best-effort**, resmi MEB metnine göre doğrulanmadı (dosyanın kendi
+    "kesin müfredat değil" ilkesi korundu). `forSubject(name, {maxGrade})`
+    kümülatif filtre; `topic_provider`/`topic_model`/`subject_model`
+    dokunulmadı.
+  - **Cihazda doğrulanması gereken kalanlar:** P0-5 bildirimi gerçekten
+    arka planda/kapalıyken düşüyor mu, P0-10 paylaşım sheet'i + görsel render,
+    P0-11 bir dersin konu listesi sınıfa göre gerçekten daralıyor mu.
+
+**Sonra:** `pusula_buyume_plani_2026.md`'deki Faz 1 — Play Store yayın
+hazırlığı (ikon, ekran görüntüleri, açıklama, gizlilik politikası, kapalı
+test). Faz 2 (Supabase backend) ancak Faz 1'den gerçek kullanıcı/geri
+bildirim geldikten sonra; Faz 0 maddeleriyle paralel yürütülmedi, Faz 2 ile
+de paralel yürütülmeyecek.
