@@ -266,23 +266,20 @@ class TaskTile extends ConsumerWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Öncelik göstergesi — kartın tek ve tutarlı önceliği
-                // temsil eden görsel işareti. Sağdaki ikon kaldırıldı,
-                // aynı bilgiyi iki farklı temsille tekrar etmemek için.
-                Container(
-                  width: 4,
-                  color: priorityColor,
-                ),
-
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
-                    child: Row(
-                      children: [
+          // Önceden IntrinsicHeight + stretch ile öncelik çubuğunu içerik
+          // yüksekliğine eşitliyorduk — IntrinsicHeight'in Wrap içeren alt
+          // ağaçlarda yükseklik hesabı güvenilir değil (bilinen Flutter
+          // kısıtı), kısa başlıklı görevlerde "BOTTOM OVERFLOWED" hatasına
+          // yol açıyordu (uzun başlıklarda başlık zaten fazladan yer
+          // kapladığı için gizli kalıyordu). Stack + Positioned intrinsic
+          // hesaplamaya hiç ihtiyaç duymuyor, aynı görsel sonucu güvenli
+          // veriyor.
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+                child: Row(
+                  children: [
                         TapScale(
                           onTap: () {
                             ref
@@ -450,10 +447,19 @@ class TaskTile extends ConsumerWidget {
                         ],
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              // Öncelik göstergesi — kartın tek ve tutarlı önceliği temsil
+              // eden görsel işareti. Sağdaki ikon kaldırıldı, aynı bilgiyi
+              // iki farklı temsille tekrar etmemek için. Positioned +
+              // top/bottom: 0, Stack'in içerikten türeyen yüksekliğine
+              // otomatik uzanır.
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(width: 4, color: priorityColor),
+              ),
+            ],
           ),
         ),
       ),

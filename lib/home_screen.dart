@@ -16,6 +16,7 @@ import 'study_advisor.dart';
 import 'topic_provider.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
+import 'daily_closeout_model.dart';
 import 'daily_closeout_provider.dart';
 import 'daily_closeout_sheet.dart';
 import 'rank_ladder_screen.dart';
@@ -563,14 +564,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final thisWeekCompleted = ref.watch(tasksCompletedThisWeekProvider);
     final lastWeekCompleted = ref.watch(tasksCompletedLastWeekProvider);
 
-    // "Bugünü kapat" ritüeli (B3): akşam entry kartı (kapatılmışsa "düzenle"
-    // durumunda, kaybolmuyor — bkz. _CloseOutCard doc); sabah, dün bir niyet
-    // yazıldıysa nazik hatırlatma.
+    // "Bugünü kapat" ritüeli (B3): akşam, henüz kapatılmadıysa entry kartı;
+    // kapatıldıktan sonra bu kart kayboluyor ama yerini _RelaxModeCard
+    // alıyor (aşağıda, görev listesinin yerinde) — o hem "kapattın" mesajını
+    // taşıyor hem dokununca aynı sheet'i (Güncelle modunda) açıyor, tek
+    // giriş noktası yeterli, ikisi birden aynı mesajı tekrar etmesin diye.
+    // Sabah, dün bir niyet yazıldıysa nazik hatırlatma.
     final todayCloseout = ref.watch(todayCloseoutProvider);
     final yesterdayIntent = ref.watch(yesterdayIntentProvider);
     // Akşam eşiği: çalışma gününün sonu. 18:00'dan itibaren "günü kapat".
     final isEvening = now.hour >= 18;
-    final showCloseOutCard = isEvening && !_closeOutDismissed;
+    final showCloseOutCard =
+        isEvening && todayCloseout == null && !_closeOutDismissed;
     final showYesterdayIntent = !isEvening &&
         todayCloseout == null &&
         yesterdayIntent != null &&
@@ -733,56 +738,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onTap: _closeOutToday,
                       onDismiss: () =>
                           setState(() => _closeOutDismissed = true),
-                      closed: todayCloseout != null,
                     ),
                   ],
 
                   const SizedBox(height: 32),
 
-                  // 5) BUGÜNKÜ GÖREVLER
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Eyebrow(text: 'BUGÜNKÜ GÖREVLER'),
-                      if (totalCount > 0)
-                        Text(
-                          '$completedCount/$totalCount',
-                          style: AppTextStyles.caption
-                              .copyWith(fontWeight: FontWeight.w700),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (!stats.hasSeenTaskHints &&
-                      todayTasks.any((t) => !t.isCompleted)) ...[
-                    _HintStrip(
-                      onDismiss: () => ref
-                          .read(statsProvider.notifier)
-                          .markTaskHintsSeen(),
+                  // 5) BUGÜNKÜ GÖREVLER — gün kapatıldıysa yerini sakin bir
+                  // "dinlenme modu" kartı alır (kullanıcı bulgusu: kapatınca
+                  // görev listesi hâlâ orada durmak yanlış hissettiriyordu).
+                  if (todayCloseout != null)
+                    _RelaxModeCard(closeout: todayCloseout)
+                  else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Eyebrow(text: 'BUGÜNKÜ GÖREVLER'),
+                        if (totalCount > 0)
+                          Text(
+                            '$completedCount/$totalCount',
+                            style: AppTextStyles.caption
+                                .copyWith(fontWeight: FontWeight.w700),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 12),
+                    if (!stats.hasSeenTaskHints &&
+                        todayTasks.any((t) => !t.isCompleted)) ...[
+                      _HintStrip(
+                        onDismiss: () => ref
+                            .read(statsProvider.notifier)
+                            .markTaskHintsSeen(),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (todayTasks.isEmpty)
+                      suggestions.isEmpty
+                          ? const EmptyStateCard(
+                              icon: Icons.task_alt_outlined,
+                              message:
+                                  'Bugün için görev yok.\nSağ alttaki + ile ekleyebilirsin.',
+                            )
+                          : _SuggestionStrip(
+                              suggestions: suggestions,
+                              onTap: _handleSuggestionTap,
+                            )
+                    else
+                      Column(
+                        children: todayTasks
+                            .map((task) => _AnimatedTaskEntry(
+                                  key: ValueKey(task.id),
+                                  child:
+                                      TaskTile(task: task, subjects: subjects),
+                                ))
+                            .toList(),
+                      ),
                   ],
-                  if (todayTasks.isEmpty)
-                    suggestions.isEmpty
-                        ? const EmptyStateCard(
-                            icon: Icons.task_alt_outlined,
-                            message:
-                                'Bugün için görev yok.\nSağ alttaki + ile ekleyebilirsin.',
-                          )
-                        : _SuggestionStrip(
-                            suggestions: suggestions,
-                            onTap: _handleSuggestionTap,
-                          )
-                  else
-                    Column(
-                      children: todayTasks
-                          .map((task) => _AnimatedTaskEntry(
-                                key: ValueKey(task.id),
-                                child:
-                                    TaskTile(task: task, subjects: subjects),
-                              ))
-                          .toList(),
-                    ),
 
                   const SizedBox(height: 96),
                 ],
@@ -995,24 +1005,96 @@ class _YesterdayIntentLine extends StatelessWidget {
   }
 }
 
+/// Gün kapatıldıktan sonra "BUGÜNKÜ GÖREVLER" listesinin yerini alan sakin
+/// kart — kullanıcı bulgusu: günü kapatınca görev listesinin hâlâ orada
+/// durması yanlış hissettiriyordu, "dinlenme moduna" geçmesi gerekiyordu.
+/// Ertesi gün `todayCloseoutProvider` doğal olarak null'a döner (gün
+/// anahtarına göre), bu kart otomatik olarak kaybolur — ekstra bir
+/// zamanlayıcı/sıfırlama gerekmiyor.
+class _RelaxModeCard extends StatelessWidget {
+  final DailyCloseout closeout;
+  const _RelaxModeCard({required this.closeout});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasIntent = closeout.intent.trim().isNotEmpty;
+    return TapScale(
+      onTap: () => showDailyCloseoutSheet(context),
+      child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.surfaceVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.tonal(AppColors.secondary),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.bedtime_outlined,
+                color: AppColors.secondary, size: 28),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Bugünü kapattın',
+            style: AppTextStyles.heading3,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            closeout.completedTasks == 0
+                ? 'Dinlenme vaktin. Yarın devam.'
+                : '${closeout.completedTasks} görev bitirdin. Dinlenme vaktin.',
+            style: AppTextStyles.bodySecondary,
+            textAlign: TextAlign.center,
+          ),
+          if (hasIntent) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('YARIN', style: AppTextStyles.eyebrow),
+                  const SizedBox(height: 4),
+                  Text(
+                    closeout.intent,
+                    style: AppTextStyles.body
+                        .copyWith(color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+      ),
+    );
+  }
+}
+
 /// Akşam Home'da beliren "Bugünü kapat" giriş kartı (B3). Dokun → özet
-/// sayfası. "×" → bu oturumda gizle (ertesi gün yeniden çıkar).
-///
-/// [closed] true ise (bugün zaten kapatıldıysa) kart KAYBOLMUYOR — önceden
-/// kapatınca bir daha hiç çıkmıyordu, ama `daily_closeout_sheet.dart` zaten
-/// "zaten kapatıldıysa → Güncelle" moduna sahipti; kart kaybolunca o moda
-/// ulaşacak hiçbir giriş noktası kalmıyordu (kullanıcı bulgusu). Artık
-/// "düzenle" durumuna geçiyor, aynı sheet'i açıyor.
+/// sayfası. "×" → bu oturumda gizle (ertesi gün yeniden çıkar). Yalnız
+/// henüz kapatılmadıysa gösterilir — kapatıldıktan sonra yerini
+/// _RelaxModeCard alır (o da dokununca aynı sheet'i Güncelle modunda
+/// açar), iki kart aynı "kapattın" mesajını tekrar etmesin diye.
 class _CloseOutCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDismiss;
-  final bool closed;
 
-  const _CloseOutCard({
-    required this.onTap,
-    required this.onDismiss,
-    this.closed = false,
-  });
+  const _CloseOutCard({required this.onTap, required this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -1033,11 +1115,8 @@ class _CloseOutCard extends StatelessWidget {
                 color: AppColors.tonal(AppColors.secondary),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                closed ? Icons.check_circle_outline : Icons.nightlight_outlined,
-                size: 18,
-                color: AppColors.secondary,
-              ),
+              child: const Icon(Icons.nightlight_outlined,
+                  size: 18, color: AppColors.secondary),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1045,17 +1124,15 @@ class _CloseOutCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    closed ? 'Bugünü kapattın' : 'Bugünü kapat',
+                    'Bugünü kapat',
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    closed ? 'Düzenlemek için dokun' : 'Kısa özet, yarına tek cümle',
-                    style: AppTextStyles.caption,
-                  ),
+                  Text('Kısa özet, yarına tek cümle',
+                      style: AppTextStyles.caption),
                 ],
               ),
             ),
