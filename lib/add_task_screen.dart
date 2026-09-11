@@ -149,6 +149,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
+      builder: _pickerTheme,
     );
 
     if (picked != null) {
@@ -165,6 +166,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      builder: _pickerTheme,
     );
 
     if (picked != null) {
@@ -173,6 +175,38 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       });
     }
   }
+
+  // Native tarih/saat picker'ının seçim vurgusu, ColorScheme.fromSeed'in
+  // algoritmik türettiği tondan değil, gerçek marka altınından gelsin.
+  Widget _pickerTheme(BuildContext context, Widget? child) {
+    final base = Theme.of(context);
+    return Theme(
+      data: base.copyWith(
+        colorScheme: base.colorScheme.copyWith(
+          primary: AppColors.primary,
+          onPrimary: AppColors.ink,
+        ),
+      ),
+      child: child!,
+    );
+  }
+
+  static const List<TimeOfDay> _quickTimes = [
+    TimeOfDay(hour: 14, minute: 0),
+    TimeOfDay(hour: 16, minute: 0),
+    TimeOfDay(hour: 19, minute: 0),
+    TimeOfDay(hour: 21, minute: 0),
+  ];
+
+  bool get _isDateToday => _isSameDay(_selectedDate, DateTime.now());
+
+  bool get _isDateTomorrow => _isSameDay(
+      _selectedDate, DateTime.now().add(const Duration(days: 1)));
+
+  bool get _isCustomDate => !_isDateToday && !_isDateTomorrow;
+
+  bool get _isCustomTime =>
+      _selectedTime != null && !_quickTimes.contains(_selectedTime);
 
 
   String _formatDate(DateTime date) {
@@ -439,160 +473,135 @@ Widget build(BuildContext context) {
 
 
 
-                const Eyebrow(text: "DERS"),
-
-
-
-                const SizedBox(height: 10),
-
-
-
-                Wrap(
-
-                  spacing: 8,
-
-                  children: [
-
-                    _SubjectChip(
-
-                      label:
-                          "Derssiz",
-
-                      color:
-                          AppColors.textSecondary,
-
-                      isSelected:
-                          _selectedSubjectId == null,
-
-                      onTap: () {
-
-                        setState(() {
-
-                          _selectedSubjectId =
-                              null;
-
-                        });
-
-                      },
-
-                    ),
-
-
-
-                    ...subjects.map(
-
-                      (subject) => _SubjectChip(
-
-                        label:
-                            subject.name,
-
-                        color:
-                            Color(
-                              subject.colorValue,
-                            ),
-
-                        isSelected:
-                            _selectedSubjectId ==
-                                subject.id,
-
-
-                        onTap: () {
-
-                          setState(() {
-
-                            _selectedSubjectId =
-                                subject.id;
-
-                          });
-
-                        },
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-
-                // Tekrar seçimi artık gizli akordeon içinde değil, ders
-                // seçiminin hemen altında her zaman görünür — çünkü bu,
-                // geri dönüşü olmayan bir karar (birden fazla görev
-                // oluşturuyor), gözden kaçmaması gerekiyor.
-                if (!_isEditing) ...[
-                  const SizedBox(height: 20),
-
-                  const Eyebrow(text: "TEKRAR"),
-
-                  const SizedBox(height: 10),
-
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _SubjectChip(
-                        label: "Tek seferlik",
-                        color: AppColors.textSecondary,
-                        isSelected: _recurrence == 'none',
-                        onTap: () {
-                          setState(() {
-                            _recurrence = 'none';
-                          });
-                        },
-                      ),
-                      _SubjectChip(
-                        label: "Her gün",
-                        color: AppColors.secondary,
-                        isSelected: _recurrence == 'daily',
-                        onTap: () {
-                          setState(() {
-                            _recurrence = 'daily';
-                          });
-                        },
-                      ),
-                      _SubjectChip(
-                        label: "Her ${_weekdayName(_selectedDate)}",
-                        color: AppColors.secondary,
-                        isSelected: _recurrence == 'weekly',
-                        onTap: () {
-                          setState(() {
-                            _recurrence = 'weekly';
-                          });
-                        },
-                      ),
-                    ],
+                // Aşağıdaki "Planlama" kartıyla aynı dil — DERS/TEKRAR daha
+                // önce çıplak sayfaya dökülüyordu, tutarsız duruyordu.
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.surfaceVariant),
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Eyebrow(text: "DERS"),
 
-                  if (_recurrence != 'none') ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.tonal(AppColors.warning),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 10),
+
+                      Wrap(
+                        spacing: 8,
                         children: [
-                          const Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: AppColors.warning,
+                          _SubjectChip(
+                            label: "Derssiz",
+                            color: AppColors.textSecondary,
+                            isSelected: _selectedSubjectId == null,
+                            onTap: () {
+                              setState(() {
+                                _selectedSubjectId = null;
+                              });
+                            },
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _recurrence == 'weekly'
-                                  ? "Bu, önümüzdeki 12 hafta için ayrı ayrı görev oluşturur. Seriyi daha sonra topluca silebilirsin."
-                                  : "Bu, önümüzdeki 30 gün için ayrı ayrı görev oluşturur. Seriyi daha sonra topluca silebilirsin.",
-                              style: AppTextStyles.caption,
+                          ...subjects.map(
+                            (subject) => _SubjectChip(
+                              label: subject.name,
+                              color: Color(subject.colorValue),
+                              isSelected: _selectedSubjectId == subject.id,
+                              onTap: () {
+                                setState(() {
+                                  _selectedSubjectId = subject.id;
+                                });
+                              },
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ],
+
+                      // Tekrar seçimi ders seçiminin hemen altında her
+                      // zaman görünür — geri dönüşü olmayan bir karar
+                      // (birden fazla görev oluşturuyor), gözden
+                      // kaçmaması gerekiyor.
+                      if (!_isEditing) ...[
+                        const SizedBox(height: 20),
+                        const Divider(
+                          height: 1,
+                          color: AppColors.surfaceVariant,
+                        ),
+                        const SizedBox(height: 20),
+
+                        const Eyebrow(text: "TEKRAR"),
+
+                        const SizedBox(height: 10),
+
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            _SubjectChip(
+                              label: "Tek seferlik",
+                              color: AppColors.textSecondary,
+                              isSelected: _recurrence == 'none',
+                              onTap: () {
+                                setState(() {
+                                  _recurrence = 'none';
+                                });
+                              },
+                            ),
+                            _SubjectChip(
+                              label: "Her gün",
+                              color: AppColors.secondary,
+                              isSelected: _recurrence == 'daily',
+                              onTap: () {
+                                setState(() {
+                                  _recurrence = 'daily';
+                                });
+                              },
+                            ),
+                            _SubjectChip(
+                              label: "Her ${_weekdayName(_selectedDate)}",
+                              color: AppColors.secondary,
+                              isSelected: _recurrence == 'weekly',
+                              onTap: () {
+                                setState(() {
+                                  _recurrence = 'weekly';
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+
+                        if (_recurrence != 'none') ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.tonal(AppColors.warning),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: AppColors.warning,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _recurrence == 'weekly'
+                                        ? "Bu, önümüzdeki 12 hafta için ayrı ayrı görev oluşturur. Seriyi daha sonra topluca silebilirsin."
+                                        : "Bu, önümüzdeki 30 gün için ayrı ayrı görev oluşturur. Seriyi daha sonra topluca silebilirsin.",
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
 
                 const SizedBox(height: 20),
 
@@ -647,173 +656,172 @@ Widget build(BuildContext context) {
 
                             const SizedBox(height: 16),
 
-
-                            const Eyebrow(text: "TARİH"),
-
-                            const SizedBox(height: 10),
-
-                            GestureDetector(
-                              onTap: _pickDate,
-
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-
-                                decoration: BoxDecoration(
-                                  color: AppColors.secondary
-                                      .withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: AppColors.secondary,
-                                    ),
-
-                                    const SizedBox(width: 8),
-
-                                    Text(
-                                      _formatDate(_selectedDate),
-                                      style: AppTextStyles.body.copyWith(
-                                        color: AppColors.secondary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                            // Rakip analizinde (rabbit, Ders Takip AI —
+                            // docs/rakip_analizi_ve_yon_2026-09.md) ortak
+                            // desen: zamanlama kontrolleri çıplak sayfaya
+                            // değil, sınırları belli TEK bir kart içine
+                            // gruplanıyor. Öncesinde burada dört ayrı çip
+                            // satırı sayfaya doğrudan dökülüyordu —
+                            // NextTaskCard/_RankStrip'teki kart dilini
+                            // buraya da taşıdık.
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: AppColors.surfaceVariant,
                                 ),
                               ),
-                            ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Eyebrow(text: "TARİH"),
 
+                                  const SizedBox(height: 10),
 
-                            const SizedBox(height: 24),
-
-
-                            const Eyebrow(text: "SAAT (OPSİYONEL)"),
-
-                            const SizedBox(height: 10),
-
-                            GestureDetector(
-                              onTap: _pickTime,
-
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-
-                                decoration: BoxDecoration(
-                                  color: _selectedTime != null
-                                      ? AppColors.secondary
-                                          .withValues(alpha: 0.12)
-                                      : AppColors.secondary
-                                          .withValues(alpha: 0.06),
-
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.schedule,
-                                      size: 18,
-                                      color: AppColors.secondary,
-                                    ),
-
-                                    const SizedBox(width: 8),
-
-                                    Text(
-                                      _selectedTime == null
-                                          ? "Saat seç"
-                                          : _selectedTime!.format(context),
-                                      style: AppTextStyles.body.copyWith(
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _SubjectChip(
+                                        label: "Bugün",
                                         color: AppColors.secondary,
-                                        fontWeight: FontWeight.w600,
+                                        isSelected: _isDateToday,
+                                        onTap: () => setState(() {
+                                          _selectedDate = DateTime.now();
+                                        }),
                                       ),
-                                    ),
-
-                                    if (_selectedTime != null) ...[
-                                      const SizedBox(width: 8),
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTime = null;
-                                          });
-                                        },
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: AppColors.secondary,
-                                        ),
+                                      _SubjectChip(
+                                        label: "Yarın",
+                                        color: AppColors.secondary,
+                                        isSelected: _isDateTomorrow,
+                                        onTap: () => setState(() {
+                                          _selectedDate = DateTime.now()
+                                              .add(const Duration(days: 1));
+                                        }),
+                                      ),
+                                      _SubjectChip(
+                                        label: _isCustomDate
+                                            ? _formatDate(_selectedDate)
+                                            : "Özel",
+                                        color: AppColors.secondary,
+                                        isSelected: _isCustomDate,
+                                        onTap: _pickDate,
                                       ),
                                     ],
-                                  ],
-                                ),
+                                  ),
+
+                                  const SizedBox(height: 20),
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.surfaceVariant,
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  const Eyebrow(text: "SAAT (OPSİYONEL)"),
+
+                                  const SizedBox(height: 10),
+
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _SubjectChip(
+                                        label: "Belirtme",
+                                        color: AppColors.textSecondary,
+                                        isSelected: _selectedTime == null,
+                                        onTap: () => setState(() {
+                                          _selectedTime = null;
+                                        }),
+                                      ),
+                                      for (final t in _quickTimes)
+                                        _SubjectChip(
+                                          label: t.format(context),
+                                          color: AppColors.secondary,
+                                          isSelected: _selectedTime == t,
+                                          onTap: () => setState(() {
+                                            _selectedTime = t;
+                                          }),
+                                        ),
+                                      _SubjectChip(
+                                        label: _isCustomTime
+                                            ? _selectedTime!.format(context)
+                                            : "Özel",
+                                        color: AppColors.secondary,
+                                        isSelected: _isCustomTime,
+                                        onTap: _pickTime,
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 20),
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.surfaceVariant,
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  const Eyebrow(text: "SÜRE (OPSİYONEL)"),
+
+                                  const SizedBox(height: 10),
+
+                                  Wrap(
+                                    spacing: 8,
+                                    children: _durationOptions.map((minutes) {
+                                      final isSelected =
+                                          _selectedDuration == minutes;
+
+                                      return _SubjectChip(
+                                        label: "$minutes dk",
+                                        color: AppColors.primary,
+                                        isSelected: isSelected,
+                                        // Seçili çipe tekrar dokun → süreyi
+                                        // kaldır.
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedDuration = isSelected
+                                                ? null
+                                                : minutes;
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+
+                                  const SizedBox(height: 20),
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.surfaceVariant,
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  const Eyebrow(text: "ÖNCELİK"),
+
+                                  const SizedBox(height: 10),
+
+                                  Wrap(
+                                    spacing: 8,
+                                    children:
+                                        TaskPriority.values.map((priority) {
+                                      final isSelected =
+                                          _selectedPriority == priority;
+
+                                      return _SubjectChip(
+                                        label: _priorityLabel(priority),
+                                        color: _priorityColor(priority),
+                                        isSelected: isSelected,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedPriority = priority;
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
                               ),
                             ),
-
-
-                            const SizedBox(height: 24),
-
-
-                            const Eyebrow(text: "SÜRE (OPSİYONEL)"),
-
-                            const SizedBox(height: 10),
-
-                            Wrap(
-                              spacing: 8,
-                              children: _durationOptions.map((minutes) {
-                                final isSelected = _selectedDuration == minutes;
-
-                                return _SubjectChip(
-                                  label: "$minutes dk",
-                                  color: AppColors.primary,
-                                  isSelected: isSelected,
-                                  // Seçili çipe tekrar dokun → süreyi kaldır.
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedDuration =
-                                          isSelected ? null : minutes;
-                                    });
-                                  },
-                                );
-                              }).toList(),
-                            ),
-
-
-                            const SizedBox(height: 24),
-
-
-                            const Eyebrow(text: "ÖNCELİK"),
-
-                            const SizedBox(height: 10),
-
-                            Wrap(
-                              spacing: 8,
-                              children: TaskPriority.values.map((priority) {
-                                final isSelected = _selectedPriority == priority;
-
-                                return _SubjectChip(
-                                  label: _priorityLabel(priority),
-                                  color: _priorityColor(priority),
-                                  isSelected: isSelected,
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedPriority = priority;
-                                    });
-                                  },
-                                );
-                              }).toList(),
-                            ),
-
-
-                            const SizedBox(height: 4),
                           ],
                         ),
                 ),
@@ -894,49 +902,48 @@ class _SubjectChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Seçili/rengi bağlı metin rengiyle aynı mantık (computeLuminance()
+    // burada güvenilir değil — altın ile adaçayı yeşili gibi görsel olarak
+    // çok farklı iki ton matematiksel olarak neredeyse aynı parlaklığa
+    // denk geliyor). Tek gerçek risk olan altını (primary) doğrudan
+    // hedefliyoruz: o zeminde koyu metin, diğer her yerde beyaz.
+    final fgColor = isSelected
+        ? (color == AppColors.primary ? AppColors.ink : Colors.white)
+        : color;
 
-    return GestureDetector(
+    return TapScale(
+      // Daha önce çıplak GestureDetector'dı — dokunuşta ne hafif küçülme
+      // ne haptik vardı, seçim "oturmuyor" hissi veriyordu. Artık
+      // uygulamanın her yerindeki dokunma dili (TapScale, 0.96/100ms +
+      // hafif titreşim) burada da geçerli.
       onTap: onTap,
-
-      child: Container(
-
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 8,
         ),
-
         decoration: BoxDecoration(
-          color: isSelected
-              ? color
-              : color.withValues(alpha: 0.15),
-
-          borderRadius:
-              BorderRadius.circular(20),
+          color: isSelected ? color : color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? null
+              : Border.all(color: color.withValues(alpha: 0.35)),
         ),
-
-        child: Text(
-          label,
-
-          style: TextStyle(
-            // Bu chip birçok farklı renk alıyor (ders, öncelik, zorluk,
-            // süre). computeLuminance() burada güvenilir değildi — altın
-            // ile adaçayı yeşili gibi görsel olarak çok farklı iki ton
-            // matematiksel olarak neredeyse aynı parlaklığa denk geliyor.
-            // Bu yüzden tek gerçek risk olan altını (primary) doğrudan
-            // hedefliyoruz: o zeminde koyu metin, diğer her yerde beyaz.
-            color: isSelected
-                ? (color == AppColors.primary ? AppColors.ink : Colors.white)
-                : color,
-
-            fontWeight:
-                FontWeight.w600,
-          ),
-
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              Icon(Icons.check, size: 15, color: fgColor),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(color: fgColor, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
-
       ),
-
     );
-
   }
 }
