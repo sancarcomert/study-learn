@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'rank_ladder_screen.dart';
 import 'rank_provider.dart';
 import 'rank_system.dart';
 import 'stats_provider.dart';
@@ -239,7 +240,12 @@ class ProfileScreen extends ConsumerWidget {
 
           const Eyebrow(text: 'RÜTBE'),
           const SizedBox(height: 10),
-          _RankCard(info: ref.watch(rankProvider)),
+          TapScale(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RankLadderScreen()),
+            ),
+            child: _RankCard(info: ref.watch(rankProvider)),
+          ),
 
           const SizedBox(height: 28),
 
@@ -281,13 +287,23 @@ class ProfileScreen extends ConsumerWidget {
                     color: AppColors.primary, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    stats.freezesAvailable > 0
-                        ? '${stats.freezesAvailable} dondurma hakkın var'
-                        : 'Dondurma hakkın kalmadı',
-                    style: AppTextStyles.bodySecondary,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stats.freezesAvailable > 0
+                            ? '${stats.freezesAvailable} dondurma hakkın var'
+                            : 'Dondurma hakkın kalmadı',
+                        style: AppTextStyles.bodySecondary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Bir gün ara verirsen serini otomatik korur.',
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -384,7 +400,7 @@ class _RankCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              RankEmblem(rank: info.rank, colorHex: info.colorHex, size: 60),
+              RankEmblem(rank: info.rank, size: 64),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -404,8 +420,8 @@ class _RankCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       info.atMax
-                          ? 'En üst rütbedesin ✦'
-                          : '${info.nextName} rütbesine ${info.xpToNextRank} XP',
+                          ? 'En üst rütbedesin'
+                          : '${info.nextName} için ${info.xpToNextRank} XP',
                       style: AppTextStyles.caption,
                     ),
                   ],
@@ -416,10 +432,16 @@ class _RankCard extends StatelessWidget {
           const SizedBox(height: 16),
           RankBar(info: info, height: 18),
           const SizedBox(height: 12),
-          Text(
-            '${info.xp} XP toplam  ·  görev +10  ·  günü bitir +30  ·  '
-            'konu +12',
-            style: AppTextStyles.caption,
+          Row(
+            children: [
+              Expanded(
+                child: Text('Toplam ${info.xp} XP',
+                    style: AppTextStyles.caption),
+              ),
+              Text('Tüm rütbeler',
+                  style: AppTextStyles.caption.copyWith(color: color)),
+              Icon(Icons.chevron_right, size: 16, color: color),
+            ],
           ),
         ],
       ),

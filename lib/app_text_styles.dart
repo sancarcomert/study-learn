@@ -16,45 +16,52 @@ class AppTextStyles {
     fontSize: 28,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+    height: 1.16,
   );
 
   static TextStyle heading2 = GoogleFonts.lora(
     fontSize: 21,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: -0.2,
+    height: 1.2,
   );
 
   static TextStyle heading3 = GoogleFonts.plusJakartaSans(
     fontSize: 18,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
+    letterSpacing: -0.1,
+    height: 1.25,
   );
 
   static TextStyle body = GoogleFonts.plusJakartaSans(
     fontSize: 15,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
-    height: 1.4,
+    height: 1.5,
   );
 
   static TextStyle bodySecondary = GoogleFonts.plusJakartaSans(
     fontSize: 13,
     fontWeight: FontWeight.w500,
     color: AppColors.textSecondary,
-    height: 1.4,
+    height: 1.5,
   );
 
   static TextStyle button = GoogleFonts.plusJakartaSans(
     fontSize: 15,
     fontWeight: FontWeight.w700,
     color: AppColors.ink,
+    letterSpacing: 0.2,
   );
 
   static TextStyle caption = GoogleFonts.plusJakartaSans(
     fontSize: 12,
     fontWeight: FontWeight.w600,
     color: AppColors.textMuted,
+    height: 1.35,
   );
 
   // "BUGÜNÜN ODAĞI" / "BU HAFTA" gibi üst etiketler için tek stil
@@ -65,6 +72,6 @@ class AppTextStyles {
     fontSize: 12,
     fontWeight: FontWeight.w800,
     color: AppColors.primary,
-    letterSpacing: 1.1,
+    letterSpacing: 1.4,
   );
 }

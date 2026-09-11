@@ -18,6 +18,7 @@ import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'daily_closeout_provider.dart';
 import 'daily_closeout_sheet.dart';
+import 'rank_ladder_screen.dart';
 import 'rank_provider.dart';
 import 'rank_system.dart';
 import 'widgets/rank_bar.dart';
@@ -104,7 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         title: const Text('Hatırlatmalara izin ver'),
         content: const Text(
-          'Hatırlatmalar için bildirim izni gerekiyor, kaçırdığın görevleri sana hatırlatabilelim.',
+          'Bildirim izni ver, kaçırdığın görevleri sana hatırlatalım.',
         ),
         actions: [
           TextButton(
@@ -527,7 +528,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // 3.5) RÜTBE — türetilmiş merdiven (P0-2)
                   TapScale(
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const RankLadderScreen()),
                     ),
                     child: _RankStrip(info: ref.watch(rankProvider)),
                   ),
@@ -668,7 +670,7 @@ class _HintStrip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Daireye dokun → tamamla · ▶ → odak kronometresi',
+                  'Daireye dokun, görevi tamamla. ▶ ile odağı başlat.',
                   style: AppTextStyles.bodySecondary.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -676,7 +678,7 @@ class _HintStrip extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Sağa kaydır → yarına ertele · sola kaydır → sil',
+                  'Sağa kaydır: yarına al. Sola kaydır: sil.',
                   style: AppTextStyles.caption,
                 ),
               ],
@@ -719,7 +721,7 @@ class _RankStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          RankEmblem(rank: info.rank, colorHex: info.colorHex, size: 34),
+          RankEmblem(rank: info.rank, size: 34),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -734,8 +736,8 @@ class _RankStrip extends StatelessWidget {
                     const Spacer(),
                     Text(
                       info.atMax
-                          ? 'en üst rütbe ✦'
-                          : 'sonrakine ${info.xpToNextRank} XP',
+                          ? 'En üst rütbe'
+                          : '${info.nextName} için ${info.xpToNextRank} XP',
                       style: AppTextStyles.caption,
                     ),
                   ],
@@ -825,7 +827,7 @@ class _CloseOutCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text('Kısa özet + yarına tek cümle',
+                  Text('Kısa özet, yarına tek cümle',
                       style: AppTextStyles.caption),
                 ],
               ),

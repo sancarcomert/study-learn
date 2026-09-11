@@ -181,9 +181,8 @@ class StatsScreen extends ConsumerWidget {
           const Eyebrow(text: 'ÇALIŞMA TAKVİMİ'),
           const SizedBox(height: 4),
           Text(
-            'Son 12 hafta. Her kare bir gün — o gün ne kadar çok '
-            'görev bitirdiysen kare o kadar koyu (altın) olur. Amaç: '
-            'takvimi boş bırakmamak, düzenli çalışmak.',
+            'Son 12 hafta. Her kare bir gün — ne kadar çok görev '
+            'bitirdiysen kare o kadar koyu olur.',
             style: AppTextStyles.caption,
           ),
           const SizedBox(height: 12),
@@ -254,7 +253,7 @@ const SizedBox(height: 12),
 
 AchievementCard(
   title: 'İlk Adım',
-  description: 'İlk görevini tamamladın',
+  description: 'İlk görevini tamamla',
   icon: Icons.flag_outlined,
   unlocked: totalCompleted >= 1,
 ),

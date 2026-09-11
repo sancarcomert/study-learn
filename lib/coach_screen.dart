@@ -97,8 +97,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         ? ' Sınava ${daysUntilExam(examDate)} gün var.'
         : '';
     _say('Ne çalışmak istediğini ve ne kadar vaktin olduğunu tek cümleyle '
-        'yaz.$examLine İstemiyorsan "sen ayarla" de, ben kurayım (bugüne, '
-        'ya da "bu hafta" dersen 7 güne).');
+        'yaz.$examLine İstemiyorsan "sen ayarla" de, ben kurayım.');
   }
 
   // --- Girdi işleme ----------------------------------------------
@@ -260,7 +259,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   void _advance() {
     final subjects = ref.read(subjectProvider);
     if (subjects.isEmpty) {
-      _say('Önce en az bir ders eklemen lazım — sağ alttaki + ile '
+      _say('Önce en az bir ders eklemen lazım. Profil → Derslerim\'den '
           'ekleyip geri gelebilirsin.');
       return;
     }

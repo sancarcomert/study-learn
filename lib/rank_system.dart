@@ -34,12 +34,12 @@ class RankSystem {
   /// R6 (kor kırmızı) bilinçli istisna: uygulamada kırmızı "sil" demek ama
   /// burada buton değil, rütbe kimliği — karışmaz.
   static const List<int> colors = [
-    0xFF8FB39A, // Yolcu  — adaçayı yeşili
-    0xFF5FBAB0, // Çırak  — deniz köpüğü
-    0xFFE0B85F, // Kalfa  — altın (marka)
-    0xFFE08A3E, // Usta   — turuncu
-    0xFFE0664A, // Üstat  — mercan
-    0xFFD8433A, // Pusula — kor
+    0xFF74B98C, // Yolcu  — adaçayı yeşili
+    0xFF54C6B8, // Çırak  — deniz köpüğü
+    0xFFE6BC5B, // Kalfa  — altın (marka)
+    0xFFE68C44, // Usta   — turuncu
+    0xFFDD6038, // Üstat  — mercan
+    0xFFE5442E, // Pusula — kor
   ];
 
   static int xpFor({

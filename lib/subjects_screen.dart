@@ -93,7 +93,8 @@ class _SubjectCard extends StatelessWidget {
               builder: (_) => AlertDialog(
                 title: const Text("Ders silinsin mi?"),
                 content: const Text(
-                  "Bu derse bağlı görevler ders bilgisi olmadan kalmaya devam eder. Silindikten sonra kısa süreliğine geri alabilirsin.",
+                  "Bu derse bağlı görevler silinmez, yalnızca dersi boş "
+                  "kalır. Kısa süreliğine geri alabilirsin.",
                 ),
                 actions: [
                   TextButton(

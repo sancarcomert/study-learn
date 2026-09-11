@@ -46,7 +46,7 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
       return;
     }
     if (name.length > 30) {
-      AppSnackBar.error(context, 'Ders adı çok uzun (max 30 karakter)');
+      AppSnackBar.error(context, 'Ders adı çok uzun (en fazla 30 karakter)');
       return;
     } // boş isimle ders eklenmesin
 

@@ -40,7 +40,7 @@ class KonuTakipScreen extends ConsumerWidget {
               child: EmptyStateCard(
                 icon: Icons.checklist_rtl_outlined,
                 message:
-                    'Önce ders eklemelisin.\nDersler sekmesinden ekleyebilirsin.',
+                    'Önce ders eklemelisin.\nProfil → Derslerim\'den ekleyebilirsin.',
               ),
             )
           : ListView(
