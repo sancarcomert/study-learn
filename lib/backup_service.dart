@@ -355,6 +355,8 @@ class BackupService {
         'focusMinutes': s.focusMinutes,
         'hasSeenTaskHints': s.hasSeenTaskHints,
         'gradeLevel': s.gradeLevel,
+        'hasSeenExactAlarmPrompt': s.hasSeenExactAlarmPrompt,
+        'hasAddedFirstTask': s.hasAddedFirstTask,
       };
 
   static UserStatsModel _statsFromMap(Map<String, dynamic> m) => UserStatsModel(
@@ -375,6 +377,11 @@ class BackupService {
         focusMinutes: (m['focusMinutes'] as num?)?.toInt() ?? 0,
         hasSeenTaskHints: (m['hasSeenTaskHints'] as bool?) ?? false,
         gradeLevel: (m['gradeLevel'] as num?)?.toInt(),
+        hasSeenExactAlarmPrompt:
+            (m['hasSeenExactAlarmPrompt'] as bool?) ?? false,
+        // Eski yedekte alan yoksa muhtemelen zaten görevi olan bir
+        // kullanıcı — true (geriye dönük kutlama çıkmasın).
+        hasAddedFirstTask: (m['hasAddedFirstTask'] as bool?) ?? true,
       );
 
   // ------------------------------------------------------------------ UTIL

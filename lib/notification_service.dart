@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -68,6 +69,22 @@ class NotificationService {
     }
   }
 
+  // Android 12+ (S) itibarıyla SCHEDULE_EXACT_ALARM ayrı bir "özel erişim"
+  // izni — POST_NOTIFICATIONS'ın aksine normal bir izin popup'ı yok,
+  // isteği doğrudan sistem Ayarlar ekranına yönlendirir. Android 13+'ta
+  // (Play Store'a yeni yüklenen normal uygulamalarda) varsayılan olarak
+  // VERİLMEZ; istenmeden `scheduleNotification(exact: true)` çağrısı
+  // sessizce (unhandled ama çökmeyen) başarısız olur — bkz. cihaz testi.
+  Future<bool> hasExactAlarmPermission() async {
+    if (!Platform.isAndroid) return true;
+    return Permission.scheduleExactAlarm.isGranted;
+  }
+
+  Future<void> requestExactAlarmPermission() async {
+    if (!Platform.isAndroid) return;
+    await Permission.scheduleExactAlarm.request();
+  }
+
   int _notificationIdFor(String entityId, NotificationCategory category) {
     final int base = entityId.hashCode & 0x0FFFFFF;
     final int categoryOffset = category.index * 1000000;
@@ -107,18 +124,40 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await _plugin.zonedSchedule(
-      notificationId,
-      title,
-      body,
-      tz.TZDateTime.from(dateTime.toUtc(), tz.UTC),
-      details,
-      androidScheduleMode: exact
-          ? AndroidScheduleMode.exactAllowWhileIdle
-          : AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+    final tz.TZDateTime scheduled = tz.TZDateTime.from(dateTime.toUtc(), tz.UTC);
+
+    try {
+      await _plugin.zonedSchedule(
+        notificationId,
+        title,
+        body,
+        scheduled,
+        details,
+        androidScheduleMode: exact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } on PlatformException catch (e) {
+      // SCHEDULE_EXACT_ALARM verilmemişse (Android 13+ varsayılanı) exact
+      // mod bu koduyla başarısız olur — bildirim hiç gitmemek yerine
+      // inexact moda düşsün (birkaç dakika sapabilir ama en azından gelir).
+      if (exact && e.code == 'exact_alarms_not_permitted') {
+        await _plugin.zonedSchedule(
+          notificationId,
+          title,
+          body,
+          scheduled,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } else {
+        rethrow;
+      }
+    }
   }
 
   Future<void> cancelNotification(

@@ -74,6 +74,24 @@ class UserStatsModel extends HiveObject {
   @HiveField(13)
   int? gradeLevel;
 
+  // Odak seansı "tam zamanında bildirim" izin açıklamasının gösterilip
+  // gösterilmediğini işaretler — hasSeenNotificationPrompt ile aynı desen,
+  // ayrı tutulur çünkü bu SCHEDULE_EXACT_ALARM'a özel (Android 13+'ta
+  // normal bildirim izninden bağımsız, ayrı bir Ayarlar ekranına yönlendirir).
+  @HiveField(14, defaultValue: false)
+  bool hasSeenExactAlarmPrompt;
+
+  // İlk-60-saniye psikolojisi: kullanıcının kendi eklediği ilk (gerçek)
+  // görev bir kez küçük bir kutlama alır. defaultValue: true — eski
+  // kayıtlarda (zaten görevi olan kullanıcılarda) bu alan yokken true
+  // okunur, yani "zaten geçti" sayılır, geriye dönük kutlama çıkmaz.
+  // Yeni kullanıcı için constructor'da açıkça false verilir. Onboarding'in
+  // eklediği örnek görev bunu true YAPMAZ — yalnız Yeni Görev ekranı ve
+  // Çalışma Koçu'nun gerçek eklemeleri sayılır (bkz. add_task_screen,
+  // coach_screen).
+  @HiveField(15, defaultValue: true)
+  bool hasAddedFirstTask;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -91,6 +109,8 @@ class UserStatsModel extends HiveObject {
     this.focusMinutes = 0,
     this.hasSeenTaskHints = false,
     this.gradeLevel,
+    this.hasSeenExactAlarmPrompt = false,
+    this.hasAddedFirstTask = false,
   });
 
   /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.

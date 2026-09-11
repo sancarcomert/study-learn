@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'subject_ai.dart';
 import 'subject_provider.dart';
+import 'stats_provider.dart';
 import 'tap_scale.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
@@ -326,6 +327,8 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
     } else if (_recurrence != 'none') {
 
+      final isFirstTask = !ref.read(statsProvider).hasAddedFirstTask;
+
       ref.read(taskProvider.notifier).addRecurringTask(
             title: title,
             subjectId: _selectedSubjectId,
@@ -336,8 +339,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             estimatedMinutes: _selectedDuration,
           );
 
+      if (isFirstTask) {
+        ref.read(statsProvider.notifier).markFirstTaskAdded();
+        AppSnackBar.success(context, 'İlk görevini ekledin 🎉');
+      }
+
     } else {
 
+      final isFirstTask = !ref.read(statsProvider).hasAddedFirstTask;
 
       ref
           .read(taskProvider.notifier)
@@ -361,6 +370,11 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                 _selectedDuration,
 
           );
+
+      if (isFirstTask) {
+        ref.read(statsProvider.notifier).markFirstTaskAdded();
+        AppSnackBar.success(context, 'İlk görevini ekledin 🎉');
+      }
 
     }
 

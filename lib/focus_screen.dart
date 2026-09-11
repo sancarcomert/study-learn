@@ -64,10 +64,64 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   DateTime? _phaseSegStart;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeRequestExactAlarmPermission());
+  }
+
+  @override
   void dispose() {
     _ticker?.cancel();
     _noteController.dispose();
     super.dispose();
+  }
+
+  // Odak bitiş bildiriminin arka planda/kapalıyken de tam zamanında
+  // düşmesi için Android 12+'ta ayrı bir özel izin gerekiyor
+  // (SCHEDULE_EXACT_ALARM) — normal bildirim izninden bağımsız, kullanıcıyı
+  // Ayarlar'a yönlendiriyor. Bu yüzden Home'daki bildirim izni akışıyla
+  // aynı desen: önce neden istendiğini açıkla, "Ayarları Aç" derse iste.
+  // Kullanıcı başına bir kez (ekran her açıldığında değil).
+  Future<void> _maybeRequestExactAlarmPermission() async {
+    final alreadySeen = ref.read(statsProvider).hasSeenExactAlarmPrompt;
+    if (alreadySeen) return;
+    if (await NotificationService.instance.hasExactAlarmPermission()) return;
+    if (!mounted) return;
+
+    final continueRequested = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.alarm_outlined,
+          color: AppColors.primary,
+          size: 32,
+        ),
+        title: const Text('Tam zamanında hatırlatma'),
+        content: const Text(
+          'Odak seansı bittiğinde uygulama kapalıyken de haber verebilmemiz '
+          'için sistemden ek bir izin gerekiyor.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Şimdi Değil'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Ayarları Aç'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    ref.read(statsProvider.notifier).markExactAlarmPromptSeen();
+
+    if (continueRequested == true) {
+      await NotificationService.instance.requestExactAlarmPermission();
+    }
   }
 
   // ---- ortak ----

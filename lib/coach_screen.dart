@@ -532,6 +532,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   }
 
   void _commit() {
+    final isFirstTaskEver = !ref.read(statsProvider).hasAddedFirstTask;
+
     // Haftalık program: her bloğu kendi gününün dueDate'iyle yaz.
     final week = _pendingWeek;
     if (week != null) {
@@ -556,11 +558,17 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _delegate = false;
       _wantsWeek = null;
       _askedRecurrence = false;
-      _say(_pick([
-        '$count görev ${week.days.length} güne yayıldı 👍 Başka bir şey var mı?',
-        'Hepsi eklendi — $count görev, ${week.days.length} gün 👍 '
-            'Devam edelim mi?',
-      ]));
+      if (isFirstTaskEver) {
+        ref.read(statsProvider.notifier).markFirstTaskAdded();
+        _say('İlk görevlerini ekledin 🎉 $count görev ${week.days.length} '
+            'güne yayıldı. Başka bir şey var mı?');
+      } else {
+        _say(_pick([
+          '$count görev ${week.days.length} güne yayıldı 👍 Başka bir şey var mı?',
+          'Hepsi eklendi — $count görev, ${week.days.length} gün 👍 '
+              'Devam edelim mi?',
+        ]));
+      }
       return;
     }
 
@@ -612,15 +620,23 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _delegate = false;
     _wantsWeek = null;
     _askedRecurrence = false;
-    _say(n == 1
-        ? _pick([
-            'Eklendi 👍 Başka bir şey planlayalım mı?',
-            'Tamamdır, listene ekledim 👍 Devam edelim mi?',
-          ])
-        : _pick([
-            '$n görev eklendi 👍 Başka bir şey var mı?',
-            '$n görevi listene koydum 👍 Başka?',
-          ]));
+    if (isFirstTaskEver) {
+      ref.read(statsProvider.notifier).markFirstTaskAdded();
+      _say(n == 1
+          ? 'İlk görevini ekledin 🎉 Başka bir şey planlayalım mı?'
+          : 'İlk görevlerini ekledin 🎉 $n görev listene eklendi. '
+              'Başka bir şey var mı?');
+    } else {
+      _say(n == 1
+          ? _pick([
+              'Eklendi 👍 Başka bir şey planlayalım mı?',
+              'Tamamdır, listene ekledim 👍 Devam edelim mi?',
+            ])
+          : _pick([
+              '$n görev eklendi 👍 Başka bir şey var mı?',
+              '$n görevi listene koydum 👍 Başka?',
+            ]));
+    }
   }
 
   // --- UI -----------------------------------------------------

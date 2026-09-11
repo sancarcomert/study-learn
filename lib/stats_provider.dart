@@ -38,6 +38,8 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       focusMinutes: _stats.focusMinutes,
       hasSeenTaskHints: _stats.hasSeenTaskHints,
       gradeLevel: _stats.gradeLevel,
+      hasSeenExactAlarmPrompt: _stats.hasSeenExactAlarmPrompt,
+      hasAddedFirstTask: _stats.hasAddedFirstTask,
     );
   }
 
@@ -134,6 +136,20 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   void markTaskHintsSeen() {
     if (_stats.hasSeenTaskHints) return;
     _stats.hasSeenTaskHints = true;
+    _stats.save();
+    _emit();
+  }
+
+  void markExactAlarmPromptSeen() {
+    if (_stats.hasSeenExactAlarmPrompt) return;
+    _stats.hasSeenExactAlarmPrompt = true;
+    _stats.save();
+    _emit();
+  }
+
+  void markFirstTaskAdded() {
+    if (_stats.hasAddedFirstTask) return;
+    _stats.hasAddedFirstTask = true;
     _stats.save();
     _emit();
   }
