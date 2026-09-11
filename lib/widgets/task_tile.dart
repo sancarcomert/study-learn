@@ -12,35 +12,26 @@ import '../task_time_status.dart';
 import '../tap_scale.dart';
 import 'app_snackbar.dart';
 
-class TaskTile extends ConsumerWidget {
+/// Bir görevin kaydırarak ertele/sil + uzun basınca düzenle/sil davranışı —
+/// `TaskTile` (Home) ve `tasks_screen.dart`'ın zaman çizelgesi satırları
+/// aynı etkileşimi paylaşsın diye tek yerde. Görsel gövde [child] ile
+/// verilir; bu widget yalnız jest/aksiyon katmanıdır.
+class TaskSwipeActions extends ConsumerWidget {
   final TaskModel task;
-  final List<SubjectModel> subjects;
+  final Widget child;
+  final EdgeInsets margin;
+  final BorderRadius borderRadius;
 
-  const TaskTile({
+  const TaskSwipeActions({
     super.key,
     required this.task,
-    required this.subjects,
+    required this.child,
+    this.margin = const EdgeInsets.only(bottom: 14),
+    this.borderRadius = const BorderRadius.all(Radius.circular(22)),
   });
-
-  Color _priorityColor(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return AppColors.priorityLow;
-      case TaskPriority.medium:
-        return AppColors.priorityMedium;
-      case TaskPriority.high:
-        return AppColors.priorityHigh;
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subject = task.subjectId == null
-        ? null
-        : subjects.where((s) => s.id == task.subjectId).firstOrNull;
-
-    final priorityColor = _priorityColor(task.priority);
-
     return Dismissible(
       key: Key(task.id),
       direction: DismissDirection.horizontal,
@@ -48,12 +39,12 @@ class TaskTile extends ConsumerWidget {
       // Sağa kaydırma (startToEnd): ertele — silme değil, sadece dueDate
       // güncellemesi olduğu için kart listeden kalıcı olarak kalkmamalı.
       background: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: margin,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 24),
         decoration: BoxDecoration(
           color: AppColors.warning,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: borderRadius,
         ),
         child: const Icon(
           Icons.update,
@@ -63,12 +54,12 @@ class TaskTile extends ConsumerWidget {
 
       // Sola kaydırma (endToStart): sil.
       secondaryBackground: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: margin,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
         decoration: BoxDecoration(
           color: AppColors.danger,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: borderRadius,
         ),
         child: const Icon(
           Icons.delete_outline,
@@ -114,7 +105,7 @@ class TaskTile extends ConsumerWidget {
       onDismissed: (_) {
         // Notifier'ı burada, widget hâlâ mount'luyken yakalıyoruz.
         // "GERİ AL" onUndo'su gecikmeli çalışıyor (kullanıcı ne zaman
-        // basarsa) — o ana kadar bu TaskTile zaten dispose olmuş oluyor,
+        // basarsa) — o ana kadar bu widget zaten dispose olmuş oluyor,
         // dolayısıyla `ref`i doğrudan closure'da kullanmak Riverpod'da
         // "Cannot use ref after widget was disposed" hatasına yol açıp
         // geri alma işlemini sessizce başarısız kılıyordu. Notifier'ın
@@ -226,216 +217,242 @@ class TaskTile extends ConsumerWidget {
             ),
           );
         },
+        child: child,
+      ),
+    );
+  }
+}
 
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 14),
+class TaskTile extends ConsumerWidget {
+  final TaskModel task;
+  final List<SubjectModel> subjects;
 
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: priorityColor.withValues(alpha: 0.15),
-            ),
-            boxShadow: AppColors.cardShadow,
+  const TaskTile({
+    super.key,
+    required this.task,
+    required this.subjects,
+  });
+
+  Color _priorityColor(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.low:
+        return AppColors.priorityLow;
+      case TaskPriority.medium:
+        return AppColors.priorityMedium;
+      case TaskPriority.high:
+        return AppColors.priorityHigh;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subject = task.subjectId == null
+        ? null
+        : subjects.where((s) => s.id == task.subjectId).firstOrNull;
+
+    final priorityColor = _priorityColor(task.priority);
+
+    return TaskSwipeActions(
+      task: task,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: priorityColor.withValues(alpha: 0.15),
           ),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Öncelik göstergesi — kartın tek ve tutarlı önceliği
+                // temsil eden görsel işareti. Sağdaki ikon kaldırıldı,
+                // aynı bilgiyi iki farklı temsille tekrar etmemek için.
+                Container(
+                  width: 4,
+                  color: priorityColor,
+                ),
 
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
+                    child: Row(
+                      children: [
+                        TapScale(
+                          onTap: () {
+                            ref
+                                .read(taskProvider.notifier)
+                                .toggleTaskCompletion(
+                                  task.id,
+                                  ref,
+                                );
+                          },
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 350),
+                            transitionBuilder: (child, animation) =>
+                                ScaleTransition(
+                              scale: CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutBack,
+                              ),
+                              child: child,
+                            ),
+                            child: Icon(
+                              task.isCompleted
+                                  ? Icons.check_circle_outline
+                                  : Icons.radio_button_unchecked,
+                              key: ValueKey(task.isCompleted),
+                              color: task.isCompleted
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
+                              size: 26,
+                            ),
+                          ),
+                        ),
 
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Öncelik göstergesi — kartın tek ve tutarlı önceliği
-                  // temsil eden görsel işareti. Sağdaki ikon kaldırıldı,
-                  // aynı bilgiyi iki farklı temsille tekrar etmemek için.
-                  Container(
-                    width: 4,
-                    color: priorityColor,
-                  ),
+                        const SizedBox(width: 14),
 
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
+                        Expanded(
+                          child: TapScale(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AddTaskScreen(
+                                    taskToEdit: task,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 250),
+                                  style: AppTextStyles.body.copyWith(
+                                    fontSize: 16,
+                                    height: 1.25,
+                                    fontWeight: task.isCompleted
+                                        ? FontWeight.w500
+                                        : FontWeight.w700,
+                                    decoration: task.isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    color: task.isCompleted
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary,
+                                  ),
+                                  child: Text(task.title),
+                                ),
+                                if (subject != null ||
+                                    task.scheduledTime != null ||
+                                    task.estimatedMinutes != null ||
+                                    task.recurringGroupId != null) ...[
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      if (subject != null)
+                                        _SubjectChip(subject: subject),
 
-                      child: Row(
-                        children: [
+                                      if (task.scheduledTime != null)
+                                        Builder(builder: (_) {
+                                          final st =
+                                              task.timeStatusAt(DateTime.now());
+                                          final hhmm =
+                                              '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}';
+                                          switch (st) {
+                                            case TaskTimeStatus.overdue:
+                                              return _InfoChip(
+                                                icon:
+                                                    Icons.warning_amber_rounded,
+                                                color: AppColors.warning,
+                                                text: '$hhmm · gecikti',
+                                              );
+                                            case TaskTimeStatus.inProgress:
+                                              return _InfoChip(
+                                                icon: Icons.schedule,
+                                                color: AppColors.primary,
+                                                text: '$hhmm · şimdi',
+                                              );
+                                            default:
+                                              return _InfoChip(
+                                                icon: Icons.schedule,
+                                                color: AppColors.secondary,
+                                                text: hhmm,
+                                              );
+                                          }
+                                        }),
+
+                                      if (task.estimatedMinutes != null)
+                                        _InfoChip(
+                                          icon: Icons.timer_outlined,
+                                          text: '${task.estimatedMinutes} dk',
+                                        ),
+
+                                      // Bu görevin bir tekrar serisinin
+                                      // parçası olduğunu görsel olarak
+                                      // belli ediyor — uzun basmadan da
+                                      // fark edilsin diye.
+                                      if (task.recurringGroupId != null)
+                                        _InfoChip(
+                                          icon: Icons.repeat,
+                                          text: task.recurrenceRule == 'weekly'
+                                              ? 'Haftalık'
+                                              : 'Günlük',
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Bu görev üzerinde odak seansı başlat — süre
+                        // TOPLAM ÇALIŞMA'ya işlenir. Tamamlanmış görevde
+                        // gösterilmez.
+                        if (!task.isCompleted) ...[
+                          const SizedBox(width: 8),
                           TapScale(
                             onTap: () {
-                              ref.read(taskProvider.notifier).toggleTaskCompletion(
-                                    task.id,
-                                    ref,
-                                  );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FocusScreen(
+                                    initialNote: task.title,
+                                    initialTargetMin: task.estimatedMinutes,
+                                  ),
+                                ),
+                              );
                             },
-
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 350),
-                              transitionBuilder: (child, animation) =>
-                                  ScaleTransition(
-                                scale: CurvedAnimation(
-                                  parent: animation,
-                                  curve: Curves.easeOutBack,
-                                ),
-                                child: child,
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              alignment: Alignment.center,
+                              decoration: const BoxDecoration(
+                                color: AppColors.surfaceVariant,
+                                shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                task.isCompleted
-                                    ? Icons.check_circle_outline
-                                    : Icons.radio_button_unchecked,
-                                key: ValueKey(task.isCompleted),
-                                color: task.isCompleted
-                                    ? AppColors.success
-                                    : AppColors.textSecondary,
-                                size: 26,
+                              child: const Icon(
+                                Icons.play_arrow,
+                                size: 18,
+                                color: AppColors.primary,
                               ),
                             ),
                           ),
-
-                          const SizedBox(width: 14),
-
-                          Expanded(
-                            child: TapScale(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddTaskScreen(
-                                      taskToEdit: task,
-                                    ),
-                                  ),
-                                );
-                              },
-
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  AnimatedDefaultTextStyle(
-                                    duration: const Duration(milliseconds: 250),
-                                    style: AppTextStyles.body.copyWith(
-                                      fontSize: 16,
-                                      height: 1.25,
-                                      fontWeight: task.isCompleted
-                                          ? FontWeight.w500
-                                          : FontWeight.w700,
-
-                                      decoration: task.isCompleted
-                                          ? TextDecoration.lineThrough
-                                          : null,
-
-                                      color: task.isCompleted
-                                          ? AppColors.textSecondary
-                                          : AppColors.textPrimary,
-                                    ),
-                                    child: Text(task.title),
-                                  ),
-
-                                  if (subject != null ||
-                                      task.scheduledTime != null ||
-                                      task.estimatedMinutes != null ||
-                                      task.recurringGroupId != null) ...[
-                                    const SizedBox(height: 10),
-
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        if (subject != null)
-                                          _SubjectChip(subject: subject),
-
-                                        if (task.scheduledTime != null)
-                                          Builder(builder: (_) {
-                                            final st = task.timeStatusAt(
-                                                DateTime.now());
-                                            final hhmm =
-                                                '${task.scheduledTime!.hour.toString().padLeft(2, '0')}:${task.scheduledTime!.minute.toString().padLeft(2, '0')}';
-                                            switch (st) {
-                                              case TaskTimeStatus.overdue:
-                                                return _InfoChip(
-                                                  icon: Icons
-                                                      .warning_amber_rounded,
-                                                  color: AppColors.warning,
-                                                  text: '$hhmm · gecikti',
-                                                );
-                                              case TaskTimeStatus.inProgress:
-                                                return _InfoChip(
-                                                  icon: Icons.schedule,
-                                                  color: AppColors.primary,
-                                                  text: '$hhmm · şimdi',
-                                                );
-                                              default:
-                                                return _InfoChip(
-                                                  icon: Icons.schedule,
-                                                  color: AppColors.secondary,
-                                                  text: hhmm,
-                                                );
-                                            }
-                                          }),
-
-                                        if (task.estimatedMinutes != null)
-                                          _InfoChip(
-                                            icon: Icons.timer_outlined,
-                                            text: '${task.estimatedMinutes} dk',
-                                          ),
-
-                                        // Bu görevin bir tekrar serisinin
-                                        // parçası olduğunu görsel olarak
-                                        // belli ediyor — uzun basmadan da
-                                        // fark edilsin diye.
-                                        if (task.recurringGroupId != null)
-                                          _InfoChip(
-                                            icon: Icons.repeat,
-                                            text: task.recurrenceRule ==
-                                                    'weekly'
-                                                ? 'Haftalık'
-                                                : 'Günlük',
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // Bu görev üzerinde odak seansı başlat — süre
-                          // TOPLAM ÇALIŞMA'ya işlenir. Tamamlanmış görevde
-                          // gösterilmez.
-                          if (!task.isCompleted) ...[
-                            const SizedBox(width: 8),
-                            TapScale(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => FocusScreen(
-                                      initialNote: task.title,
-                                      initialTargetMin: task.estimatedMinutes,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: 34,
-                                height: 34,
-                                alignment: Alignment.center,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.surfaceVariant,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.play_arrow,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -458,12 +475,10 @@ class _SubjectChip extends StatelessWidget {
         horizontal: 10,
         vertical: 6,
       ),
-
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
-
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -472,9 +487,7 @@ class _SubjectChip extends StatelessWidget {
             size: 14,
             color: color,
           ),
-
           const SizedBox(width: 5),
-
           Text(
             subject.name,
             style: AppTextStyles.caption.copyWith(
@@ -506,12 +519,10 @@ class _InfoChip extends StatelessWidget {
         horizontal: 10,
         vertical: 6,
       ),
-
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
-
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -520,9 +531,7 @@ class _InfoChip extends StatelessWidget {
             size: 14,
             color: color,
           ),
-
           const SizedBox(width: 5),
-
           Text(
             text,
             style: AppTextStyles.caption.copyWith(
