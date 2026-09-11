@@ -9,6 +9,7 @@ import 'topic_provider.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/app_snackbar.dart';
+import 'widgets/empty_state_card.dart';
 
 /// Bir dersin konu listesi. Satıra dokun → durum döngüsü
 /// (başlanmadı → çalışıldı → tekrar). Sola kaydır → sil.
@@ -104,9 +105,19 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
             ),
           Expanded(
             child: topics.isEmpty
-                ? _EmptyTopics(
-                    hasCatalog: catalog.isNotEmpty,
-                    onAddCatalog: _addCatalog,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: EmptyStateCard(
+                        icon: Icons.checklist_outlined,
+                        message: catalog.isNotEmpty
+                            ? 'Henüz konu yok.\nAşağıdan tek tek ekle ya da hazır listeyi kullan.'
+                            : 'Henüz konu yok.\nAşağıdan tek tek ekle.',
+                        extra: catalog.isNotEmpty
+                            ? _CatalogButton(onTap: _addCatalog)
+                            : null,
+                      ),
+                    ),
                   )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -335,50 +346,3 @@ class _CatalogButton extends StatelessWidget {
   }
 }
 
-class _EmptyTopics extends StatelessWidget {
-  final bool hasCatalog;
-  final VoidCallback onAddCatalog;
-
-  const _EmptyTopics({required this.hasCatalog, required this.onAddCatalog});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.tonal(AppColors.primary),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.checklist_outlined,
-                  color: AppColors.primary, size: 28),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Henüz konu yok.',
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              hasCatalog
-                  ? 'Aşağıdan tek tek ekle ya da hazır listeyi kullan.'
-                  : 'Aşağıdan tek tek ekle.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySecondary,
-            ),
-            if (hasCatalog) ...[
-              const SizedBox(height: 18),
-              _CatalogButton(onTap: onAddCatalog),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}

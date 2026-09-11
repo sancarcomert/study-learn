@@ -11,11 +11,17 @@ class EmptyStateCard extends StatelessWidget {
   final String message;
   final VoidCallback? onTap;
 
+  /// Mesajın altına, ekstra bir eylem/CTA için opsiyonel slot (ör. "Yaygın
+  /// konuları ekle" butonu) — konu listesi ekranındaki özel boş durumun bu
+  /// paylaşılan widget'a taşınabilmesi için eklendi (P0-8).
+  final Widget? extra;
+
   const EmptyStateCard({
     super.key,
     required this.icon,
     required this.message,
     this.onTap,
+    this.extra,
   });
 
   @override
@@ -45,6 +51,10 @@ class EmptyStateCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: AppTextStyles.bodySecondary,
           ),
+          if (extra != null) ...[
+            const SizedBox(height: 18),
+            extra!,
+          ],
         ],
       ),
     );
