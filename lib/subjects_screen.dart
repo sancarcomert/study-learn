@@ -4,6 +4,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'subject_provider.dart';
 import 'subject_model.dart';
+import 'topic_provider.dart';
 import 'add_subject_sheet.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
@@ -121,6 +122,10 @@ class _SubjectCard extends StatelessWidget {
         final notifier = ref.read(subjectProvider.notifier);
         final deleted = notifier.deleteSubject(subject.id);
         if (deleted != null) {
+          // Ders silinince ona bağlı konular da temizlenir — aksi halde
+          // subjectId'si artık var olmayan bir derse işaret eden konular
+          // Hive'da öksüz kalıp kapsama hesaplarını sessizce bozardı.
+          ref.read(topicProvider.notifier).deleteForSubject(subject.id);
           AppSnackBar.undo(
             context,
             '"${deleted.name}" silindi',

@@ -51,39 +51,3 @@ class PrimaryButton extends StatelessWidget {
     );
   }
 }
-
-/// İkincil / nötr aksiyon — charcoal (surfaceVariant), yumuşak köşe.
-/// "Tamam, Ana Ekrana Dön" · iptal · geri · Geri Al gibi nötr eylemler.
-/// Spesifikasyon §04: zemin surfaceVariant, köşe 18, pill değil, sert
-/// border yok — sayfa zemininden bariz ayrışır ama altınla yarışmaz.
-class DarkButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-
-  const DarkButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.surfaceVariant,
-          foregroundColor: AppColors.textPrimary,
-          disabledBackgroundColor: AppColors.tonal(AppColors.textSecondary),
-          disabledForegroundColor: AppColors.textMuted,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        child: Text(label),
-      ),
-    );
-  }
-}
