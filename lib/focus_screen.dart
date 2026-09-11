@@ -9,6 +9,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'focus_history_screen.dart';
 import 'focus_session_provider.dart';
+import 'notification_service.dart';
 import 'stats_provider.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
@@ -118,6 +119,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         _phaseSegStart = null;
       }
       _ticker?.cancel();
+      _cancelCompletionNotification();
       setState(() => _running = false);
     } else {
       final now = DateTime.now();
@@ -128,13 +130,53 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
       }
       _running = true;
       _startTicker();
+      _scheduleCompletionNotification();
       setState(() {});
     }
+  }
+
+  // ---- arka plan bildirimi: bölüm/hedef bitince tek seferlik, exact-mode ----
+
+  void _scheduleCompletionNotification() {
+    final int remainingSec;
+    final String title;
+    final String body;
+    if (_mode == _Mode.free) {
+      remainingSec = _blockMin * 60 - _freeElapsedSec;
+      title = 'Hedefe ulaştın 🎯';
+      final note = _noteController.text.trim();
+      body = note.isEmpty ? 'Odak hedefine ulaştın.' : '$note · hedefe ulaştın.';
+    } else if (_phase == _Phase.work) {
+      remainingSec = _phaseTargetSec - _phaseElapsedSec;
+      title = 'Çalışma bloğu bitti';
+      body = 'Mola zamanı geldi 🎯';
+    } else {
+      remainingSec = _phaseTargetSec - _phaseElapsedSec;
+      title = 'Mola bitti';
+      body = 'Çalışmaya dön';
+    }
+    if (remainingSec <= 0) return;
+    NotificationService.instance.scheduleNotification(
+      id: 'focus_session',
+      category: NotificationCategory.focusSession,
+      title: title,
+      body: body,
+      dateTime: DateTime.now().add(Duration(seconds: remainingSec)),
+      exact: true,
+    );
+  }
+
+  void _cancelCompletionNotification() {
+    NotificationService.instance.cancelNotification(
+      'focus_session',
+      NotificationCategory.focusSession,
+    );
   }
 
   void _switchMode(_Mode m) {
     if (_running || m == _mode) return;
     _ticker?.cancel();
+    _cancelCompletionNotification();
     setState(() {
       _mode = m;
       _running = false;
@@ -188,6 +230,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
     _phaseAccumSec = 0;
     _phaseSegStart = _running ? DateTime.now() : null;
+    if (_running) {
+      _scheduleCompletionNotification();
+    } else {
+      _cancelCompletionNotification();
+    }
     setState(() {});
   }
 
@@ -195,6 +242,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
   void _saveIfNeeded() {
     _ticker?.cancel();
+    _cancelCompletionNotification();
     if (_mode == _Mode.free) {
       _freeCommittedSec = _freeElapsedSec;
       _freeSegStart = null;

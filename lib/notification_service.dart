@@ -11,6 +11,7 @@ enum NotificationCategory {
   dailyGoal,
   streakWarning,
   aiSuggestion,
+  focusSession,
 }
 
 class NotificationService {
@@ -79,6 +80,7 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime dateTime,
+    bool exact = false,
   }) async {
     if (!_isSupportedPlatform) return;
     if (!_initialized) return;
@@ -111,7 +113,9 @@ class NotificationService {
       body,
       tz.TZDateTime.from(dateTime.toUtc(), tz.UTC),
       details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -137,6 +141,8 @@ class NotificationService {
         return 'streak_warning_channel';
       case NotificationCategory.aiSuggestion:
         return 'ai_suggestion_channel';
+      case NotificationCategory.focusSession:
+        return 'focus_session_channel';
     }
   }
 
@@ -152,6 +158,8 @@ class NotificationService {
         return 'Streak Uyarıları';
       case NotificationCategory.aiSuggestion:
         return 'AI Önerileri';
+      case NotificationCategory.focusSession:
+        return 'Odak Seansı';
     }
   }
 }
