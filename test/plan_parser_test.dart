@@ -41,6 +41,30 @@ void main() {
           subjects: subjects, now: now);
       expect(p.durationMinutes, 90);
     });
+
+    test('"1 saat 30 dakika" bileşik → 90', () {
+      final p = PlanParser.parse('1 saat 30 dakika kimya',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 90);
+    });
+
+    test('"çeyrek saat" → 15', () {
+      final p = PlanParser.parse('çeyrek saat paragraf',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 15);
+    });
+
+    test('"üç çeyrek saat" → 45', () {
+      final p = PlanParser.parse('üç çeyrek saat fizik',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 45);
+    });
+
+    test('"altı saat" → 360', () {
+      final p = PlanParser.parse('altı saat matematik',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 360);
+    });
   });
 
   group('tarih', () {
@@ -83,6 +107,13 @@ void main() {
           PlanParser.parse('cumartesi tekrar', subjects: subjects, now: now);
       expect(p.date, DateTime(2026, 9, 12));
     });
+
+    test('"gelecek pazartesi" → tarih doğru, "gelecek" başlıkta kalmaz', () {
+      final p = PlanParser.parse('gelecek pazartesi matematik çalışacağım',
+          subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 14));
+      expect(p.title.toLowerCase().contains('gelecek'), isFalse);
+    });
   });
 
   group('saat', () {
@@ -111,6 +142,32 @@ void main() {
       expect(p.hour, 20);
     });
 
+    test('"gece yarısı" → 00:00', () {
+      final p = PlanParser.parse('gece yarısı matematik',
+          subjects: subjects, now: now);
+      expect(p.hour, 0);
+      expect(p.minute, 0);
+    });
+
+    test('"ikindi" → 15:30', () {
+      final p =
+          PlanParser.parse('ikindi fizik', subjects: subjects, now: now);
+      expect(p.hour, 15);
+      expect(p.minute, 30);
+    });
+
+    test('"öğleden önce" → 10:00', () {
+      final p = PlanParser.parse('öğleden önce paragraf',
+          subjects: subjects, now: now);
+      expect(p.hour, 10);
+    });
+
+    test('"akşamüstü" → 18:00', () {
+      final p = PlanParser.parse('akşamüstü matematik',
+          subjects: subjects, now: now);
+      expect(p.hour, 18);
+    });
+
     test('"akşam 1 saat" → saat değil, süre (60 dk), gün-bölümü 19:00', () {
       final p = PlanParser.parse('akşam 1 saat matematik',
           subjects: subjects, now: now);
@@ -118,11 +175,11 @@ void main() {
       expect(p.hour, 19);
     });
 
-    test('"3 saat 15 dk" saat sanılmaz (süre yakalanır)', () {
+    test('"3 saat 15 dk" saat sanılmaz, bileşik süre toplanır (195 dk)', () {
       final p = PlanParser.parse('3 saat 15 dk matematik',
           subjects: subjects, now: now);
       expect(p.hour, isNull);
-      expect(p.durationMinutes, 180);
+      expect(p.durationMinutes, 195);
     });
 
     test('"1.5 saat" saat sanılmaz', () {

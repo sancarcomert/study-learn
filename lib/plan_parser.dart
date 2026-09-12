@@ -114,10 +114,24 @@ class PlanParser {
       }
     }
 
+    if (RegExp(r'gece\s*yarısı|gece\s*yarisi').hasMatch(lower)) {
+      consumed.add(const _Consumed('gece yarısı', PlanSpanKind.time));
+      consumed.add(const _Consumed('gece yarisi', PlanSpanKind.time));
+      return const _Time(0, 0);
+    }
+    if (RegExp(r'öğleden önce|ogleden once').hasMatch(lower)) {
+      consumed.add(const _Consumed('öğleden önce', PlanSpanKind.time));
+      consumed.add(const _Consumed('ogleden once', PlanSpanKind.time));
+      return const _Time(10, 0);
+    }
     if (RegExp(r'öğleden sonra|ogleden sonra').hasMatch(lower)) {
       consumed.add(const _Consumed('öğleden sonra', PlanSpanKind.time));
       consumed.add(const _Consumed('ogleden sonra', PlanSpanKind.time));
       return const _Time(14, 0);
+    }
+    if (lower.contains('ikindi')) {
+      consumed.add(const _Consumed('ikindi', PlanSpanKind.time));
+      return const _Time(15, 30);
     }
     if (lower.contains('sabah')) {
       consumed.add(const _Consumed('sabah', PlanSpanKind.time));
@@ -127,6 +141,12 @@ class PlanParser {
       consumed.add(const _Consumed('öğlen', PlanSpanKind.time));
       consumed.add(const _Consumed('öğle', PlanSpanKind.time));
       return const _Time(12, 30);
+    }
+    if (RegExp(r'akşamüstü|aksamustu|akşam üstü|aksam ustu')
+        .hasMatch(lower)) {
+      consumed.add(const _Consumed('akşamüstü', PlanSpanKind.time));
+      consumed.add(const _Consumed('akşam üstü', PlanSpanKind.time));
+      return const _Time(18, 0);
     }
     if (lower.contains('akşam') || lower.contains('aksam')) {
       consumed.add(const _Consumed('akşam', PlanSpanKind.time));
@@ -153,8 +173,24 @@ class PlanParser {
       RegExp(r'(\d+)(?:[.,](\d+))?\s*(saat|sa)\b');
   static final RegExp _minutes = RegExp(r'(\d+)\s*(dakika|dk|dak)\b');
   static final RegExp _halfHour = RegExp(r'\byarım\s+saat\b');
-  static final RegExp _wordHours =
-      RegExp(r'\b(bir|iki|üç|uc|dört|dort|beş|bes)\s+(buçuk\s+)?saat\b');
+  // "üç çeyrek saat" (45 dk), "çeyrek saat" (15 dk) — sıra önemli, uzun
+  // ifade önce denenmeli yoksa "çeyrek saat" kısmı erken eşleşir. NOT: Dart
+  // regex'inde `\b` Türkçe baş harflerde (ç, ü, ö, ı, ğ, ş) güvenilmez —
+  // "\bçeyrek" gibi bir örüntü ASCII olmayan 'ç' önünde HİÇ eşleşmiyor
+  // (bkz. _containsWord/_stripWord'deki aynı uyarı). Baştaki \b bilerek
+  // yok; sondaki \b "saat" ASCII olduğu için güvenli.
+  static final RegExp _threeQuarterHour = RegExp(r'üç\s+çeyrek\s+saat\b');
+  static final RegExp _quarterHour = RegExp(r'çeyrek\s+saat\b');
+  // "1 saat 30 dakika" gibi bileşik süre — tek başına _hoursDecimal yalnız
+  // "1 saat"i yakalayıp 30 dakikayı sessizce yutuyordu.
+  static final RegExp _hourMinuteCompound =
+      RegExp(r'(\d{1,2})\s*(saat|sa)\s*(\d{1,2})\s*(dakika|dk|dak)\b');
+  // "üç" gibi ASCII-olmayan baş harfli kelimelerde baştaki \b kasıtlı yok
+  // (yukarıdaki not) — yanlış pozitif riski düşük, çünkü hemen ardından
+  // boşluk + "saat" gerekiyor ("üçgen saat" gibi bitişik bir kelime bu
+  // boşluk şartını sağlamaz).
+  static final RegExp _wordHours = RegExp(
+      r'(bir|iki|üç|uc|dört|dort|beş|bes|altı|alti|yedi|sekiz|dokuz|\bon)\s+(buçuk\s+)?saat\b');
 
   static const Map<String, int> _numberWords = {
     'bir': 1,
@@ -165,9 +201,36 @@ class PlanParser {
     'dort': 4,
     'beş': 5,
     'bes': 5,
+    'altı': 6,
+    'alti': 6,
+    'yedi': 7,
+    'sekiz': 8,
+    'dokuz': 9,
+    'on': 10,
   };
 
   static int? _parseDuration(String lower, List<_Consumed> consumed) {
+    final compound = _hourMinuteCompound.firstMatch(lower);
+    if (compound != null) {
+      consumed.add(_Consumed(compound.group(0)!, PlanSpanKind.duration));
+      final h = int.tryParse(compound.group(1)!) ?? 0;
+      final m = int.tryParse(compound.group(3)!) ?? 0;
+      final total = h * 60 + m;
+      return total > 0 ? total : null;
+    }
+
+    final threeQuarter = _threeQuarterHour.firstMatch(lower);
+    if (threeQuarter != null) {
+      consumed.add(_Consumed(threeQuarter.group(0)!, PlanSpanKind.duration));
+      return 45;
+    }
+
+    final quarter = _quarterHour.firstMatch(lower);
+    if (quarter != null) {
+      consumed.add(_Consumed(quarter.group(0)!, PlanSpanKind.duration));
+      return 15;
+    }
+
     final half = _halfHour.firstMatch(lower);
     if (half != null) {
       consumed.add(_Consumed(half.group(0)!, PlanSpanKind.duration));
@@ -378,6 +441,24 @@ class PlanParser {
     'programa',
     'ekle',
     'koy',
+    // "gelecek pazartesi" gibi ifadelerde tarih yalnız haftanın günü
+    // adını tüketiyor — bu ikisi kalıp bırakmasın diye ayrıca temizlenir.
+    'gelecek',
+    'önümüzdeki',
+    'onumuzdeki',
+    // Daha geniş fiil çeşitliliği — kullanıcı hep aynı 3-5 kalıpla
+    // yazmıyor.
+    'gözden geçireceğim',
+    'gözden geçirmem lazım',
+    'tekrar yapacağım',
+    'pekiştireceğim',
+    'halletmem lazım',
+    'bitirmem lazım',
+    'üzerinden geçeceğim',
+    'göz atacağım',
+    'devam edeceğim',
+    'tamamlayacağım',
+    'tamamlamam lazım',
   ];
 
   static String _cleanTitle(
