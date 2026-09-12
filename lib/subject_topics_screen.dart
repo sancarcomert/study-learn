@@ -79,8 +79,8 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
   // (indigo) üç durumlu merdivene (muted→secondary→success) daha uygun.
   static Color _statusColor(TopicStatus s) => switch (s) {
         TopicStatus.notStarted => AppColors.textMuted,
-        TopicStatus.studied => AppColors.secondary,
-        TopicStatus.reviewed => AppColors.success,
+        TopicStatus.studied => AppColors.vibrantSky,
+        TopicStatus.reviewed => AppColors.vibrantMint,
       };
 
   static IconData _statusIcon(TopicStatus s) => switch (s) {
@@ -343,18 +343,20 @@ class _CatalogButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.tonal(AppColors.secondary),
+          color: AppColors.vibrantViolet.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: AppColors.vibrantViolet.withValues(alpha: 0.4)),
         ),
         child: Row(
           children: [
             const Icon(Icons.playlist_add_outlined,
-                size: 18, color: AppColors.secondary),
+                size: 18, color: AppColors.vibrantViolet),
             const SizedBox(width: 10),
             Text(
               'Yaygın konuları ekle',
               style: AppTextStyles.body.copyWith(
-                color: AppColors.secondary,
+                color: AppColors.vibrantViolet,
                 fontWeight: FontWeight.w700,
               ),
             ),

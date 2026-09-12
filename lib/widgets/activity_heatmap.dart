@@ -21,9 +21,9 @@ class ActivityHeatmap extends StatelessWidget {
 
   Color _cellColor(int count) {
     if (count <= 0) return AppColors.surfaceVariant;
-    if (count == 1) return AppColors.primary.withValues(alpha: 0.30);
-    if (count == 2) return AppColors.primary.withValues(alpha: 0.60);
-    return AppColors.primary;
+    if (count == 1) return AppColors.vibrantMint.withValues(alpha: 0.35);
+    if (count == 2) return AppColors.vibrantMint.withValues(alpha: 0.65);
+    return AppColors.vibrantMint;
   }
 
   @override

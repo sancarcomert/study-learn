@@ -396,8 +396,9 @@ class _FocusWeekBar extends StatelessWidget {
                             color: mins[i] == 0
                                 ? AppColors.surfaceVariant
                                 : (i == todayIdx
-                                    ? AppColors.primary
-                                    : AppColors.primary.withValues(alpha: 0.55)),
+                                    ? AppColors.vibrantSky
+                                    : AppColors.vibrantSky
+                                        .withValues(alpha: 0.55)),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
