@@ -14,6 +14,7 @@ import 'task_model.dart';
 import 'task_time_status.dart';
 import 'study_advisor.dart';
 import 'topic_provider.dart';
+import 'deneme_provider.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'daily_closeout_model.dart';
@@ -572,10 +573,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Sabah, dün bir niyet yazıldıysa nazik hatırlatma.
     final todayCloseout = ref.watch(todayCloseoutProvider);
     final yesterdayIntent = ref.watch(yesterdayIntentProvider);
-    // Akşam eşiği: çalışma gününün sonu. 18:00'dan itibaren "günü kapat".
+    // "Bugünü Kapat" artık saate bağlı değil — kullanıcı geri bildirimi:
+    // saat 18:00'dan önce günü bitirmiş biri kapatamıyordu, "bir var bir
+    // yok" tutarsız hissettiriyordu. Şimdi kapatılmadığı sürece her zaman
+    // görünür.
     final isEvening = now.hour >= 18;
-    final showCloseOutCard =
-        isEvening && todayCloseout == null && !_closeOutDismissed;
+    final showCloseOutCard = todayCloseout == null && !_closeOutDismissed;
     final showYesterdayIntent = !isEvening &&
         todayCloseout == null &&
         yesterdayIntent != null &&
@@ -597,6 +600,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               for (final e in coverage.entries)
                 if (e.value.hasTopics) e.key: e.value.ratio,
             },
+            weakestDenemeSubjectId: ref.watch(weakestDenemeSubjectIdProvider),
           )
         : const <StudySuggestion>[];
 
