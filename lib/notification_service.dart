@@ -75,14 +75,37 @@ class NotificationService {
   // (Play Store'a yeni yüklenen normal uygulamalarda) varsayılan olarak
   // VERİLMEZ; istenmeden `scheduleNotification(exact: true)` çağrısı
   // sessizce (unhandled ama çökmeyen) başarısız olur — bkz. cihaz testi.
+  //
+  // `permission_handler`'ın Permission.scheduleExactAlarm.isGranted'i
+  // cihazda YANLIŞ POZİTİF verdi (izin kapalıyken "açık" dedi, gerçek neden
+  // buydu: kullanıcıya soru hiç çıkmadı çünkü kod zaten "izin var" sanıyordu).
+  // flutter_local_notifications'ın Android'e özel, AlarmManager'ı doğrudan
+  // sorgulayan metodları kullanılıyor — bu paket zaten bağımlılığımız,
+  // gerçek/güvenilir sonuç veriyor.
   Future<bool> hasExactAlarmPermission() async {
     if (!Platform.isAndroid) return true;
-    return Permission.scheduleExactAlarm.isGranted;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.canScheduleExactNotifications() ?? false;
   }
 
   Future<void> requestExactAlarmPermission() async {
     if (!Platform.isAndroid) return;
-    await Permission.scheduleExactAlarm.request();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.requestExactAlarmsPermission();
+  }
+
+  // Ana ekrandaki/odak ekranındaki izin sorusu kullanıcı başına yalnızca BİR
+  // KEZ çıkıyor (bkz. hasSeenNotificationPrompt/hasSeenExactAlarmPrompt) —
+  // "Şimdi Değil" denirse ya da sistem popup'ı reddedilirse bir daha asla
+  // sorulmuyordu, bildirimler kalıcı ve sessizce kapalı kalıyordu. Profil
+  // ekranındaki canlı durum satırı bu ikisini okuyup gerektiğinde tekrar
+  // istemek/Ayarlar'a yönlendirmek için kullanır.
+  Future<bool> hasNotificationPermission() async {
+    if (!_isSupportedPlatform) return true;
+    if (Platform.isIOS) return true; // iOS kendi ayar akışını yönetir.
+    return Permission.notification.isGranted;
   }
 
   int _notificationIdFor(String entityId, NotificationCategory category) {

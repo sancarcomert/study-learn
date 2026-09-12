@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'about_screen.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'notification_service.dart';
 import 'rank_ladder_screen.dart';
 import 'rank_provider.dart';
 import 'rank_system.dart';
@@ -372,6 +374,12 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
+          const Eyebrow(text: 'BİLDİRİMLER'),
+          const SizedBox(height: 10),
+          const _NotificationStatusCard(),
+
+          const SizedBox(height: 28),
+
           const DataBackupSection(),
 
           const SizedBox(height: 28),
@@ -516,6 +524,122 @@ class _ProfileStatCard extends StatelessWidget {
             style: AppTextStyles.caption,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Bildirim/odak seansı hatırlatmalarının canlı izin durumu. Home ve Odak
+/// ekranlarındaki izin diyalogları kullanıcı başına yalnızca bir kez
+/// çıkıyor — reddedilirse ya da sistem popup'ı kapatılırsa bildirimler
+/// kalıcı ve sessizce kapalı kalıyordu, kullanıcının fark edip düzeltmesi
+/// için hiçbir yol yoktu. Bu kart durumu her açılışta gerçekten sorar
+/// (kayıtlı bir bayrağa değil) ve kapalıysa doğrudan sistem ayarına götürür.
+class _NotificationStatusCard extends StatefulWidget {
+  const _NotificationStatusCard();
+
+  @override
+  State<_NotificationStatusCard> createState() =>
+      _NotificationStatusCardState();
+}
+
+class _NotificationStatusCardState extends State<_NotificationStatusCard>
+    with WidgetsBindingObserver {
+  bool? _notificationsOn;
+  bool? _exactAlarmOn;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Kullanıcı sistem Ayarlar'dan dönünce durumu tazele.
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final notif = await NotificationService.instance.hasNotificationPermission();
+    final exact = await NotificationService.instance.hasExactAlarmPermission();
+    if (!mounted) return;
+    setState(() {
+      _notificationsOn = notif;
+      _exactAlarmOn = exact;
+    });
+  }
+
+  Future<void> _fix() async {
+    if (_notificationsOn == false) {
+      await openAppSettings();
+    } else if (_exactAlarmOn == false) {
+      // Bu özel izin türünde .request() doğrudan doğru sistem ekranını açar.
+      await NotificationService.instance.requestExactAlarmPermission();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loading = _notificationsOn == null || _exactAlarmOn == null;
+    final allOn = _notificationsOn == true && _exactAlarmOn == true;
+
+    return TapScale(
+      onTap: loading || allOn ? null : _fix,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.softShadow,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              allOn
+                  ? Icons.notifications_active_outlined
+                  : Icons.notifications_off_outlined,
+              size: 20,
+              color: allOn ? AppColors.success : AppColors.warning,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loading
+                        ? 'Kontrol ediliyor…'
+                        : allOn
+                            ? 'Hatırlatmalar açık'
+                            : 'Hatırlatmalar kapalı',
+                    style: AppTextStyles.body,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    loading
+                        ? ' '
+                        : allOn
+                            ? 'Odak seansı ve görev hatırlatmaları zamanında gelecek.'
+                            : 'Odak seansı bitince ya da görev vakti gelince '
+                                'haber veremeyiz. Açmak için dokun.',
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
+            ),
+            if (!loading && !allOn)
+              const Icon(Icons.chevron_right,
+                  size: 20, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }
