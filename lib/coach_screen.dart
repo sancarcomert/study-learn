@@ -116,6 +116,36 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   static final _todayIntentRe = RegExp(
       r'(sadece bugün|sadece bugun|sadece bu gün|bugün olsun|bugun olsun|tek gün|tek gun|sadece bugüne|sadece bugune)');
 
+  // --- Duygu durumu / sınır testi tespiti --------------------------------
+  // Gerçek bir LLM DEĞİL (CLAUDE.md: "LLM YOK") — yalnız belirli kelime
+  // öbeklerini yakalayıp önceden yazılmış, empatik-ama-yönlendirici bir
+  // yerel cevap seçiyor. Açık uçlu anlama yok, yalnız bu iki dar kategori.
+  static const List<String> _burnoutPhrases = [
+    'bıktım', 'biktim',
+    'çok yoruldum', 'cok yoruldum',
+    'çalışasım yok', 'calisasim yok',
+    'çalışasım gelmiyor', 'calisasim gelmiyor',
+    'çalışamıyorum', 'calisamiyorum',
+    'bırakıyorum', 'birakiyorum',
+    'pes ediyorum', 'pes ettim',
+    'motivasyonum yok', 'motivasyon yok',
+    'elimden gelmiyor',
+    'sıkıldım artık', 'sikildim artik',
+    'napayım artık', 'naapayım artık',
+  ];
+
+  // Kök hâlde tutuluyor (ör. "salak" → "salaksın"/"salak mısın"/"salak"
+  // hepsini substring ile yakalar) — çekim eki listesi elle bakımlı
+  // tutulmaz.
+  static const List<String> _hostilePhrases = [
+    'amk', 'aq', 'mk', 'siktir', 'sikeyim', 'orospu', 'piç', 'pic',
+    'gerizekalı', 'gerizekali', 'şerefsiz', 'serefsiz', 'dallama',
+    'aptal', 'salak', 'ahmak', 'embesil', 'geri zekalı', 'geri zekali',
+  ];
+
+  bool _matchesAny(String low, List<String> phrases) =>
+      phrases.any((p) => low.contains(p));
+
   void _onSend() {
     final raw = _input.text.trim();
     if (raw.isEmpty) return;
@@ -124,6 +154,29 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _say(raw, coach: false);
 
     final low = raw.toLowerCase().replaceAll('̇', '');
+
+    if (_matchesAny(low, _hostilePhrases)) {
+      _say(_pick([
+        'Bu kelimeler netlerini artırmayacak. Enerjini masadaki kitaba '
+            'harcayalım — hangi derse çalışıyorsun?',
+        'Küfürle net gelmiyor 😅 Onun yerine bir ders adı ve süre ver, '
+            'işe koyulalım.',
+        'Bunu bir kenara bırakalım. Şu an hangi dersle uğraşıyorsun?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _burnoutPhrases)) {
+      _say(_pick([
+        'Bu hissi herkes yaşıyor, çok normal. Ama pes etmek yok — 15 '
+            'dakikalık ufak bir şeyle başlayalım. Hangi ders, kaç dakika?',
+        'Yorgunluk birikir, sonra patlar — şimdilik büyük hedefleri unut. '
+            'Bana bir ders adı ve 15-20 dakika söyle, oradan başlarız.',
+        'Normal bu, moralini bozma. Masadan tamamen kalkma — küçük bir '
+            'adım yeter. Hangi derse 15 dakika ayırabilirsin?',
+      ]));
+      return;
+    }
 
     if (_pending != null && _confirm.hasMatch(low)) {
       _commit();
