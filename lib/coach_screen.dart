@@ -50,6 +50,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   // Onaya sunulmuş haftalık program (varsa) — güne göre gruplu.
   WeekPlanResult? _pendingWeek;
 
+  // "Farklı yap" / "değiştir" dendiğinde gün/hafta planını görünür şekilde
+  // değiştirmek için ders sırasını döndürme sayacı (bkz. _proposeDay/Week).
+  int _regenerateOffset = 0;
+
   bool _hasInput = false;
 
   @override
@@ -111,11 +115,28 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   static final _finish = RegExp(
       r'\b(bitir|kapat|yeter|işim bitti|isim bitti|bu kadar|sağ ol|sag ol|teşekkür|tesekkur|yok(?: bu kadar)?)\b');
   static final _delegateRe = RegExp(
-      r'\b(sen ayarla|sen yap|sen kur|sen karar|sana bırak|sana birak|sen bil|bilmiyorum|fark etmez|farketmez|önemli değil|onemli degil)\b');
+      r'\b(sen ayarla|sen yap|sen kur|sen karar|sana bırak|sana birak|sen bil|bilmiyorum|fark etmez|farketmez|önemli değil|onemli degil|'
+      // "plan yap" gibi genel istekler — eskiden bunlar ders/konu adı
+      // sanılıp taslağa "konu" olarak yazılıyordu (bkz. _merge). Artık
+      // devralma moduna (PlanBuilder) yönlendiriliyor.
+      r'plan yap|plan oluştur|plan olustur|planla beni|planla bugünü|planla bugunu|'
+      r'program yap|program oluştur|program olustur|program kur|'
+      r'günümü planla|gunumu planla|haftamı planla|haftami planla|'
+      r'bana plan yap|bir plan yap|plan kur|otomatik plan|hazır plan|hazir plan)\b');
   static final _weekIntentRe = RegExp(
       r'(bu hafta|haftalık program|haftalik program|haftalık plan|haftalik plan|hafta boyunca|7 gün|7 gun|yedi gün|yedi gun|bir haftalık|bir haftalik)');
   static final _todayIntentRe = RegExp(
       r'(sadece bugün|sadece bugun|sadece bu gün|bugün olsun|bugun olsun|tek gün|tek gun|sadece bugüne|sadece bugune)');
+  // Onaylanmış bir plan varken "farklı yap / değiştir / bir daha dene" gibi
+  // bir istek — deterministik PlanBuilder aynı girdiyle aynı çıktıyı
+  // verdiğinden, ders sırasını döndürüp (_regenerateOffset) görünür bir
+  // fark yaratıyoruz (bkz. _proposeDay/_proposeWeek).
+  static final _regenerateRe = RegExp(
+      r'\b(farklı yap|farkli yap|başka türlü|baska turlu|değiştir|degistir|'
+      r'başka bir şey öner|baska bir sey oner|aynısını yapma|aynisini yapma|'
+      r'farklı bir şey|farkli bir sey|başka öneri|baska oneri|'
+      r'başka bir plan|baska bir plan|bir daha dene|tekrar dene|'
+      r'bi daha yap|bir daha yap|olmadı başka|olmadi baska)\b');
 
   // --- Duygu durumu / sınır testi / günlük sohbet tespiti ----------------
   // Gerçek bir LLM DEĞİL (CLAUDE.md: "LLM YOK") — yalnız kelime KÖKLERİNİ
@@ -173,6 +194,50 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'iflas ettim', 'tamamen bittim',
     'hiç gücüm yok', 'hic gucum yok', 'hiç isteğim yok', 'hic istegim yok',
     'uyku uyuyamıyorum', 'uyku uyuyamiyorum', 'uykusuzum', 'uykusuzluk',
+    // Sabahlama / uyku düzensizliği — bitkinliğin en yaygın somut nedeni.
+    'sabahladım', 'sabahladim', 'sabahlıyorum', 'sabahliyorum',
+    'gece boyu çalıştım', 'gece boyu calistim', 'hiç uyumadım', 'hic uyumadim',
+    'sabaha kadar', 'gözüme uyku girmiyor', 'gozume uyku girmiyor',
+  ];
+
+  // Deneme/net "artmıyor" platosu — tükenmişlikten farklı: enerjisi var,
+  // çabalıyor ama sonuç görünmüyor hissi. Bu cümlelerin içinde kısa
+  // ünlemler ("aq", "ya") sık geçer ama hakaret değil hayal kırıklığı
+  // ifadesidir — bu yüzden _onSend'de hostile kontrolünden ÖNCE
+  // değerlendirilir, yoksa gerçek içerik görmezden gelinip kullanıcı
+  // azarlanmış gibi hissediyor (kullanıcı geri bildirimi: "afallaması").
+  static const List<String> _plateauPhrases = [
+    'artmıyor', 'artmiyor', 'artmıyo', 'artmiyo',
+    'ilerlemiyor', 'ilerlemiyo',
+    'yükselmiyor', 'yukselmiyor', 'yükselmiyo', 'yukselmiyo',
+    'değişmiyor', 'degismiyor', 'değişmiyo', 'degismiyo',
+    'sonuç alamıyorum', 'sonuc alamiyorum',
+    'boşuna çalışıyorum', 'bosuna calisiyorum',
+    'boşuna uğraşıyorum', 'bosuna ugrasiyorum',
+    'hiç fark etmiyor', 'hic fark etmiyor',
+    'aynı yerde sayıyorum', 'ayni yerde sayiyorum',
+    'net artmıyor', 'net artmiyor', 'netlerim artmıyor', 'netlerim artmiyor',
+    'çabalıyorum ama olmuyor', 'cabaliyorum ama olmuyor',
+    'ne yapsam olmuyor', 'ne yapsam olmuyo',
+    'bir türlü artmıyor', 'bir turlu artmiyor',
+  ];
+
+  // Burnout sorusuna ("hangi derse çalışalım?") olumsuz cevap — kullanıcı
+  // hiçbirine çalışmak istemiyor, dinlenmek istiyor. Bunu plan önerisiyle
+  // karşılamak yanlış (kullanıcı geri bildirimi) — izin vermek doğru.
+  static const List<String> _restNeededPhrases = [
+    'hiçbirine', 'hicbirine', 'hiçbiri', 'hicbiri',
+    'hiç birine', 'hic birine', 'hiçbir derse', 'hicbir derse',
+    'hiçbir şeye çalışmak istemiyorum', 'hicbir seye calismak istemiyorum',
+    'hiçbir şey yapmak istemiyorum', 'hicbir sey yapmak istemiyorum',
+    'çalışmak istemiyorum', 'calismak istemiyorum',
+    'istemiyorum çalışmak', 'istemiyorum calismak',
+    'dinlenmek istiyorum', 'dinlenmek istiyom',
+    'mola vermek istiyorum', 'mola vereyim',
+    'ara vermek istiyorum', 'ara vereyim',
+    'bugün çalışmayacağım', 'bugun calismayacagim',
+    'yok çalışmayacağım', 'yok calismayacagim',
+    'boş vereyim bugünü', 'bos vereyim bugunu',
   ];
 
   // Kök hâlde tutuluyor (ör. "salak" → "salaksın"/"salak mısın"/"salak"
@@ -351,6 +416,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'hey sana', 'günaydınlar', 'gunaydinlar', 'tünaydın', 'tunaydin',
     'iyi sabahlar', 'hayırlı günler', 'hayirli gunler',
     'hoş geldin', 'hos geldin', 'naberr', 'selam koç', 'selam koc',
+    'selamün aleyküm', 'selamun aleykum', 'selamünaleyküm',
+    'selamunaleykum', 'aleyküm selam', 'aleykum selam',
+    'eyvallah', 'eyw', 'merhabaa', 'merhabaaa', 'selammm', 'heyyy',
+    'hayırlı sabahlar', 'hayirli sabahlar', 'günaydın koç', 'gunaydin koc',
+    'heya', 'selam dostum', 'selam koçum', 'selam kocum',
   ];
 
   static const List<String> _wellbeingCheckPhrases = [
@@ -361,6 +431,14 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'durumun nasıl', 'durumun nasil',
     'bugün nasılsın', 'bugun nasilsin',
     'iyi hissediyor musun', 'keyfin nasıl', 'keyfin nasil',
+    'naber nasılsın', 'naber nasilsin',
+    'keyifler ne alemde', 'ne alemdesin',
+    'napıyosun nasılsın', 'napiyosun nasilsin',
+    'iyi misin bakalım', 'iyi misin bakalim',
+    'bugün iyi misin', 'bugun iyi misin',
+    'moralin yerinde mi', 'her şey yolunda mı', 'her sey yolunda mi',
+    'iyi gidiyor mu', 'nasıl hissediyorsun', 'nasil hissediyorsun',
+    'keyifler yerinde mi',
   ];
 
   static const List<String> _botIdentityPhrases = [
@@ -377,6 +455,16 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'hangi şirket yaptı seni', 'hangi sirket yapti seni',
     'yaşın kaç', 'yasin kac', 'kaç yaşındasın', 'kac yasindasin',
     'nerelisin', 'neredesin sen',
+    'yapay zekamısın', 'yapayzeka mısın', 'yapayzeka misin',
+    'botmusun', 'robotsun değil mi', 'robotsun degil mi',
+    'gerçek biri değilsin', 'gercek biri degilsin',
+    'chatgptmisin', 'chat gpt mısın', 'chat gpt misin',
+    'openai ürünü müsün', 'openai urunu musun',
+    'claude ai mısın', 'claude ai misin',
+    'seni kim geliştirdi', 'seni kim gelistirdi',
+    'seni hangi firma yaptı', 'seni hangi firma yapti',
+    'seni hangi şirket kodladı', 'seni hangi sirket kodladi',
+    'karşımdaki bot mu', 'karsimdaki bot mu',
   ];
 
   static const List<String> _casualCheckInPhrases = [
@@ -387,6 +475,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'müsait misin', 'musait misin',
     'ne haldesin', 'şu an neredesin', 'su an neredesin',
     'ne işle uğraşıyorsun', 'ne isle ugrasiyorsun',
+    'ne yapıyorsun orada', 'ne yapiyorsun orada',
+    'ne yapıyorsun orda', 'ne yapiyorsun orda',
+    'boş musun şu an', 'bos musun su an',
+    'müsait misin şimdi', 'musait misin simdi',
+    'ne alemdesin sen', 'ne haldesin bakalım', 'ne haldesin bakalim',
+    'napıyoz', 'napiyoz', 'ne iş çeviriyorsun', 'ne is ceviriyorsun',
   ];
 
   static const List<String> _jokePhrases = [
@@ -396,6 +490,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'matematik esprisi', 'matematik espirisi',
     'bilmece sor', 'bilmece', 'fıkra', 'fikra',
     'komik konuş', 'komik konus', 'eğlenceli bir şey', 'eglenceli bir sey',
+    'güldür beni', 'guldur beni', 'matematik fıkrası anlat',
+    'matematik fikrasi anlat', 'komik bir laf söyle', 'komik bir laf soyle',
+    'espri patlat', 'bir şaka anlat', 'bir saka anlat',
   ];
 
   // Uygulamayı nasıl kullanacağını bilmeyen kullanıcı — kısa kullanım
@@ -415,6 +512,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'yeni kullanıcıyım', 'yeni kullaniciyim',
     'komut nedir', 'hangi kelimeleri yazmalıyım',
     'hangi kelimeleri yazmaliyim',
+    'elimden bir şey gelmiyor burada', 'elimden bir sey gelmiyor burada',
+    'burada ne yapacağımı bilmiyorum', 'burada ne yapacagimi bilmiyorum',
+    'ilk kez giriyorum buraya', 'yeni indirdim uygulamayı',
+    'yeni indirdim uygulamayi', 'nasıl mesaj yazacağım',
+    'nasil mesaj yazacagim',
   ];
 
   bool _matchesAny(String low, List<String> phrases) =>
@@ -440,17 +542,6 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final low = raw.toLowerCase().replaceAll('̇', '');
 
-    if (_matchesAny(low, _hostilePhrases)) {
-      _say(_pick([
-        'Bu kelimeler netlerini artırmayacak. Enerjini masadaki kitaba '
-            'harcayalım — hangi derse çalışıyorsun?',
-        'Küfürle net gelmiyor 😅 Onun yerine bir ders adı ve süre ver, '
-            'işe koyulalım.',
-        'Bunu bir kenara bırakalım. Şu an hangi dersle uğraşıyorsun?',
-      ]));
-      return;
-    }
-
     if (_matchesAny(low, _burnoutPhrases)) {
       _say(_pick([
         'Bu hissi herkes yaşıyor, çok normal. Ama pes etmek yok — 15 '
@@ -459,6 +550,37 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             'Bana bir ders adı ve 15-20 dakika söyle, oradan başlarız.',
         'Normal bu, moralini bozma. Masadan tamamen kalkma — küçük bir '
             'adım yeter. Hangi derse 15 dakika ayırabilirsin?',
+        'Deneme netleri bir gecede artmıyor, sabırla birikiyor — bu gece '
+            'erken yat. Şimdilik sadece 15 dakika, hangi ders?',
+        'Tükenmek bitmek değil, mola sinyali. Bugün büyük hedef yok — '
+            'ufak bir blok yeter. Hangi derse 15 dakika ayırırsın?',
+      ]));
+      return;
+    }
+
+    // Burnout sorusuna ("hangi derse?") olumsuz yanıt — plan önermek yerine
+    // dinlenmeye izin ver.
+    if (_matchesAny(low, _restNeededPhrases)) {
+      _say(_pick([
+        'Tamam, o zaman bugün kendine izin ver — dinlenmek de planın bir '
+            'parçası. Hazır olduğunda buradayım.',
+        'Sorun değil, zorlamıyorum. Bugünü dinlenmeye ayır, yarın devam '
+            'ederiz.',
+        'Anladım, bugün mola. Kafan dinlenince hangi derse bakacağız, o '
+            'zaman konuşuruz.',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _plateauPhrases)) {
+      _say(_pick([
+        'Net birikimi yavaş görünür ama birikir — bugün attığın her adım '
+            'sayılıyor, hemen görünmese de. Hangi derse 15-20 dakika '
+            'ayıralım?',
+        'Bu çok normal, ilerleme bazen görünmez ama arka planda birikir. '
+            'Küçük bir blokla devam edelim — hangi ders?',
+        'Sonuç görünmemesi çabanın boşa gittiği anlamına gelmez, netler '
+            'genelde birikip birden sıçrar. Bugün hangi derse odaklanalım?',
       ]));
       return;
     }
@@ -486,6 +608,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             'zamanla gelir.',
         'Bu his geçici, geride bıraktığın her gün seni ileri taşıyor. '
             'Hadi bugüne odaklanalım — hangi ders?',
+        'Bir paragrafı kaçırman ya da bir denemenin kötü geçmesi dünyanın '
+            'sonu değil — asıl mesele bugün masaya oturman. Hangi ders?',
       ]));
       return;
     }
@@ -498,6 +622,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             'hangi derse odaklanalım?',
         'Bu kıyas seni yormaktan başka bir şey yapmaz. Enerjini kendi '
             'planına harcayalım — ne çalışıyorsun?',
+        'Arkadaşının netleri seni ilgilendirmez, senin dünkü netlerin '
+            'ilgilendirir. Bugün hangi dersi kasıyoruz?',
       ]));
       return;
     }
@@ -513,6 +639,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         'Zor gelmesi sevmediğin anlamına gelmez, alışkın olmadığın '
             'anlamına gelir. $subjectMention\'a küçük bir blokla '
             'başlayalım mı?',
+        '$subjectMention kasmak can sıkıcı olabilir ama küçük dozlarda '
+            'başlarsan kafan o kadar yorulmaz. 15 dakika dener misin?',
       ]));
       return;
     }
@@ -524,6 +652,26 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             'kullanalım. Ne kadar çalışacaksın?',
         'Sevdiğin bir derste ilerlemek daha kolay — hadi $subjectMention '
             'için bir blok ayarlayalım.',
+      ]));
+      return;
+    }
+
+    // Küfür/sınır testi — hostile kontrolü bilinçli olarak burada, tükenmişlik/
+    // net-platosu/sınav kaygısı gibi içerik kategorilerinden SONRA çalışıyor.
+    // "Denemelerim artmıyo aq" gibi cümlelerde "aq" hakaret değil hayal
+    // kırıklığı ünlemi — önce içerik yakalanmalı, yoksa kullanıcı asıl
+    // derdi görmezden gelinip azarlanmış gibi hissediyor.
+    if (_matchesAny(low, _hostilePhrases)) {
+      _say(_pick([
+        'Bu kelimeler netlerini artırmayacak. Enerjini masadaki kitaba '
+            'harcayalım — hangi derse çalışıyorsun?',
+        'Küfürle net gelmiyor 😅 Onun yerine bir ders adı ve süre ver, '
+            'işe koyulalım.',
+        'Bunu bir kenara bırakalım. Şu an hangi dersle uğraşıyorsun?',
+        'Bu enerjiyle bir konu bile bitirebilirdik aslında 😏 Hadi o '
+            'gazı derse ver — hangisi?',
+        'Küfür yerine matematik kas, daha çok işine yarar 😄 Hangi '
+            'derse geçiyoruz?',
       ]));
       return;
     }
@@ -582,6 +730,28 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _commit();
       return;
     }
+    // "Farklı yap / değiştir" — deterministik PlanBuilder aynı girdiyle aynı
+    // sonucu verdiğinden (kullanıcı geri bildirimi: "aynısını söylüyor"),
+    // gün/hafta planında ders sırasını döndürüp gerçekten farklı bir öneri
+    // üretiyoruz. Tek görevde döndürecek bir şey yok — ne değiştireceğini
+    // sorarız.
+    if (_pending != null && _regenerateRe.hasMatch(low)) {
+      if (_pendingIsDay) {
+        _regenerateOffset++;
+        if (_pendingWeek != null) {
+          _proposeWeek();
+        } else {
+          _proposeDay();
+        }
+      } else {
+        _say(_pick([
+          'Neyi değiştireyim — süreyi, günü ya da dersi mi? Söylersen '
+              'güncelleyeyim.',
+          'Peki, hangisini değiştireyim: süre, gün ya da ders?',
+        ]));
+      }
+      return;
+    }
     if (_restart.hasMatch(low)) {
       _draft.reset();
       _pending = null;
@@ -589,6 +759,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _delegate = false;
       _wantsWeek = null;
       _askedRecurrence = false;
+      _regenerateOffset = 0;
       _say(_pick([
         'Tamam, temizledim. Baştan anlat bakalım.',
         'Sildim gitti. Yeniden başlayalım — ne çalışacaksın?',
@@ -697,9 +868,19 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final t = p.title.trim();
     final sameAsSubject =
         t.toLowerCase() == (p.subjectName ?? '').toLowerCase();
+    final rawLow = raw.toLowerCase().replaceAll('̇', '');
+    // "plan yap" / "farklı yap" gibi komut cümleleri — sinyalsiz olduğu için
+    // aşağıdaki fallback'e düşüp yanlışlıkla konu adı sanılabilirdi (bkz.
+    // _delegateRe, _regenerateRe). Bunlar zaten kendi kontrollerinde ele
+    // alınıyor, konu olarak taslağa yazılmamalı.
+    final isMetaCommand =
+        _delegateRe.hasMatch(rawLow) || _regenerateRe.hasMatch(rawLow);
     if (t.isNotEmpty && p.hasSignal && !sameAsSubject) {
       _draft.topic = t;
-    } else if (!_draft.hasSubject && !p.hasSignal && t.isNotEmpty) {
+    } else if (!_draft.hasSubject &&
+        !p.hasSignal &&
+        t.isNotEmpty &&
+        !isMetaCommand) {
       // Sinyalsiz düz cevap ("deneme analizi") → konu olarak kabul et.
       _draft.topic = raw.trim();
     }
@@ -709,6 +890,16 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
   int _q = 0;
   String _pick(List<String> options) => options[_q++ % options.length];
+
+  /// [_regenerateOffset] kadar döndürülmüş liste — "farklı yap" dendiğinde
+  /// PlanBuilder'a farklı bir öncelik sırası vererek görünür bir fark
+  /// üretmek için (bkz. _proposeDay/_proposeWeek/_regenerateRe).
+  List<SubjectModel> _rotated(List<SubjectModel> list) {
+    if (list.isEmpty || _regenerateOffset == 0) return list;
+    final shift = _regenerateOffset % list.length;
+    if (shift == 0) return list;
+    return [...list.skip(shift), ...list.take(shift)];
+  }
 
   void _advance() {
     final subjects = ref.read(subjectProvider);
@@ -900,11 +1091,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
     ).map((s) => s.subjectId).toList();
 
-    final ordered = <SubjectModel>[
+    final ordered = _rotated(<SubjectModel>[
       for (final id in advisorIds) subjects.firstWhere((s) => s.id == id),
       for (final s in subjects)
         if (!advisorIds.contains(s.id)) s,
-    ];
+    ]);
 
     final hours = (_draft.minutes! / 60).round().clamp(1, 12);
     final result = PlanBuilder.build(
@@ -965,11 +1156,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
     ).map((s) => s.subjectId).toList();
 
-    final ordered = <SubjectModel>[
+    final ordered = _rotated(<SubjectModel>[
       for (final id in advisorIds) subjects.firstWhere((s) => s.id == id),
       for (final s in subjects)
         if (!advisorIds.contains(s.id)) s,
-    ];
+    ]);
 
     final n0 = DateTime.now();
     final today = DateTime(n0.year, n0.month, n0.day);
@@ -1036,6 +1227,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _delegate = false;
       _wantsWeek = null;
       _askedRecurrence = false;
+      _regenerateOffset = 0;
       if (isFirstTaskEver) {
         ref.read(statsProvider.notifier).markFirstTaskAdded();
         _say('İlk görevlerini ekledin 🎉 $count görev ${week.days.length} '
@@ -1099,6 +1291,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _delegate = false;
     _wantsWeek = null;
     _askedRecurrence = false;
+    _regenerateOffset = 0;
     if (isFirstTaskEver) {
       ref.read(statsProvider.notifier).markFirstTaskAdded();
       _say(n == 1
