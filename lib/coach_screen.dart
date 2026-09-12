@@ -143,6 +143,59 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'aptal', 'salak', 'ahmak', 'embesil', 'geri zekalı', 'geri zekali',
   ];
 
+  // Konu anlatımı / soru çözme talebi — kesin kapsam sınırı (CLAUDE.md):
+  // "Canlı ders/koçluk", "Video konu anlatımı", "Soru bankası" asla.
+  // Bunlar olmadan bu tür bir cümle PlanParser'a düşerse anlamsız bir
+  // "görev" gibi ayrıştırılırdı ("Türevi anlatır mısın" → başlık).
+  // Bunun yerine sınırı net ama sıcak bir dille söyleyip plana geri
+  // çeker.
+  static const List<String> _contentRequestPhrases = [
+    'anlatır mısın', 'anlatirmisin', 'anlatir misin',
+    'açıklar mısın', 'aciklar misin',
+    'nasıl çözülür', 'nasil cozulur',
+    'çözer misin', 'cozer misin',
+    'soru çöz', 'soru coz',
+    'konu anlat', 'video öner', 'video oner',
+    'anlamadım bunu', 'anlamiyorum bunu', 'bunu anlamıyorum',
+    'bunu anlamadım',
+  ];
+
+  // Sınav kaygısı — tükenmişlikten farklı: "yapamıyorum" değil "olmayacak/
+  // kaybedeceğim" korkusu. Ayrı bir ton hak ediyor (güven verici,
+  // somutlaştırıcı).
+  static const List<String> _examFearPhrases = [
+    'başaramayacağım', 'basaramayacagim',
+    'kazanamayacağım', 'kazanamayacagim',
+    'elenecem', 'eleneceğim', 'elenecegim',
+    'kaybedeceğim', 'kaybedecegim',
+    'çok korkuyorum', 'cok korkuyorum',
+    'sınavdan korkuyorum', 'sinavdan korkuyorum',
+    'yapamayacağım', 'yapamayacagim',
+  ];
+
+  // Başkasıyla kıyaslama — YKS öğrencilerinde çok yaygın bir kaygı kaynağı.
+  static const List<String> _comparisonPhrases = [
+    'benden daha çok', 'benden daha cok',
+    'benden iyi', 'benden daha iyi',
+    'herkes benden', 'arkadaşım benden', 'arkadasim benden',
+    'ondan geride', 'geride kaldım', 'geride kaldim',
+  ];
+
+  // Doğal sohbet — sadece giriş selamında değil, sohbet ortasında da
+  // gelebilir ("naber" gibi). Kısa, sıcak, hemen plana geri döner.
+  static const List<String> _smallTalkPhrases = [
+    'naber', 'ne haber', 'nasılsın', 'nasilsin', 'nabersin',
+  ];
+
+  // Uygulamayı nasıl kullanacağını bilmeyen kullanıcı — kısa kullanım
+  // hatırlatması.
+  static const List<String> _usageConfusionPhrases = [
+    'nasıl kullanılıyor', 'nasil kullaniliyor',
+    'nasıl çalışıyor bu', 'nasil calisiyor bu',
+    'ne yapmam lazım burada', 'ne yapmam lazim burada',
+    'ne yazmam gerekiyor', 'nasıl yazacağım', 'nasil yazacagim',
+  ];
+
   bool _matchesAny(String low, List<String> phrases) =>
       phrases.any((p) => low.contains(p));
 
@@ -174,6 +227,61 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             'Bana bir ders adı ve 15-20 dakika söyle, oradan başlarız.',
         'Normal bu, moralini bozma. Masadan tamamen kalkma — küçük bir '
             'adım yeter. Hangi derse 15 dakika ayırabilirsin?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _contentRequestPhrases)) {
+      _say(_pick([
+        'Ben konu anlatmıyorum ya da soru çözmüyorum — o iş kitabında/'
+            'öğretmeninde 😊 Ama planını kurmakta ve takibinde tam '
+            'yanındayım. Bu konuya çalışma bloğu ayarlayalım mı?',
+        'Bunu sana ben anlatamam, kapsamım dışında. Onun yerine bu konuyu '
+            'ne zaman çalışacağını planlayalım — kaç dakika ayırırsın?',
+        'Anlatım/çözüm benim işim değil, plan kurmak benim işim. '
+            'İstersen bu konuyu bugüne bir görev olarak ekleyeyim.',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _examFearPhrases)) {
+      _say(_pick([
+        "Bu korkuyu YKS'ye hazırlanan herkes hissediyor, yalnız değilsin. "
+            'Kaygı düşünmekle değil, küçük somut adımlarla azalır. Bugün '
+            'ne çalışalım?',
+        'Sonuç şu an belli değil, ama bugün ne yaptığın belli olacak. '
+            'Bir ders seç, küçük bir blok çalışalım — geri kalanı '
+            'zamanla gelir.',
+        'Bu his geçici, geride bıraktığın her gün seni ileri taşıyor. '
+            'Hadi bugüne odaklanalım — hangi ders?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _comparisonPhrases)) {
+      _say(_pick([
+        'Başkasının hızı seni bağlamaz — tek kıyaslaman gereken dünkü '
+            'hâlin. Bugün neyi ilerletmek istersin?',
+        'Herkesin kendi temposu var, yarış onunla değil kendinle. Bugün '
+            'hangi derse odaklanalım?',
+        'Bu kıyas seni yormaktan başka bir şey yapmaz. Enerjini kendi '
+            'planına harcayalım — ne çalışıyorsun?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _usageConfusionPhrases)) {
+      _say('Basit: bana bir ders + süre söyle ("yarın 2 saat matematik" '
+          'gibi), planına eklerim. İstersen "sen ayarla" de, günü ben '
+          'kurayım.');
+      return;
+    }
+
+    if (_matchesAny(low, _smallTalkPhrases)) {
+      _say(_pick([
+        'İyiyim, sağ ol! 😊 Sıra sende — bugün ne çalışıyoruz?',
+        'Gayet iyi! Sen nasılsın, bugün çalışmaya hazır mısın?',
+        'Keyifler yerinde 👋 Hadi başlayalım — ne çalışmak istersin?',
       ]));
       return;
     }
