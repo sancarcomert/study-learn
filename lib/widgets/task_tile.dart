@@ -425,6 +425,8 @@ class TaskTile extends ConsumerWidget {
                                   builder: (_) => FocusScreen(
                                     initialNote: task.title,
                                     initialTargetMin: task.estimatedMinutes,
+                                    initialSubjectId: task.subjectId,
+                                    initialTopicId: task.topicId,
                                   ),
                                 ),
                               );

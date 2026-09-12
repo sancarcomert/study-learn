@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,10 @@ import 'focus_history_screen.dart';
 import 'focus_session_provider.dart';
 import 'notification_service.dart';
 import 'stats_provider.dart';
+import 'subject_provider.dart';
 import 'tap_scale.dart';
+import 'topic_model.dart';
+import 'topic_provider.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/animated_progress_bar.dart';
 import 'widgets/app_snackbar.dart';
@@ -26,8 +30,16 @@ import 'widgets/app_snackbar.dart';
 class FocusScreen extends ConsumerStatefulWidget {
   final String? initialNote;
   final int? initialTargetMin;
+  final String? initialSubjectId;
+  final String? initialTopicId;
 
-  const FocusScreen({super.key, this.initialNote, this.initialTargetMin});
+  const FocusScreen({
+    super.key,
+    this.initialNote,
+    this.initialTargetMin,
+    this.initialSubjectId,
+    this.initialTopicId,
+  });
 
   @override
   ConsumerState<FocusScreen> createState() => _FocusScreenState();
@@ -47,6 +59,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
   late final TextEditingController _noteController =
       TextEditingController(text: widget.initialNote ?? '');
+
+  // Ders/konu bağlama — opsiyonel. Bir görevden başlatıldıysa o görevin
+  // dersi/konusu önceden seçili gelir (kullanıcı isterse değiştirebilir).
+  late String? _selectedSubjectId = widget.initialSubjectId;
+  late String? _selectedTopicId = widget.initialTopicId;
 
   static const List<int> _blockOptions = [15, 25, 30, 45, 60];
   static const int _shortBreakSec = 5 * 60;
@@ -252,9 +269,27 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         math.min(_phaseElapsedSec, _blockMin * 60) ~/ 60;
     if (workedMin >= 1) {
       ref.read(statsProvider.notifier).addFocusMinutes(workedMin);
-      ref
-          .read(focusSessionProvider.notifier)
-          .log(minutes: workedMin, mode: 'pomodoro');
+      ref.read(focusSessionProvider.notifier).log(
+            minutes: workedMin,
+            mode: 'pomodoro',
+            subjectId: _selectedSubjectId,
+            topicId: _selectedTopicId,
+            note: _noteController.text,
+          );
+      _markLinkedTopicStudied();
+    }
+  }
+
+  /// Seans bir Konu Takip konusuna bağlıysa ve o konu hâlâ "başlanmadı"
+  /// durumundaysa "çalışıldı"ya geçirir — task_provider'daki görev-konu
+  /// bağıyla aynı desen, elle iki kere işaretleme zorunluluğu kalkar.
+  void _markLinkedTopicStudied() {
+    final topicId = _selectedTopicId;
+    if (topicId == null) return;
+    final topic =
+        ref.read(topicProvider).where((t) => t.id == topicId).firstOrNull;
+    if (topic != null && topic.status == TopicStatus.notStarted) {
+      ref.read(topicProvider.notifier).setStatus(topicId, TopicStatus.studied);
     }
   }
 
@@ -304,9 +339,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
       if (!_freeSaved && minutes >= 1) {
         _freeSaved = true;
         ref.read(statsProvider.notifier).addFocusMinutes(minutes);
-        ref
-            .read(focusSessionProvider.notifier)
-            .log(minutes: minutes, mode: 'serbest');
+        ref.read(focusSessionProvider.notifier).log(
+              minutes: minutes,
+              mode: 'serbest',
+              subjectId: _selectedSubjectId,
+              topicId: _selectedTopicId,
+              note: _noteController.text,
+            );
+        _markLinkedTopicStudied();
         final note = _noteController.text.trim();
         AppSnackBar.success(
           context,
@@ -427,6 +467,18 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                   decoration: const InputDecoration(
                     hintText: 'Ne üzerinde çalışıyorsun? (opsiyonel)',
                   ),
+                ),
+
+                const SizedBox(height: 16),
+                _SubjectTopicPicker(
+                  enabled: !_running,
+                  selectedSubjectId: _selectedSubjectId,
+                  selectedTopicId: _selectedTopicId,
+                  onSubjectChanged: (id) => setState(() {
+                    _selectedSubjectId = id;
+                    _selectedTopicId = null;
+                  }),
+                  onTopicChanged: (id) => setState(() => _selectedTopicId = id),
                 ),
 
                 const SizedBox(height: 40),
@@ -595,6 +647,111 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ders/konu bağlama — opsiyonel. Ders başlıkla (görevden başlatıldıysa
+/// önceden seçili), konu yalnız o dersin konusu varsa görünür. Seçilirse
+/// seans bitince Konu Takip'te otomatik işaretlenir + geçmişte "Matematik ·
+/// 45 dk" gibi anlamlı görünür (bkz. focus_history_screen).
+class _SubjectTopicPicker extends ConsumerWidget {
+  final bool enabled;
+  final String? selectedSubjectId;
+  final String? selectedTopicId;
+  final ValueChanged<String?> onSubjectChanged;
+  final ValueChanged<String?> onTopicChanged;
+
+  const _SubjectTopicPicker({
+    required this.enabled,
+    required this.selectedSubjectId,
+    required this.selectedTopicId,
+    required this.onSubjectChanged,
+    required this.onTopicChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjects = ref.watch(subjectProvider);
+    if (subjects.isEmpty) return const SizedBox.shrink();
+
+    final topics = selectedSubjectId == null
+        ? const <TopicModel>[]
+        : ref.watch(topicsForSubjectProvider(selectedSubjectId!));
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _chip(
+                  label: 'Derssiz',
+                  selected: selectedSubjectId == null,
+                  color: AppColors.textSecondary,
+                  onTap: () => onSubjectChanged(null),
+                ),
+                for (final s in subjects)
+                  _chip(
+                    label: s.name,
+                    selected: selectedSubjectId == s.id,
+                    color: Color(s.colorValue),
+                    onTap: () => onSubjectChanged(s.id),
+                  ),
+              ],
+            ),
+            if (topics.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final t in topics)
+                    _chip(
+                      label: t.name,
+                      selected: selectedTopicId == t.id,
+                      color: AppColors.secondary,
+                      onTap: () => onTopicChanged(
+                          selectedTopicId == t.id ? null : t.id),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip({
+    required String label,
+    required bool selected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: selected
+                ? (color == AppColors.primary ? AppColors.ink : Colors.white)
+                : color,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

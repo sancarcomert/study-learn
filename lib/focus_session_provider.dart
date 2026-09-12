@@ -25,13 +25,22 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
   FocusSessionNotifier(this._repo) : super(_repo.getAll());
 
   /// Tamamlanan bir odak dilimini kaydeder. [minutes] < 1 ise atlar.
-  void log({required int minutes, required String mode}) {
+  void log({
+    required int minutes,
+    required String mode,
+    String? subjectId,
+    String? topicId,
+    String? note,
+  }) {
     if (minutes < 1) return;
     _repo.add(FocusSession(
       id: _uuid.v4(),
       endedAt: DateTime.now(),
       minutes: minutes,
       mode: mode,
+      subjectId: subjectId,
+      topicId: topicId,
+      note: (note == null || note.trim().isEmpty) ? null : note.trim(),
     ));
     state = _repo.getAll();
   }
@@ -49,6 +58,9 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
       endedAt: original.endedAt,
       minutes: original.minutes,
       mode: original.mode,
+      subjectId: original.subjectId,
+      topicId: original.topicId,
+      note: original.note,
     );
     _repo.delete(id);
     state = _repo.getAll();
@@ -80,6 +92,19 @@ final focusMinutesByDayProvider = Provider<Map<DateTime, int>>((ref) {
   for (final s in all) {
     final d = DateTime(s.endedAt.year, s.endedAt.month, s.endedAt.day);
     map[d] = (map[d] ?? 0) + s.minutes;
+  }
+  return map;
+});
+
+/// subjectId → toplam odak dakikası (tüm zamanlar). Ders seçilmeden
+/// başlatılan seanslar (subjectId null) dahil edilmez.
+final focusMinutesBySubjectProvider = Provider<Map<String, int>>((ref) {
+  final all = ref.watch(focusSessionProvider);
+  final map = <String, int>{};
+  for (final s in all) {
+    final id = s.subjectId;
+    if (id == null) continue;
+    map[id] = (map[id] ?? 0) + s.minutes;
   }
   return map;
 });

@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'focus_session_model.dart';
 import 'focus_session_provider.dart';
+import 'subject_provider.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/eyebrow.dart';
@@ -26,6 +28,17 @@ class FocusHistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(focusSessionsDescendingProvider);
     final weekMin = ref.watch(focusThisWeekMinutesProvider);
+    final bySubject = ref.watch(focusMinutesBySubjectProvider);
+    final subjects = ref.watch(subjectProvider);
+    String? subjectName(String? id) {
+      if (id == null) return null;
+      return subjects.where((s) => s.id == id).firstOrNull?.name;
+    }
+
+    final subjectTotals = bySubject.entries
+        .map((e) => (name: subjectName(e.key) ?? 'Silinmiş ders', minutes: e.value))
+        .toList()
+      ..sort((a, b) => b.minutes.compareTo(a.minutes));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -70,6 +83,48 @@ class FocusHistoryScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (subjectTotals.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Eyebrow(text: 'HANGİ DERSE ÇALIŞTIN'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tüm zamanlar — ders seçerek başlattığın seanslar.',
+                    style: AppTextStyles.caption,
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppColors.softShadow,
+                    ),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < subjectTotals.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(subjectTotals[i].name,
+                                      style: AppTextStyles.body),
+                                ),
+                                Text(
+                                  '${subjectTotals[i].minutes} dk',
+                                  style: AppTextStyles.body.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 const Eyebrow(text: 'GEÇMİŞ'),
                 const SizedBox(height: 4),
@@ -108,7 +163,10 @@ class FocusHistoryScreen extends ConsumerWidget {
                             );
                           }
                         },
-                        child: _SessionRow(session: s),
+                        child: _SessionRow(
+                          session: s,
+                          subjectName: subjectName(s.subjectId),
+                        ),
                       ),
                     )),
               ],
@@ -119,11 +177,18 @@ class FocusHistoryScreen extends ConsumerWidget {
 
 class _SessionRow extends StatelessWidget {
   final FocusSession session;
-  const _SessionRow({required this.session});
+  final String? subjectName;
+  const _SessionRow({required this.session, this.subjectName});
 
   @override
   Widget build(BuildContext context) {
     final isPomodoro = session.mode == 'pomodoro';
+    final modeLabel = isPomodoro ? 'Pomodoro' : 'Serbest';
+    final title = subjectName ?? modeLabel;
+    final subtitleParts = <String>[
+      if (subjectName != null) modeLabel,
+      DateFormat('d MMMM y · HH:mm', 'tr_TR').format(session.endedAt),
+    ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -153,14 +218,26 @@ class _SessionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPomodoro ? 'Pomodoro' : 'Serbest',
+                  title,
                   style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  DateFormat('d MMMM y · HH:mm', 'tr_TR').format(session.endedAt),
+                  subtitleParts.join(' · '),
                   style: AppTextStyles.caption,
                 ),
+                if (session.note != null && session.note!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    session.note!,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textMuted,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
