@@ -18,6 +18,7 @@ import 'stats_provider.dart';
 import 'topic_provider.dart';
 import 'widget_service.dart';
 import 'widgets/animated_progress_bar.dart';
+import 'widgets/empty_state_card.dart';
 
 /// Görevin "çalışıldığı gün" — tamamlanma tarihi (yoksa vade tarihi), saat sıfır.
 DateTime _taskDay(TaskModel t) {
@@ -191,20 +192,21 @@ class StatsScreen extends ConsumerWidget {
             style: AppTextStyles.caption,
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: AppColors.softShadow,
-            ),
-            child: totalCompleted == 0
-                ? Text(
-                    'Henüz görev bitirmedin. İlk görevini tamamlayınca '
-                    'bugünün karesi burada yanar.',
-                    style: AppTextStyles.bodySecondary)
-                : ActivityHeatmap(countsByDay: countsByDay, weeks: 12),
-          ),
+          totalCompleted == 0
+              ? const EmptyStateCard(
+                  icon: Icons.calendar_month_outlined,
+                  message: 'Henüz görev bitirmedin. İlk görevini '
+                      'tamamlayınca bugünün karesi burada yanar.',
+                )
+              : Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppColors.softShadow,
+                  ),
+                  child: ActivityHeatmap(countsByDay: countsByDay, weeks: 12),
+                ),
 
           const SizedBox(height: 28),
           const Eyebrow(text: 'ODAK SÜRESİ'),
@@ -215,19 +217,20 @@ class StatsScreen extends ConsumerWidget {
             style: AppTextStyles.caption,
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: AppColors.softShadow,
-            ),
-            child: focusWeekMin == 0
-                ? Text(
-                    'Bu hafta henüz odak seansı yapmadın. '
-                    'Plan → Odak Seansı\'ndan başlayabilirsin.',
-                    style: AppTextStyles.bodySecondary)
-                : Column(
+          focusWeekMin == 0
+              ? const EmptyStateCard(
+                  icon: Icons.timer_outlined,
+                  message: 'Bu hafta henüz odak seansı yapmadın. '
+                      'Plan → Odak Seansı\'ndan başlayabilirsin.',
+                )
+              : Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppColors.softShadow,
+                  ),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -239,7 +242,7 @@ class StatsScreen extends ConsumerWidget {
                       _FocusWeekBar(byDay: focusByDay),
                     ],
                   ),
-          ),
+                ),
 
           const SizedBox(height: 28),
           const Eyebrow(text: 'HANGİ DERSE ÇALIŞTIN'),
@@ -262,8 +265,9 @@ class StatsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           if (latestDeneme == null)
-            const _InfoBox(
-              text: 'Henüz deneme eklemedin. Plan → Deneme Takip\'ten '
+            const EmptyStateCard(
+              icon: Icons.trending_up_outlined,
+              message: 'Henüz deneme eklemedin. Plan → Deneme Takip\'ten '
                   'ilk netini girebilirsin.',
             )
           else
@@ -304,11 +308,15 @@ AchievementCard(
           ),
           const SizedBox(height: 12),
           if (subjects.isEmpty)
-            const _InfoBox(text: 'Henüz ders eklemedin.')
+            const EmptyStateCard(
+              icon: Icons.menu_book_outlined,
+              message: 'Henüz ders eklemedin.',
+            )
           else if (coveredSubjects.isEmpty)
-            const _InfoBox(
-              text:
-                  'Konu Takip\'ten (Plan sekmesi) konu ekleyerek ders ilerlemeni burada gör.',
+            const EmptyStateCard(
+              icon: Icons.checklist_outlined,
+              message: 'Konu Takip\'ten (Plan sekmesi) konu ekleyerek ders '
+                  'ilerlemeni burada gör.',
             )
           else
             ...coveredSubjects.map((s) {
@@ -501,10 +509,14 @@ class _SubjectDistributionState extends State<_SubjectDistribution> {
         ),
         const SizedBox(height: 14),
         if (widget.subjects.isEmpty)
-          const _InfoBox(text: 'Henüz ders eklemedin.')
+          const EmptyStateCard(
+            icon: Icons.menu_book_outlined,
+            message: 'Henüz ders eklemedin.',
+          )
         else if (maxCount == 0)
-          _InfoBox(
-            text: _month
+          EmptyStateCard(
+            icon: Icons.bar_chart_outlined,
+            message: _month
                 ? 'Bu ay bir derse bağlı görev tamamlamadın.'
                 : 'Bu hafta bir derse bağlı görev tamamlamadın.',
           )
@@ -573,30 +585,13 @@ class _PeriodChip extends StatelessWidget {
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: selected ? Colors.white : AppColors.secondary,
+            color: selected
+                ? AppColors.onColor(AppColors.secondary)
+                : AppColors.secondary,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
-    );
-  }
-}
-
-class _InfoBox extends StatelessWidget {
-  final String text;
-  const _InfoBox({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppColors.softShadow,
-      ),
-      child: Text(text, style: AppTextStyles.bodySecondary),
     );
   }
 }

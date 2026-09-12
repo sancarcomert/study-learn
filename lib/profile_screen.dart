@@ -80,7 +80,9 @@ void _showGradePicker(BuildContext context, WidgetRef ref, int? current) {
                 child: Text(
                   UserStatsModel.gradeLabel(g),
                   style: AppTextStyles.body.copyWith(
-                    color: g == current ? Colors.white : AppColors.textPrimary,
+                    color: g == current
+                        ? AppColors.onColor(AppColors.secondary)
+                        : AppColors.textPrimary,
                     fontWeight:
                         g == current ? FontWeight.w700 : FontWeight.w500,
                   ),

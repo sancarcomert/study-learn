@@ -272,7 +272,7 @@ class _DaySelectorStrip extends StatelessWidget {
                       '${day.day}',
                       style: AppTextStyles.body.copyWith(
                         color: isSelected
-                            ? Colors.white
+                            ? AppColors.onColor(AppColors.secondary)
                             : AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),

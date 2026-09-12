@@ -56,4 +56,13 @@ class AppColors {
       ];
 
   static Color tonal(Color base) => base.withValues(alpha: 0.14);
+
+  /// Seçili bir çipin/butonun zemin rengine göre okunabilir metin/ikon
+  /// rengi. Tek gerçek risk altın (primary) — o zeminde beyaz neredeyse
+  /// görünmez, koyu (ink) gerekir; her yerde beyaz güvenli. Önceden bu
+  /// mantık birkaç ekranda ayrı ayrı elle yazılmıştı (add_task_screen,
+  /// focus_screen), diğer ekranlarda hiç düşünülmeden çıplak Colors.white
+  /// kullanılıyordu — tek yerden yönetiliyor artık.
+  static Color onColor(Color background) =>
+      background == primary ? ink : Colors.white;
 }

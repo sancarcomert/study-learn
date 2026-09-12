@@ -99,7 +99,7 @@ class AppTheme {
 
       dividerTheme: const DividerThemeData(
         thickness: .8,
-        color: Color(0xFF2C2E36),
+        color: AppColors.surfaceVariant,
       ),
 
       // Silme onayı gibi dialoglar artık kartlarla aynı dile konuşuyor:

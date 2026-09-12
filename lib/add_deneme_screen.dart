@@ -473,7 +473,7 @@ class _NumField extends StatelessWidget {
             filled: true,
             fillColor: AppColors.surfaceVariant,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             hintText: '0',

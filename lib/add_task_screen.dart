@@ -983,14 +983,10 @@ class _SubjectChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Seçili/rengi bağlı metin rengiyle aynı mantık (computeLuminance()
-    // burada güvenilir değil — altın ile adaçayı yeşili gibi görsel olarak
-    // çok farklı iki ton matematiksel olarak neredeyse aynı parlaklığa
-    // denk geliyor). Tek gerçek risk olan altını (primary) doğrudan
-    // hedefliyoruz: o zeminde koyu metin, diğer her yerde beyaz.
-    final fgColor = isSelected
-        ? (color == AppColors.primary ? AppColors.ink : Colors.white)
-        : color;
+    // computeLuminance() burada güvenilir değil (altın ile adaçayı yeşili
+    // gibi görsel olarak çok farklı iki ton matematiksel olarak neredeyse
+    // aynı parlaklığa denk geliyor) — bkz. AppColors.onColor.
+    final fgColor = isSelected ? AppColors.onColor(color) : color;
 
     return TapScale(
       // Daha önce çıplak GestureDetector'dı — dokunuşta ne hafif küçülme
@@ -1015,10 +1011,10 @@ class _SubjectChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isSelected) ...[
-              Icon(Icons.check, size: 15, color: fgColor),
+              Icon(Icons.check, size: 16, color: fgColor),
               const SizedBox(width: 5),
             ] else if (icon != null) ...[
-              Icon(icon, size: 15, color: fgColor),
+              Icon(icon, size: 16, color: fgColor),
               const SizedBox(width: 5),
             ],
             Text(

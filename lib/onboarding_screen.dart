@@ -173,7 +173,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             g.$2,
                             style: AppTextStyles.body.copyWith(
                               color: selected
-                                  ? Colors.white
+                                  ? AppColors.onColor(AppColors.secondary)
                                   : AppColors.secondary,
                               fontWeight: FontWeight.w600,
                             ),
@@ -232,7 +232,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             subject,
                             style: AppTextStyles.body.copyWith(
                               color: isSelected
-                                  ? Colors.white
+                                  ? AppColors.onColor(AppColors.secondary)
                                   : AppColors.secondary,
                               fontWeight: FontWeight.w600,
                             ),

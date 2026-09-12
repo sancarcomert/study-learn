@@ -464,12 +464,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text("🎉", style: TextStyle(fontSize: 40)),
+                    Text("🎉",
+                        style: AppTextStyles.heading1.copyWith(fontSize: 40)),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       "Günlük hedef tamamlandı!",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.heading3,
                     ),
                     const SizedBox(height: 16),
                     TapScale(
@@ -1024,7 +1025,7 @@ class _YesterdayIntentLine extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(top: 2),
           child: Icon(Icons.wb_twilight_outlined,
-              size: 15, color: AppColors.textMuted),
+              size: 16, color: AppColors.textMuted),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -1314,7 +1315,7 @@ class _ProfileRing extends StatelessWidget {
           ),
           child: const Icon(
             Icons.person_outline,
-            size: 17,
+            size: 18,
             color: AppColors.textSecondary,
           ),
         ),

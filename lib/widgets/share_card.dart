@@ -34,7 +34,7 @@ class ShareCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🔥', style: TextStyle(fontSize: 40)),
+          Text('🔥', style: AppTextStyles.heading1.copyWith(fontSize: 40)),
           const SizedBox(height: 12),
           Text(
             '$streak günlük serim',

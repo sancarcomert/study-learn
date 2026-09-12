@@ -339,12 +339,14 @@ class ExamTypeToggle extends StatelessWidget {
             // CTA hiyerarşisi: altın yalnız birincil aksiyon (ör. Kaydet)
             // için — bu bir TYT/AYT seçici.
             color: selected ? AppColors.secondary : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             value,
             style: AppTextStyles.body.copyWith(
-              color: selected ? Colors.white : AppColors.textSecondary,
+              color: selected
+                  ? AppColors.onColor(AppColors.secondary)
+                  : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),

@@ -34,12 +34,12 @@ class AchievementCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: unlocked
                   ? AppColors.warning.withValues(alpha: 0.15)
-                  : Colors.grey.withValues(alpha: 0.15),
+                  : AppColors.tonal(AppColors.textMuted),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
-              color: unlocked ? AppColors.warning : Colors.grey,
+              color: unlocked ? AppColors.warning : AppColors.textMuted,
               size: 26,
             ),
           ),
@@ -69,7 +69,7 @@ class AchievementCard extends StatelessWidget {
             unlocked
                 ? Icons.check_circle_outline
                 : Icons.lock_outline,
-            color: unlocked ? AppColors.success : Colors.grey,
+            color: unlocked ? AppColors.success : AppColors.textMuted,
           ),
         ],
       ),

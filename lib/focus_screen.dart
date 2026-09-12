@@ -674,7 +674,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                                 '$min dk',
                                 style: AppTextStyles.body.copyWith(
                                   color: selected
-                                      ? Colors.white
+                                      ? AppColors.onColor(AppColors.secondary)
                                       : AppColors.secondary,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -866,9 +866,7 @@ class _SubjectTopicPicker extends ConsumerWidget {
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: selected
-                ? (color == AppColors.primary ? AppColors.ink : Colors.white)
-                : color,
+            color: selected ? AppColors.onColor(color) : color,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -919,12 +917,14 @@ class _ModeToggle extends StatelessWidget {
           decoration: BoxDecoration(
             // CTA hiyerarşisi: altın yalnız Başlat/Duraklat butonu için.
             color: selected ? AppColors.secondary : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             label,
             style: AppTextStyles.body.copyWith(
-              color: selected ? Colors.white : AppColors.textSecondary,
+              color: selected
+                  ? AppColors.onColor(AppColors.secondary)
+                  : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
