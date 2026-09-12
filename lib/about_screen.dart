@@ -43,6 +43,7 @@ class AboutScreen extends StatelessWidget {
               children: [
                 const _InfoRow(
                   icon: Icons.wifi_off_outlined,
+                  tint: AppColors.vibrantSky,
                   title: 'İnternete hiç bağlanmaz',
                   subtitle:
                       'İnternet izni bile yok. Sunucumuz olmadığı için '
@@ -51,6 +52,7 @@ class AboutScreen extends StatelessWidget {
                 _divider(),
                 const _InfoRow(
                   icon: Icons.no_accounts_outlined,
+                  tint: AppColors.vibrantViolet,
                   title: 'Hesap yok',
                   subtitle: 'E-posta, şifre ya da telefon numarası '
                       'istemeyiz. Açar açmaz kullanmaya başlarsın.',
@@ -58,6 +60,7 @@ class AboutScreen extends StatelessWidget {
                 _divider(),
                 const _InfoRow(
                   icon: Icons.smartphone_outlined,
+                  tint: AppColors.vibrantMint,
                   title: 'Verin yalnızca bu cihazda',
                   subtitle: 'Dersler, görevler, konular, denemeler — '
                       'hepsi telefonunda saklanır. Biz de göremeyiz.',
@@ -65,6 +68,7 @@ class AboutScreen extends StatelessWidget {
                 _divider(),
                 const _InfoRow(
                   icon: Icons.upload_file_outlined,
+                  tint: AppColors.vibrantAmber,
                   title: 'Yedek her zaman elinde',
                   subtitle: 'İstediğin an tüm verini tek dosyaya '
                       'aktarabilir, istediğin yere taşıyabilirsin.',
@@ -72,6 +76,7 @@ class AboutScreen extends StatelessWidget {
                 _divider(),
                 const _InfoRow(
                   icon: Icons.delete_outline,
+                  tint: AppColors.vibrantCoral,
                   title: 'Sildiğin gerçekten gider',
                   subtitle: 'Kısa süreli "geri al" dışında, sildiğin bir '
                       'dersin ya da konunun gizli bir kopyası tutulmaz.',
@@ -79,6 +84,7 @@ class AboutScreen extends StatelessWidget {
                 _divider(),
                 const _InfoRow(
                   icon: Icons.money_off_outlined,
+                  tint: AppColors.primary,
                   title: 'Reklamsız, taahhütsüz',
                   subtitle: 'Şu an tamamen ücretsiz. Zorla abonelik, '
                       'gizli otomatik yenileme, kilitli taahhüt yok.',
@@ -106,11 +112,13 @@ class AboutScreen extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
+  final Color tint;
   final String title;
   final String subtitle;
 
   const _InfoRow({
     required this.icon,
+    required this.tint,
     required this.title,
     required this.subtitle,
   });
@@ -122,7 +130,16 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 18, color: tint),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(

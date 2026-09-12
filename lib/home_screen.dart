@@ -30,6 +30,7 @@ import 'stats_screen.dart';
 import 'profile_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/share_card.dart';
 import 'notification_service.dart';
@@ -843,17 +844,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       // Kral buton "Bugünü Planla" ekranın baskın eylemi; FAB ikincil
       // kalsın diye dar/dairesel (extended değil).
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.ink,
-        elevation: 0,
+      floatingActionButton: GradientFab(
         tooltip: 'Görev ekle',
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const AddTaskScreen()),
           );
         },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -1350,19 +1347,11 @@ class _KingButton extends StatelessWidget {
         height: 64,
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [AppColors.primary, Color(0xFFE8C989)],
-          ),
+          gradient: AppColors.primaryGradient,
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             ...AppColors.cardShadow,
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.35),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
-            ),
+            AppColors.glow(AppColors.primary),
           ],
         ),
         child: Row(

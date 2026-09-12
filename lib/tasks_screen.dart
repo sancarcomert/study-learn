@@ -10,6 +10,7 @@ import 'subject_model.dart';
 import 'task_model.dart';
 import 'add_task_screen.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/app_buttons.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/task_tile.dart';
 import 'task_time_status.dart';
@@ -144,8 +145,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
+      floatingActionButton: GradientFab(
         tooltip: 'Görev ekle',
         onPressed: () {
           Navigator.push(
@@ -155,7 +155,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             ),
           );
         },
-        child: const Icon(Icons.add, color: AppColors.ink),
       ),
     );
   }
@@ -260,12 +259,22 @@ class _DaySelectorStrip extends StatelessWidget {
                       // (CLAUDE.md'nin kendi belirttiği istisna) — sadece
                       // görüntülemek için seçilen gün bir aksiyon değil,
                       // secondary (indigo) kullanılır.
-                      color: isSelected
-                          ? AppColors.secondary
-                          : Colors.transparent,
+                      gradient: isSelected
+                          ? const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppColors.secondary,
+                                Color(0xFF9498CC),
+                              ],
+                            )
+                          : null,
                       shape: BoxShape.circle,
                       border: (!isSelected && isToday)
                           ? Border.all(color: AppColors.primary, width: 1.4)
+                          : null,
+                      boxShadow: isSelected
+                          ? [AppColors.glow(AppColors.secondary)]
                           : null,
                     ),
                     child: Text(
@@ -388,17 +397,30 @@ class _TimelineRow extends ConsumerWidget {
                             onTap: () => ref
                                 .read(taskProvider.notifier)
                                 .toggleTaskCompletion(task.id, ref),
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 1),
-                              child: Icon(
-                                task.isCompleted
-                                    ? Icons.check_circle_outline
-                                    : Icons.radio_button_unchecked,
-                                size: 20,
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
                                 color: task.isCompleted
-                                    ? AppColors.success
-                                    : AppColors.textSecondary,
+                                    ? AppColors.tonal(AppColors.vibrantMint)
+                                    : Colors.transparent,
+                                border: task.isCompleted
+                                    ? null
+                                    : Border.all(
+                                        color: AppColors.textSecondary
+                                            .withValues(alpha: 0.5),
+                                        width: 1.4,
+                                      ),
                               ),
+                              child: task.isCompleted
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      size: 16,
+                                      color: AppColors.vibrantMint,
+                                    )
+                                  : null,
                             ),
                           ),
                           const SizedBox(width: 10),

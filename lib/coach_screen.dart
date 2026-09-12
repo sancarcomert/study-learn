@@ -15,6 +15,7 @@ import 'topic_provider.dart';
 import 'stats_provider.dart';
 import 'deneme_provider.dart';
 import 'subject_ai.dart';
+import 'tap_scale.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/exam_countdown.dart';
 
@@ -1379,18 +1380,29 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _hasInput ? _onSend : null,
-                        tooltip: 'Gönder',
-                        icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-                        style: IconButton.styleFrom(
-                          backgroundColor: _hasInput
-                              ? AppColors.primary
-                              : AppColors.surfaceVariant,
-                          foregroundColor: _hasInput
-                              ? AppColors.ink
-                              : AppColors.textMuted,
-                          minimumSize: const Size(48, 48),
+                      TapScale(
+                        onTap: _hasInput ? _onSend : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient:
+                                _hasInput ? AppColors.primaryGradient : null,
+                            color: _hasInput ? null : AppColors.surfaceVariant,
+                            shape: BoxShape.circle,
+                            boxShadow: _hasInput
+                                ? [AppColors.glow(AppColors.primary)]
+                                : null,
+                          ),
+                          child: Icon(
+                            Icons.arrow_upward_rounded,
+                            size: 18,
+                            color: _hasInput
+                                ? AppColors.ink
+                                : AppColors.textMuted,
+                          ),
                         ),
                       ),
                     ],

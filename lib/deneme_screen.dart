@@ -10,6 +10,7 @@ import 'deneme_provider.dart';
 import 'stats_provider.dart';
 import 'tap_scale.dart';
 import 'widgets/app_snackbar.dart';
+import 'widgets/app_buttons.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/eyebrow.dart';
 
@@ -292,15 +293,11 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                     )),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.ink,
-        elevation: 0,
+      floatingActionButton: GradientFab(
         tooltip: 'Deneme ekle',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const AddDenemeScreen()),
         ),
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -289,25 +289,43 @@ class TaskTile extends ConsumerWidget {
                                   ref,
                                 );
                           },
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 350),
-                            transitionBuilder: (child, animation) =>
-                                ScaleTransition(
-                              scale: CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutBack,
-                              ),
-                              child: child,
-                            ),
-                            child: Icon(
-                              task.isCompleted
-                                  ? Icons.check_circle_outline
-                                  : Icons.radio_button_unchecked,
-                              key: ValueKey(task.isCompleted),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
                               color: task.isCompleted
-                                  ? AppColors.success
-                                  : AppColors.textSecondary,
-                              size: 26,
+                                  ? AppColors.tonal(AppColors.vibrantMint)
+                                  : Colors.transparent,
+                              border: task.isCompleted
+                                  ? null
+                                  : Border.all(
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.5),
+                                      width: 1.6,
+                                    ),
+                            ),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 350),
+                              transitionBuilder: (child, animation) =>
+                                  ScaleTransition(
+                                scale: CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeOutBack,
+                                ),
+                                child: child,
+                              ),
+                              child: task.isCompleted
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      key: ValueKey(true),
+                                      color: AppColors.vibrantMint,
+                                      size: 20,
+                                    )
+                                  : const SizedBox(
+                                      key: ValueKey(false),
+                                    ),
                             ),
                           ),
                         ),

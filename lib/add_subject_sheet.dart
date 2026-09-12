@@ -111,6 +111,8 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
                       border: isSelected
                           ? Border.all(color: AppColors.textPrimary, width: 3)
                           : null,
+                      boxShadow:
+                          isSelected ? [AppColors.glow(color)] : null,
                     ),
                   ),
                 );

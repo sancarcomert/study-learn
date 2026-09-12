@@ -70,7 +70,7 @@ class FocusHistoryScreen extends ConsumerWidget {
                   child: Row(
                     children: [
                       const Icon(Icons.timer_outlined,
-                          size: 18, color: AppColors.primary),
+                          size: 18, color: AppColors.vibrantSky),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text('Bu hafta', style: AppTextStyles.body),
@@ -78,7 +78,7 @@ class FocusHistoryScreen extends ConsumerWidget {
                       Text(
                         '$weekMin dk',
                         style: AppTextStyles.heading3
-                            .copyWith(color: AppColors.primary),
+                            .copyWith(color: AppColors.vibrantSky),
                       ),
                     ],
                   ),
@@ -114,7 +114,7 @@ class FocusHistoryScreen extends ConsumerWidget {
                                 Text(
                                   '${subjectTotals[i].minutes} dk',
                                   style: AppTextStyles.body.copyWith(
-                                    color: AppColors.primary,
+                                    color: AppColors.vibrantSky,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -203,13 +203,14 @@ class _SessionRow extends StatelessWidget {
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.tonal(AppColors.primary),
+              color: AppColors.tonal(
+                  isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky),
               shape: BoxShape.circle,
             ),
             child: Icon(
               isPomodoro ? Icons.timelapse_outlined : Icons.timer_outlined,
               size: 18,
-              color: AppColors.primary,
+              color: isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky,
             ),
           ),
           const SizedBox(width: 14),
@@ -243,7 +244,9 @@ class _SessionRow extends StatelessWidget {
           ),
           Text(
             '${session.minutes} dk',
-            style: AppTextStyles.heading3.copyWith(color: AppColors.primary),
+            style: AppTextStyles.heading3.copyWith(
+              color: isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky,
+            ),
           ),
         ],
       ),

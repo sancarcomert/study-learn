@@ -3,22 +3,22 @@ import '../app_colors.dart';
 import '../app_text_styles.dart';
 import '../tap_scale.dart';
 
-// EDİTORYAL REDESIGN (2026-09): Referans görseldeki alt nav — ince outline
-// ikon + aktif sekmenin altında küçük bir altın nokta. Stock Material
-// `NavigationBar`'ın "pill indicator" deseni bu görsel dile uymuyor (ve
-// dokunuşta göstergeyi ikonun ALTINA değil ARKASINA koyuyor), o yüzden bu
-// dosya onun yerini alan, MainShell'in aynı index/state mantığını
-// kullanan salt-görsel bir alt bar. Navigasyon davranışı (seçili index,
-// ekran değişimi) MainShell'de hiç değişmedi — sadece bu widget'a taşındı.
+/// Uygulama genelinde tek bir alt nav tanımı. Her sekme kendi vurgu rengini
+/// taşır (2026-09 canlı/çok renkli tasarım geçişi) — seçili sekme, o rengin
+/// tonunda dolu bir "hap" (pill) rozetinde belirir; Anadolu Mobil/LearnUp
+/// referans görsellerindeki dolu-hap seçim deseniyle aynı dil, tek altın
+/// nokta göstergesi yerine.
 class AppBottomNavItem {
   final IconData icon;
   final IconData selectedIcon;
   final String label;
+  final Color color;
 
   const AppBottomNavItem({
     required this.icon,
     required this.selectedIcon,
     required this.label,
+    required this.color,
   });
 }
 
@@ -39,63 +39,61 @@ class AppBottomNav extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: AppColors.softShadow,
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 68,
-          child: Row(
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final isSelected = index == currentIndex;
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+            child: Row(
+              children: List.generate(items.length, (index) {
+                final item = items[index];
+                final isSelected = index == currentIndex;
 
-              return Expanded(
-                child: TapScale(
-                  onTap: () => onTap(index),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isSelected ? item.selectedIcon : item.icon,
+                return Expanded(
+                  child: TapScale(
+                    onTap: () => onTap(index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.textPrimary
-                            : AppColors.textMuted,
-                        size: 24,
+                            ? item.color.withValues(alpha: 0.16)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.label,
-                        style: AppTextStyles.caption.copyWith(
-                          // Aktif sekme etiketi: seçili ikonla aynı açık ton.
-                          // `ink` (neredeyse siyah) koyu nav zemininde
-                          // görünmüyordu — karar C.
-                          color: isSelected
-                              ? AppColors.textPrimary
-                              : AppColors.textMuted,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w600,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isSelected ? item.selectedIcon : item.icon,
+                            color:
+                                isSelected ? item.color : AppColors.textMuted,
+                            size: 23,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.label,
+                            style: AppTextStyles.caption.copyWith(
+                              color:
+                                  isSelected ? item.color : AppColors.textMuted,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 5),
-                      // Sabit boyutlu nokta yuvası — seçili olmayan
-                      // sekmelerde şeffaf kalır, böylece seçim değişince
-                      // satır yüksekliği zıplamaz.
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSelected
-                              ? AppColors.primary
-                              : Colors.transparent,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
         ),
       ),

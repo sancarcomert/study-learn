@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
 import 'plan_screen.dart';
@@ -73,26 +74,31 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             icon: Icons.home_outlined,
             selectedIcon: Icons.home,
             label: "Ana",
+            color: AppColors.primary,
           ),
           AppBottomNavItem(
             icon: Icons.check_circle_outline,
             selectedIcon: Icons.check_circle,
             label: "Görevler",
+            color: AppColors.vibrantMint,
           ),
           AppBottomNavItem(
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome,
             label: "Plan",
+            color: AppColors.vibrantViolet,
           ),
           AppBottomNavItem(
             icon: Icons.bar_chart_outlined,
             selectedIcon: Icons.bar_chart,
             label: "İstatistik",
+            color: AppColors.vibrantSky,
           ),
           AppBottomNavItem(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             label: "Profil",
+            color: AppColors.vibrantCoral,
           ),
         ],
       ),

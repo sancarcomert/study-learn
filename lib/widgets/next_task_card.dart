@@ -32,12 +32,12 @@ class NextTaskCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: AppColors.vibrantSky.withValues(alpha: 0.18),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.event_available,
-                color: AppColors.primary,
+                color: AppColors.vibrantSky,
               ),
             ),
             const SizedBox(width: 16),
@@ -113,12 +113,12 @@ for (final s in subjects) {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.12),
+                    color: AppColors.vibrantSky.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.schedule,
-                    color: AppColors.secondary,
+                    color: AppColors.vibrantSky,
                   ),
                 ),
 

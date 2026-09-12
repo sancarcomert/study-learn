@@ -8,6 +8,7 @@ import 'topic_provider.dart';
 import 'add_subject_sheet.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
 
 class SubjectsScreen extends ConsumerWidget {
@@ -40,11 +41,9 @@ class SubjectsScreen extends ConsumerWidget {
                 return _SubjectCard(subject: subject, ref: ref);
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
+      floatingActionButton: GradientFab(
         tooltip: 'Ders ekle',
         onPressed: () => _showAddSubjectSheet(context),
-        child: const Icon(Icons.add, color: AppColors.ink),
       ),
     );
   }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
+import '../app_text_styles.dart';
+import '../tap_scale.dart';
 
-/// Birincil aksiyon butonu — altın, pill şekilli. "Planımı Oluştur" gibi
-/// uygulamanın ana AI/aksiyon eylemleri için tek kaynak. Altın zemin
-/// üzerinde beyaz değil koyu (ink) metin/ikon kullanılıyor — referans
-/// görseldeki "Resume lesson" butonuyla aynı kontrast mantığı.
+/// Birincil aksiyon butonu — altın gradyan + parıltı gölgesi, pill şekilli.
+/// "Planımı Oluştur" gibi uygulamanın ana AI/aksiyon eylemleri için tek
+/// kaynak. Home'daki kral butonla (_KingButton) aynı görsel dili paylaşır
+/// (2026-09 canlı tasarım geçişi) — altın zemin üzerinde beyaz değil koyu
+/// (ink) metin/ikon.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -19,35 +22,84 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      // Kral buton spesifikasyonu: 64dp yükseklik, tam pill (r32).
-      // Home'daki _KingButton ile aynı ölçü — tek birincil dil.
-      height: 64,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.ink,
-          // Disabled durumu artık Material'ın varsayılan gri tonuna
-          // değil, tasarım sistemindeki nötr tonlara bağlı.
-          disabledBackgroundColor: AppColors.tonal(AppColors.textSecondary),
-          disabledForegroundColor: AppColors.textMuted,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
-          ),
+    final enabled = onPressed != null;
+
+    return TapScale(
+      onTap: onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        // Kral buton spesifikasyonu: 64dp yükseklik, tam pill (r32).
+        // Home'daki _KingButton ile aynı ölçü — tek birincil dil.
+        height: 64,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: enabled ? AppColors.primaryGradient : null,
+          color: enabled ? null : AppColors.tonal(AppColors.textSecondary),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: enabled
+              ? [...AppColors.cardShadow, AppColors.glow(AppColors.primary)]
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 20, color: AppColors.ink),
+              Icon(
+                icon,
+                size: 20,
+                color: enabled ? AppColors.ink : AppColors.textMuted,
+              ),
               const SizedBox(width: 10),
             ],
-            Text(label),
+            Text(
+              label,
+              style: AppTextStyles.button.copyWith(
+                color: enabled ? AppColors.ink : AppColors.textMuted,
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Uygulamanın standart FAB'ı — düz altın daire yerine gradyan + parıltı
+/// gölgesi, kral buton/PrimaryButton ile aynı birincil-aksiyon dili. Stock
+/// `FloatingActionButton` yerine kullanılır (Home/Görevler/Dersler/Deneme
+/// "ekle" FAB'ları hepsi bu widget'a taşındı).
+class GradientFab extends StatelessWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String? tooltip;
+
+  const GradientFab({
+    super.key,
+    required this.onPressed,
+    this.icon = Icons.add,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final button = TapScale(
+      onTap: onPressed,
+      child: Container(
+        width: 56,
+        height: 56,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          shape: BoxShape.circle,
+          boxShadow: [
+            ...AppColors.cardShadow,
+            AppColors.glow(AppColors.primary),
+          ],
+        ),
+        child: Icon(icon, color: AppColors.ink),
+      ),
+    );
+
+    return tooltip != null ? Tooltip(message: tooltip!, child: button) : button;
   }
 }

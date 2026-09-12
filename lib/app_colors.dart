@@ -51,6 +51,23 @@ class AppColors {
     Color(0xFF2DD4BF),
   ];
 
+  // Kral buton gradyanı (2026-09) — Home'daki "Bugünü Planla" butonundan
+  // çıkıp PrimaryButton'a (uygulama genelindeki tüm birincil CTA'lar) da
+  // taşındı, tek kaynaktan.
+  static const LinearGradient primaryGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [primary, Color(0xFFE8C989)],
+  );
+
+  /// Bir rengin etrafına yumuşak, o renkte parıltı gölgesi — birincil
+  /// CTA'ları düz kartlardan ayırmak için (cardShadow'un üstüne eklenir).
+  static BoxShadow glow(Color color) => BoxShadow(
+        color: color.withValues(alpha: 0.35),
+        blurRadius: 28,
+        offset: const Offset(0, 10),
+      );
+
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.45),
