@@ -212,12 +212,14 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
         }
       }
 
-      final completedToday =
-          state.where(
-            (task) =>
-                task.isCompleted &&
-                _isToday(task.dueDate),
-          ).length;
+      // completedAt'e göre — dueDate'e göre sayarsak, geciken (dueDate
+      // dünkü/daha eski) bir görevi bugün tamamlamak bugünkü hedefe hiç
+      // yansımaz (bkz. taskCompletionDay, tasksCompletedByDayProvider'da
+      // zaten aynı mantıkla kullanılıyor).
+      final completedToday = state
+          .where((task) =>
+              task.isCompleted && _isToday(taskCompletionDay(task)))
+          .length;
 
 
       final dailyGoal =
@@ -411,7 +413,7 @@ final todayTasksProvider =
 
 });
 
-DateTime _taskCompletionDay(TaskModel t) {
+DateTime taskCompletionDay(TaskModel t) {
   final d = t.completedAt ?? t.dueDate;
   return DateTime(d.year, d.month, d.day);
 }
@@ -422,7 +424,7 @@ final tasksCompletedByDayProvider = Provider<Map<DateTime, int>>((ref) {
   final map = <DateTime, int>{};
   for (final t in all) {
     if (!t.isCompleted) continue;
-    final d = _taskCompletionDay(t);
+    final d = taskCompletionDay(t);
     map[d] = (map[d] ?? 0) + 1;
   }
   return map;

@@ -49,13 +49,12 @@ class _DailyCloseoutSheetState extends ConsumerState<_DailyCloseoutSheet> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
+    // dueDate değil completedAt (taskCompletionDay) — geciken bir görevi
+    // bugün tamamlamak da "bugün" sayılmalı, aynı bug task_provider.dart'ta
+    // da vardı (bkz. o dosyadaki not).
     final completed = ref
         .read(taskProvider)
-        .where((t) =>
-            t.isCompleted &&
-            t.dueDate.year == today.year &&
-            t.dueDate.month == today.month &&
-            t.dueDate.day == today.day)
+        .where((t) => t.isCompleted && taskCompletionDay(t) == today)
         .length;
 
     final focusMin = ref.read(focusMinutesByDayProvider)[today] ?? 0;
