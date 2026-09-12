@@ -27,20 +27,4 @@ class TaskRepository {
 
     await task.save();
   }
-
-  List<TaskModel> getTasksForSubject(String subjectId) {
-    return HiveBoxes.tasks.values
-        .where((task) => task.subjectId == subjectId)
-        .toList();
-  }
-
-  List<TaskModel> getTodayTasks() {
-    final now = DateTime.now();
-
-    return HiveBoxes.tasks.values.where((task) {
-      return task.dueDate.year == now.year &&
-          task.dueDate.month == now.month &&
-          task.dueDate.day == now.day;
-    }).toList();
-  }
 }

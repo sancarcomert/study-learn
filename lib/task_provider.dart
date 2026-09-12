@@ -269,6 +269,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
       difficulty: original.difficulty,
       recurringGroupId: original.recurringGroupId,
       recurrenceRule: original.recurrenceRule,
+      topicId: original.topicId,
     );
 
     _cancelReminder(id);

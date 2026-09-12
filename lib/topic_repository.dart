@@ -8,10 +8,6 @@ class TopicRepository {
 
   List<TopicModel> getAll() => _box.values.toList();
 
-  List<TopicModel> forSubject(String subjectId) =>
-      _box.values.where((t) => t.subjectId == subjectId).toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
   Future<void> add(TopicModel topic) => _box.put(topic.id, topic);
 
   Future<void> update(TopicModel topic) {
