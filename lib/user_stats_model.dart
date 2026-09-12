@@ -92,6 +92,15 @@ class UserStatsModel extends HiveObject {
   @HiveField(15, defaultValue: true)
   bool hasAddedFirstTask;
 
+  // Deneme Takip "hedef net" — kullanıcı kendi belirler, Deneme Takip
+  // ekranında trend/özetle karşılaştırılır ("hedefine N net kaldı").
+  // Nullable: girilmemişse hiçbir yerde karşılaştırma gösterilmez.
+  @HiveField(16)
+  double? targetNetTYT;
+
+  @HiveField(17)
+  double? targetNetAYT;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -111,6 +120,8 @@ class UserStatsModel extends HiveObject {
     this.gradeLevel,
     this.hasSeenExactAlarmPrompt = false,
     this.hasAddedFirstTask = false,
+    this.targetNetTYT,
+    this.targetNetAYT,
   });
 
   /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.

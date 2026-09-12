@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import 'deneme_model.dart';
 import 'deneme_repository.dart';
+import 'subject_provider.dart';
 
 const _uuid = Uuid();
 
@@ -132,4 +133,40 @@ final denemeSubjectAveragesProvider =
       .toList()
     ..sort((a, b) => a.value.compareTo(b.value));
   return result;
+});
+
+/// Tüm denemeler (TYT+AYT birlikte) üzerinden en düşük ortalama nete sahip
+/// bölüm adı — Çalışma Koçu/Ana Sayfa önerisine "deneme netlerinde en zayıf
+/// olduğun ders" sinyali olarak beslenir (bkz. study_advisor.dart). Deneme
+/// Takip'i yalnız bir grafik olmaktan çıkarıp günlük plana etki eder hâle
+/// getirir. En az 2 farklı bölüm verisi yoksa null — "en zayıf" tek
+/// bölümden anlamlı değil.
+final weakestDenemeSubjectNameProvider = Provider<String?>((ref) {
+  final all = ref.watch(denemeProvider);
+  final sums = <String, double>{};
+  final counts = <String, int>{};
+  for (final e in all) {
+    for (final s in e.sections) {
+      sums[s.subject] = (sums[s.subject] ?? 0) + s.net;
+      counts[s.subject] = (counts[s.subject] ?? 0) + 1;
+    }
+  }
+  if (sums.length < 2) return null;
+  final sorted = sums.entries.map((e) => MapEntry(e.key, e.value / counts[e.key]!)).toList()
+    ..sort((a, b) => a.value.compareTo(b.value));
+  return sorted.first.key;
+});
+
+/// [weakestDenemeSubjectNameProvider]'ın adını kullanıcının kendi ders
+/// listesindeki gerçek bir [SubjectModel.id]'sine eşler (büyük/küçük harf
+/// duyarsız, "Türkçe" ≠ "Türk Dili ve Edebiyatı" gibi tam eşleşmeyenler
+/// eşlenmez — yanlış derse öneri gitmesin). Eşleşme yoksa null.
+final weakestDenemeSubjectIdProvider = Provider<String?>((ref) {
+  final name = ref.watch(weakestDenemeSubjectNameProvider);
+  if (name == null) return null;
+  final subjects = ref.watch(subjectProvider);
+  for (final s in subjects) {
+    if (s.name.toLowerCase() == name.toLowerCase()) return s.id;
+  }
+  return null;
 });

@@ -7,6 +7,7 @@ import 'app_text_styles.dart';
 import 'add_deneme_screen.dart';
 import 'deneme_model.dart';
 import 'deneme_provider.dart';
+import 'stats_provider.dart';
 import 'tap_scale.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
@@ -29,6 +30,48 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
   String _label(DenemeEntry e) =>
       '${e.examType}${e.name != null ? ' • ${e.name}' : ''}';
 
+  Future<void> _showTargetDialog(double? current) async {
+    final controller = TextEditingController(
+      text: current == null ? '' : current.toStringAsFixed(0),
+    );
+    final result = await showDialog<double?>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hedef net'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(hintText: '$_type için hedeflediğin net'),
+        ),
+        actions: [
+          if (current != null)
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, -1.0),
+              child: const Text('Hedefi Kaldır',
+                  style: TextStyle(color: AppColors.danger)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Vazgeç'),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = double.tryParse(
+                  controller.text.trim().replaceAll(',', '.'));
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    ref
+        .read(statsProvider.notifier)
+        .setTargetNet(_type, result == -1.0 ? null : result);
+  }
+
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(denemeProvider);
@@ -38,6 +81,10 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
         ascending.length > 8 ? ascending.sublist(ascending.length - 8) : ascending;
     final summary = ref.watch(denemeSummaryProvider(_type));
     final subjectAverages = ref.watch(denemeSubjectAveragesProvider(_type));
+    final target = _type == 'TYT'
+        ? ref.watch(statsProvider).targetNetTYT
+        : ref.watch(statsProvider).targetNetAYT;
+    final latestNet = ascending.isEmpty ? null : ascending.last.totalNet;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -105,6 +152,53 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                     ),
                     const SizedBox(height: 22),
                   ],
+                  TapScale(
+                    onTap: () => _showTargetDialog(target),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppColors.softShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.flag_outlined,
+                              size: 18, color: AppColors.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              target == null
+                                  ? 'Hedef net belirle'
+                                  : (latestNet == null
+                                      ? 'Hedef: ${target.toStringAsFixed(0)} net'
+                                      : latestNet >= target
+                                          ? 'Hedefini ${(latestNet - target).toStringAsFixed(1)} net geçtin 🎉'
+                                          : 'Hedefine ${(target - latestNet).toStringAsFixed(1)} net kaldı'),
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: (target != null &&
+                                        latestNet != null &&
+                                        latestNet >= target)
+                                    ? AppColors.success
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            target == null
+                                ? Icons.add_circle_outline
+                                : Icons.edit_outlined,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
                   const Eyebrow(text: 'NET TRENDİ'),
                   const SizedBox(height: 4),
                   Text(

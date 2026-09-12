@@ -40,6 +40,8 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       gradeLevel: _stats.gradeLevel,
       hasSeenExactAlarmPrompt: _stats.hasSeenExactAlarmPrompt,
       hasAddedFirstTask: _stats.hasAddedFirstTask,
+      targetNetTYT: _stats.targetNetTYT,
+      targetNetAYT: _stats.targetNetAYT,
     );
   }
 
@@ -150,6 +152,17 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   void markFirstTaskAdded() {
     if (_stats.hasAddedFirstTask) return;
     _stats.hasAddedFirstTask = true;
+    _stats.save();
+    _emit();
+  }
+
+  /// [examType] "TYT" ya da "AYT". [value] null verilirse hedef temizlenir.
+  void setTargetNet(String examType, double? value) {
+    if (examType == 'TYT') {
+      _stats.targetNetTYT = value;
+    } else {
+      _stats.targetNetAYT = value;
+    }
     _stats.save();
     _emit();
   }

@@ -33,13 +33,15 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       gradeLevel: fields[13] as int?,
       hasSeenExactAlarmPrompt: fields[14] == null ? false : fields[14] as bool,
       hasAddedFirstTask: fields[15] == null ? true : fields[15] as bool,
+      targetNetTYT: fields[16] as double?,
+      targetNetAYT: fields[17] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserStatsModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.currentStreak)
       ..writeByte(1)
@@ -71,7 +73,11 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       ..writeByte(14)
       ..write(obj.hasSeenExactAlarmPrompt)
       ..writeByte(15)
-      ..write(obj.hasAddedFirstTask);
+      ..write(obj.hasAddedFirstTask)
+      ..writeByte(16)
+      ..write(obj.targetNetTYT)
+      ..writeByte(17)
+      ..write(obj.targetNetAYT);
   }
 
   @override

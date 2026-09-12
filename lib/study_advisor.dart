@@ -13,6 +13,9 @@ class StudyAdvisor {
   /// Bugün zaten görevi olan dersler elenir (tekrar önermek anlamsız).
   /// [coveragePercent] (subjectId → 0..1): yalnızca konusu olan dersler için
   /// Konu Takip kapsama oranı. Verildiğinde düşük kapsamlı dersler öne çıkar.
+  /// [weakestDenemeSubjectId] verilirse (Deneme Takip'teki en düşük ortalama
+  /// nete sahip bölümle eşleşen ders) o ders öne çıkar — Deneme Takip'i salt
+  /// bir grafik olmaktan çıkarıp plana etki ettirir.
   static List<StudySuggestion> suggest({
     required List<SubjectModel> subjects,
     required List<TaskModel> tasks,
@@ -20,6 +23,7 @@ class StudyAdvisor {
     DateTime? now,
     int limit = 3,
     Map<String, double> coveragePercent = const {},
+    String? weakestDenemeSubjectId,
   }) {
     if (subjects.isEmpty) return const [];
 
@@ -66,14 +70,16 @@ class StudyAdvisor {
           !t.dueDate.isAfter(today));
 
       final coverage = coveragePercent[s.id];
+      final isWeakestDeneme = weakestDenemeSubjectId == s.id;
 
-      // --- Puan (0..~1.4) ---
+      // --- Puan (0..~1.6) ---
       var score = 0.0;
       score += (daysSinceTouch.clamp(0, 21) / 21) * 0.50; // ihmal
       score += (1 - completionRate) * 0.25; // geride kalma
       if (total == 0) score += 0.15; // hiç dokunulmamış
       if (hasPendingPriority) score += 0.20 + examPressure * 0.15;
       if (coverage != null) score += (1 - coverage) * 0.35; // konu boşluğu
+      if (isWeakestDeneme) score += 0.20; // deneme netinde en zayıf
 
       if (score <= 0.05) continue;
 
@@ -88,6 +94,7 @@ class StudyAdvisor {
           hasPendingPriority: hasPendingPriority,
           examDays: examDays,
           coverage: coverage,
+          isWeakestDeneme: isWeakestDeneme,
         ),
       ));
     }
@@ -108,6 +115,7 @@ class StudyAdvisor {
     required bool hasPendingPriority,
     required int? examDays,
     double? coverage,
+    bool isWeakestDeneme = false,
   }) {
     if (coverage != null && coverage < 0.6) {
       return 'Konuların %${(coverage * 100).round()}\'i işaretli — geride';
@@ -117,6 +125,9 @@ class StudyAdvisor {
     }
     if (hasPendingPriority) {
       return 'Bekleyen öncelikli görevin var';
+    }
+    if (isWeakestDeneme) {
+      return 'Deneme netlerinde en zayıf olduğun ders';
     }
     if (daysSinceTouch >= 7) {
       return '$daysSinceTouch gündür dokunmadın';

@@ -90,6 +90,22 @@ void main() {
     expect(out.first.reason, contains('işaretli'));
   });
 
+  test('deneme netinde en zayıf ders öne çıkar + gerekçe', () {
+    final subjects = [_sub('Matematik'), _sub('Fizik')];
+    final tasks = [
+      _task('id-Matematik', due: today.subtract(const Duration(days: 2))),
+      _task('id-Fizik', due: today.subtract(const Duration(days: 2))),
+    ];
+    final out = StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: tasks,
+      now: now,
+      weakestDenemeSubjectId: 'id-Fizik',
+    );
+    expect(out.first.subjectName, 'Fizik');
+    expect(out.first.reason, contains('zayıf'));
+  });
+
   test('limit uygulanır', () {
     final subjects = List.generate(
       6,
