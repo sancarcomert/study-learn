@@ -16,6 +16,12 @@ class HiveBoxes {
   static const String focusSessionsBoxName = 'focus_sessions';
   static const String dailyCloseoutsBoxName = 'daily_closeouts';
   static const String denemelerBoxName = 'denemeler';
+  // Modelsiz/tipsiz — çalışan bir odak seansının anlık durumunu (Map olarak)
+  // tutar. Uygulama süreci arka planda öldürülüp yeniden başlatılsa bile
+  // (bkz. focus_screen.dart) seansı gerçek duvar-saati farkıyla devam
+  // ettirebilmek için — FocusSession geçmiş kaydından ayrı, o tamamlanmış
+  // seansları tutar, bu sadece "şu an çalışıyor mu" durumunu.
+  static const String focusAnchorBoxName = 'focus_anchor';
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -71,6 +77,7 @@ class HiveBoxes {
     await Hive.openBox<FocusSession>(focusSessionsBoxName);
     await Hive.openBox<DailyCloseout>(dailyCloseoutsBoxName);
     await Hive.openBox<DenemeEntry>(denemelerBoxName);
+    await Hive.openBox(focusAnchorBoxName);
   }
 
   static Box<SubjectModel> get subjects =>
@@ -93,4 +100,6 @@ class HiveBoxes {
 
   static Box<DenemeEntry> get denemeler =>
       Hive.box<DenemeEntry>(denemelerBoxName);
+
+  static Box get focusAnchor => Hive.box(focusAnchorBoxName);
 }

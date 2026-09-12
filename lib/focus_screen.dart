@@ -10,6 +10,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'focus_history_screen.dart';
 import 'focus_session_provider.dart';
+import 'hive_boxes.dart';
 import 'notification_service.dart';
 import 'stats_provider.dart';
 import 'subject_provider.dart';
@@ -49,7 +50,8 @@ enum _Mode { free, pomodoro }
 
 enum _Phase { work, shortBreak, longBreak }
 
-class _FocusScreenState extends ConsumerState<FocusScreen> {
+class _FocusScreenState extends ConsumerState<FocusScreen>
+    with WidgetsBindingObserver {
   Timer? _ticker;
   bool _running = false;
   bool _leaving = false;
@@ -65,14 +67,24 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   late String? _selectedSubjectId = widget.initialSubjectId;
   late String? _selectedTopicId = widget.initialTopicId;
 
-  static const List<int> _blockOptions = [15, 25, 30, 45, 60];
+  // Serbest'in hedefi sadece görsel/ilerleme çubuğu için — kısa bir mola
+  // ya da hızlı bir başlangıç için 5/10 dk da mantıklı. Pomodoro'nun
+  // çalışma bloğu tekniğin kendisi gereği (kullanıcı isteğiyle) ayrı ve
+  // değişmedi.
+  static const List<int> _freeTargetOptions = [5, 10, 15, 25, 30, 45, 60];
+  static const List<int> _pomodoroBlockOptions = [15, 25, 30, 45, 60];
+  List<int> get _blockOptions =>
+      _mode == _Mode.free ? _freeTargetOptions : _pomodoroBlockOptions;
   static const int _shortBreakSec = 5 * 60;
   static const int _longBreakSec = 15 * 60;
 
-  // Serbest mod: yukarı sayan geçen süre.
+  // Serbest mod: yukarı sayan geçen süre. _freeLoggedSec, o ana kadar
+  // geçmişe YAZILMIŞ saniye miktarı — uygulama arka plana alınıp işletim
+  // sistemi süreci öldürürse (bkz. didChangeAppLifecycleState) elde kalan
+  // ilerleme kaybolmasın diye tek seferlik bayrak yerine artan bir sayaç.
   int _freeCommittedSec = 0;
   DateTime? _freeSegStart;
-  bool _freeSaved = false;
+  int _freeLoggedSec = 0;
 
   // Pomodoro: mevcut fazın geçen süresi + tur sayacı.
   _Phase _phase = _Phase.work;
@@ -83,12 +95,122 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _maybeRequestExactAlarmPermission());
+    _restoreAnchorIfAny();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeRequestExactAlarmPermission();
+      // Devam eden bir seans geri yüklendiyse ekranı da canlandır — bildirim
+      // yeniden zamanlanmaz, o zaten ilk başladığında OS'e yazılmıştı ve
+      // sürecimiz öldürülse bile kendi kendine düşer.
+      if (_running) _startTicker();
+    });
+  }
+
+  // Ders çalışan biri telefonu açık/kilitsiz tutmak istemez — uygulama arka
+  // plana alınınca (ekran kapansa, ana ekrana dönülse, hatta işletim
+  // sistemi Flutter sürecini bellek için öldürse bile) seans GERÇEKTEN
+  // devam etmeli. Bunun için iki şey yapıyoruz:
+  // 1) O ana kadarki ilerlemeyi hemen geçmişe yazıyoruz (checkpoint) —
+  //    süreç öldürülürse en azından o dakikalar kaybolmasın.
+  // 2) Devam eden seansın "çapasını" (hangi modda, ne zaman başladı vb.)
+  //    Hive'a yazıyoruz — uygulama yeniden açıldığında (initState) süreç
+  //    öldürülmüş olsa bile gerçek duvar-saati farkından kaldığı yerden
+  //    devam eder, sıfırlanmaz.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _checkpointProgress();
+      if (_running) _writeAnchor();
+    }
+  }
+
+  void _checkpointProgress() {
+    if (!_running) return;
+    if (_mode == _Mode.free) {
+      _flushFreeProgress();
+    } else if (_phase == _Phase.work) {
+      _commitCurrentWorkBlock();
+      // Yazılan bölüm bir daha sayılmasın diye blok sayacını sıfırla —
+      // dönünce "bu bloktaki" ilerleme sıfırdan başlar, ama artık hiçbir
+      // dakika kaybolmaz.
+      _phaseAccumSec = 0;
+      _phaseSegStart = DateTime.now();
+    }
+  }
+
+  void _writeAnchor() {
+    final segStart = _mode == _Mode.free ? _freeSegStart : _phaseSegStart;
+    HiveBoxes.focusAnchor.put('current', {
+      'mode': _mode.name,
+      'phase': _phase.name,
+      'blockMin': _blockMin,
+      'pomoCycle': _pomoCycle,
+      'committedSec': _mode == _Mode.free ? _freeCommittedSec : _phaseAccumSec,
+      'loggedSec': _freeLoggedSec,
+      'segStartMs': segStart?.millisecondsSinceEpoch,
+      'subjectId': _selectedSubjectId,
+      'topicId': _selectedTopicId,
+      'note': _noteController.text,
+    });
+  }
+
+  void _clearAnchor() => HiveBoxes.focusAnchor.delete('current');
+
+  /// Bir önceki `_FocusScreenState` çalışırken süreç öldürüldüyse (arka
+  /// planda), burada bıraktığı çapayı okuyup gerçek duvar-saati farkından
+  /// kaldığı yerden devam ettirir. Yalnızca GERÇEKTEN çalışıyorken (segStart
+  /// var) yazılmış bir çapa varsa devreye girer — duraklatılmış/bitmiş bir
+  /// seansın kurtarılacak bir şeyi yok.
+  void _restoreAnchorIfAny() {
+    final raw = HiveBoxes.focusAnchor.get('current');
+    if (raw is! Map) return;
+    final segStartMs = raw['segStartMs'] as int?;
+    if (segStartMs == null) return;
+
+    final segStart = DateTime.fromMillisecondsSinceEpoch(segStartMs);
+    _mode = _Mode.values
+        .firstWhere((m) => m.name == raw['mode'], orElse: () => _Mode.free);
+    _phase = _Phase.values
+        .firstWhere((p) => p.name == raw['phase'], orElse: () => _Phase.work);
+    _blockMin = raw['blockMin'] as int? ?? _blockMin;
+    _pomoCycle = raw['pomoCycle'] as int? ?? 1;
+    _freeLoggedSec = raw['loggedSec'] as int? ?? 0;
+    _selectedSubjectId = raw['subjectId'] as String?;
+    _selectedTopicId = raw['topicId'] as String?;
+    final note = raw['note'] as String?;
+    if (note != null && note.isNotEmpty) _noteController.text = note;
+
+    final committedSec = raw['committedSec'] as int? ?? 0;
+    if (_mode == _Mode.free) {
+      _freeCommittedSec = committedSec;
+      _freeSegStart = segStart;
+    } else {
+      _phaseAccumSec = committedSec;
+      _phaseSegStart = segStart;
+    }
+    _running = true;
+  }
+
+  void _flushFreeProgress() {
+    final totalSec = _freeElapsedSec;
+    final deltaMin = (totalSec - _freeLoggedSec) ~/ 60;
+    if (deltaMin < 1) return;
+    _freeLoggedSec += deltaMin * 60;
+    ref.read(statsProvider.notifier).addFocusMinutes(deltaMin);
+    ref.read(focusSessionProvider.notifier).log(
+          minutes: deltaMin,
+          mode: 'serbest',
+          subjectId: _selectedSubjectId,
+          topicId: _selectedTopicId,
+          note: _noteController.text,
+        );
+    _markLinkedTopicStudied();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     _noteController.dispose();
     super.dispose();
@@ -191,6 +313,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
       }
       _ticker?.cancel();
       _cancelCompletionNotification();
+      _clearAnchor();
       setState(() => _running = false);
     } else {
       final now = DateTime.now();
@@ -202,6 +325,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
       _running = true;
       _startTicker();
       _scheduleCompletionNotification();
+      _writeAnchor();
       setState(() {});
     }
   }
@@ -248,12 +372,13 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     if (_running || m == _mode) return;
     _ticker?.cancel();
     _cancelCompletionNotification();
+    _clearAnchor();
     setState(() {
       _mode = m;
       _running = false;
       _freeCommittedSec = 0;
       _freeSegStart = null;
-      _freeSaved = false;
+      _freeLoggedSec = 0;
       _phase = _Phase.work;
       _pomoCycle = 1;
       _phaseAccumSec = 0;
@@ -321,6 +446,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     _phaseSegStart = _running ? DateTime.now() : null;
     if (_running) {
       _scheduleCompletionNotification();
+      _writeAnchor();
     } else {
       _cancelCompletionNotification();
     }
@@ -332,27 +458,19 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   void _saveIfNeeded() {
     _ticker?.cancel();
     _cancelCompletionNotification();
+    _clearAnchor();
     if (_mode == _Mode.free) {
+      final totalMinutes = _freeElapsedSec ~/ 60;
+      _flushFreeProgress();
       _freeCommittedSec = _freeElapsedSec;
       _freeSegStart = null;
-      final minutes = _freeCommittedSec ~/ 60;
-      if (!_freeSaved && minutes >= 1) {
-        _freeSaved = true;
-        ref.read(statsProvider.notifier).addFocusMinutes(minutes);
-        ref.read(focusSessionProvider.notifier).log(
-              minutes: minutes,
-              mode: 'serbest',
-              subjectId: _selectedSubjectId,
-              topicId: _selectedTopicId,
-              note: _noteController.text,
-            );
-        _markLinkedTopicStudied();
+      if (totalMinutes >= 1) {
         final note = _noteController.text.trim();
         AppSnackBar.success(
           context,
           note.isEmpty
-              ? '$minutes dk odak süresi kaydedildi'
-              : '$note · $minutes dk kaydedildi',
+              ? '$totalMinutes dk odak süresi kaydedildi'
+              : '$note · $totalMinutes dk kaydedildi',
         );
       }
     } else {
