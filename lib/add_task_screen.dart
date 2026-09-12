@@ -9,6 +9,8 @@ import 'stats_provider.dart';
 import 'tap_scale.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
+import 'topic_model.dart';
+import 'topic_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/eyebrow.dart';
@@ -36,6 +38,12 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
   String? _selectedSubjectId;
   String? _suggestedSubject;
+
+  // Konu Takip'e bağlı görev — seçiliyse, bu görev tamamlanınca o konu
+  // otomatik "çalışıldı"ya geçer. Yalnız [_selectedSubjectId]'nin konuları
+  // arasından seçilebilir; ders değişince (ya da "Derssiz" seçilince)
+  // sıfırlanır.
+  String? _selectedTopicId;
 
 
   DateTime _selectedDate = DateTime.now();
@@ -81,6 +89,8 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
       _selectedSubjectId =
           task.subjectId;
+
+      _selectedTopicId = task.topicId;
 
       _selectedDate =
           task.dueDate;
@@ -322,6 +332,8 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             estimatedMinutes:
                 _selectedDuration,
 
+            topicId: _selectedTopicId,
+
           );
 
 
@@ -368,6 +380,8 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
             estimatedMinutes:
                 _selectedDuration,
+
+            topicId: _selectedTopicId,
 
           );
 
@@ -513,6 +527,7 @@ Widget build(BuildContext context) {
                             onTap: () {
                               setState(() {
                                 _selectedSubjectId = null;
+                                _selectedTopicId = null;
                               });
                             },
                           ),
@@ -523,6 +538,9 @@ Widget build(BuildContext context) {
                               isSelected: _selectedSubjectId == subject.id,
                               onTap: () {
                                 setState(() {
+                                  if (_selectedSubjectId != subject.id) {
+                                    _selectedTopicId = null;
+                                  }
                                   _selectedSubjectId = subject.id;
                                 });
                               },
@@ -530,6 +548,59 @@ Widget build(BuildContext context) {
                           ),
                         ],
                       ),
+
+                      // Konu Takip bağlantısı — yalnız seçili dersin konusu
+                      // varsa görünür. Seçilirse görev tamamlanınca o konu
+                      // otomatik işaretlenir (bkz. task_provider).
+                      if (_selectedSubjectId != null) ...[
+                        Builder(builder: (context) {
+                          final topics = ref.watch(
+                              topicsForSubjectProvider(_selectedSubjectId!));
+                          if (topics.isEmpty) return const SizedBox.shrink();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 20),
+                              const Divider(
+                                height: 1,
+                                color: AppColors.surfaceVariant,
+                              ),
+                              const SizedBox(height: 20),
+                              const Eyebrow(text: "KONU (OPSİYONEL)"),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Seçersen, görevi tamamlayınca Konu Takip'te "
+                                "otomatik işaretlenir.",
+                                style: AppTextStyles.caption,
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: topics.map((topic) {
+                                  final isSelected =
+                                      _selectedTopicId == topic.id;
+                                  return _SubjectChip(
+                                    label: topic.name,
+                                    color: topic.status ==
+                                            TopicStatus.notStarted
+                                        ? AppColors.secondary
+                                        : AppColors.success,
+                                    icon: Icons.checklist_outlined,
+                                    isSelected: isSelected,
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedTopicId =
+                                            isSelected ? null : topic.id;
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
 
                       // Tekrar seçimi ders seçiminin hemen altında her
                       // zaman görünür — geri dönüşü olmayan bir karar

@@ -77,6 +77,12 @@ class TaskModel extends HiveObject {
   @HiveField(12)
   String? recurrenceRule;
 
+  // Konu Takip'teki bir konuya bağlı görev — bağlıysa, görev tamamlanınca
+  // o konu otomatik "çalışıldı"ya geçer (ikisini elle ayrı ayrı işaretleme
+  // zorunluluğu kalkar). Nullable: bağımsız/eski görevlerde null.
+  @HiveField(13)
+  String? topicId;
+
   TaskModel({
     required this.id,
     required this.title,
@@ -91,5 +97,6 @@ class TaskModel extends HiveObject {
     this.difficulty = TopicDifficulty.medium,
     this.recurringGroupId,
     this.recurrenceRule,
+    this.topicId,
   });
 }

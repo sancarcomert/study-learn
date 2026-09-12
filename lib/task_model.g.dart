@@ -30,13 +30,14 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       difficulty: fields[10] as TopicDifficulty,
       recurringGroupId: fields[11] as String?,
       recurrenceRule: fields[12] as String?,
+      topicId: fields[13] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TaskModel obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -62,7 +63,9 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       ..writeByte(11)
       ..write(obj.recurringGroupId)
       ..writeByte(12)
-      ..write(obj.recurrenceRule);
+      ..write(obj.recurrenceRule)
+      ..writeByte(13)
+      ..write(obj.topicId);
   }
 
   @override

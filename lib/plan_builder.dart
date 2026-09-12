@@ -24,16 +24,19 @@ class PlanBuilder {
   /// [topics] boş değilse görev sayısı = konu sayısı; her konu sırayla bir
   /// derse yazılır. [examDays] null değilse ve <= 30 ise öncelikler yükselir.
   ///
-  /// [uncoveredTopics] (subjectId → işaretlenmemiş konu adları): verildiğinde
-  /// ve [topics] boşken, görev başlıkları o dersin gerçek boş konularından
-  /// üretilir ("Matematik: Türev"). [fillToCapacity] true ise görev sayısı
-  /// ders sayısıyla değil, kalan süreyle sınırlanır — Koç "sen ayarla"
-  /// modunda dolu bir program çıkarmak için.
+  /// [uncoveredTopics] (subjectId → işaretlenmemiş konu {ad, id} çiftleri):
+  /// verildiğinde ve [topics] boşken, görev başlıkları o dersin gerçek boş
+  /// konularından üretilir ("Matematik: Türev") ve üretilen [PlanBlock]
+  /// gerçek konu id'sini taşır — görev tamamlanınca Konu Takip'te otomatik
+  /// işaretlenebilsin diye (bkz. task_provider.toggleTaskCompletion).
+  /// [fillToCapacity] true ise görev sayısı ders sayısıyla değil, kalan
+  /// süreyle sınırlanır — Koç "sen ayarla" modunda dolu bir program
+  /// çıkarmak için.
   static PlanResult build({
     required List<SubjectModel> orderedSubjects,
     SubjectModel? explicitSubject,
     List<String> topics = const [],
-    Map<String, List<String>> uncoveredTopics = const {},
+    Map<String, List<UncoveredTopic>> uncoveredTopics = const {},
     bool fillToCapacity = false,
     required int hoursAvailable,
     required String energy,
@@ -85,17 +88,20 @@ class PlanBuilder {
 
     // Ders başına boş-konu imleci (round-robin).
     final topicCursor = <String, int>{};
-    String titleFor(SubjectModel subject, int i) {
-      if (topics.isNotEmpty) return '${subject.name}: ${topics[i]}';
+    ({String title, String? topicId}) titleFor(SubjectModel subject, int i) {
+      if (topics.isNotEmpty) {
+        return (title: '${subject.name}: ${topics[i]}', topicId: null);
+      }
       final pool = uncoveredTopics[subject.id];
       if (pool != null && pool.isNotEmpty) {
         final idx = topicCursor[subject.id] ?? 0;
         if (idx < pool.length) {
           topicCursor[subject.id] = idx + 1;
-          return '${subject.name}: ${pool[idx]}';
+          final t = pool[idx];
+          return (title: '${subject.name}: ${t.name}', topicId: t.id);
         }
       }
-      return subject.name;
+      return (title: subject.name, topicId: null);
     }
 
     var remaining = capacity;
@@ -111,9 +117,11 @@ class PlanBuilder {
         continue;
       }
 
+      final t = titleFor(subject, i);
       blocks.add(PlanBlock(
-        title: titleFor(subject, i),
+        title: t.title,
         subjectId: subject.id,
+        topicId: t.topicId,
         minutes: duration,
         order: blocks.length,
         priority: priority,
@@ -145,7 +153,7 @@ class PlanBuilder {
   /// Çağıran taraf her bloğu kendi gününün `dueDate`'iyle `addTask`'a yazar.
   static WeekPlanResult buildWeek({
     required List<SubjectModel> orderedSubjects,
-    Map<String, List<String>> uncoveredTopics = const {},
+    Map<String, List<UncoveredTopic>> uncoveredTopics = const {},
     required int hoursPerDay,
     required DateTime startDate,
     int days = 7,
@@ -165,16 +173,17 @@ class PlanBuilder {
 
     // Ders başına boş-konu imleci — TÜM hafta boyunca ilerler.
     final topicCursor = <String, int>{};
-    String titleFor(SubjectModel s) {
+    ({String title, String? topicId}) titleFor(SubjectModel s) {
       final pool = uncoveredTopics[s.id];
       if (pool != null && pool.isNotEmpty) {
         final idx = topicCursor[s.id] ?? 0;
         if (idx < pool.length) {
           topicCursor[s.id] = idx + 1;
-          return '${s.name}: ${pool[idx]}';
+          final t = pool[idx];
+          return (title: '${s.name}: ${t.name}', topicId: t.id);
         }
       }
-      return s.name;
+      return (title: s.name, topicId: null);
     }
 
     final dayPlans = <DayPlan>[];
@@ -195,9 +204,11 @@ class PlanBuilder {
           continue;
         }
         final subject = rotated[b % rotated.length];
+        final t = titleFor(subject);
         blocks.add(PlanBlock(
-          title: titleFor(subject),
+          title: t.title,
           subjectId: subject.id,
+          topicId: t.topicId,
           minutes: duration,
           order: b,
           priority: priority,
@@ -226,6 +237,11 @@ class PlanBuilder {
   }
 }
 
+/// Konu Takip'ten işaretlenmemiş bir konu — ad + gerçek Hive id'si.
+/// [PlanBuilder]'a yalnızca ad değil id de geçilir ki üretilen [PlanBlock]
+/// tamamlanınca ilgili [TopicModel]'i otomatik işaretleyebilsin.
+typedef UncoveredTopic = ({String name, String id});
+
 class PlanBlock {
   final String title;
   final String subjectId;
@@ -235,12 +251,17 @@ class PlanBlock {
   final int order;
   final TaskPriority priority;
 
+  /// Bloğun bir Konu Takip konusundan üretildiyse o konunun id'si —
+  /// görev tamamlanınca otomatik işaretlensin diye. Yoksa null.
+  final String? topicId;
+
   const PlanBlock({
     required this.title,
     required this.subjectId,
     required this.minutes,
     required this.order,
     required this.priority,
+    this.topicId,
   });
 }
 

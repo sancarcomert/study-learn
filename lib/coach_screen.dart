@@ -13,6 +13,7 @@ import 'task_provider.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'stats_provider.dart';
+import 'deneme_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/exam_countdown.dart';
 
@@ -373,6 +374,22 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     return t ?? s ?? 'Çalışma';
   }
 
+  /// Kullanıcının yazdığı serbest konu metni ("türev"), o derste Konu
+  /// Takip'te zaten kayıtlı bir konuyla (ad, büyük/küçük harf duyarsız)
+  /// birebir eşleşiyorsa id'sini döndürür — görev tamamlanınca o konu
+  /// otomatik işaretlensin diye. Eşleşme yoksa null (davranış değişmez).
+  String? _matchTopicId(String? subjectId, String? topicText) {
+    if (subjectId == null) return null;
+    final needle = topicText?.trim().toLowerCase();
+    if (needle == null || needle.isEmpty) return null;
+    for (final t in ref.read(topicProvider)) {
+      if (t.subjectId == subjectId && t.name.toLowerCase() == needle) {
+        return t.id;
+      }
+    }
+    return null;
+  }
+
   void _proposeSingle() {
     final now = DateTime.now();
     final day = _draft.day ?? DateTime(now.year, now.month, now.day);
@@ -385,6 +402,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         minutes: minutes,
         order: 0,
         priority: TaskPriority.medium,
+        topicId: _matchTopicId(_draft.subjectId, _draft.topic),
       ),
     ];
     _pendingRecurrence = _draft.recurrence;
@@ -411,10 +429,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       for (final e in coverage.entries)
         if (e.value.hasTopics) e.key: e.value.ratio,
     };
-    final uncovered = <String, List<String>>{};
+    final uncovered = <String, List<UncoveredTopic>>{};
     for (final t in ref.read(topicProvider)) {
       if (t.status != TopicStatus.reviewed && t.status != TopicStatus.studied) {
-        uncovered.putIfAbsent(t.subjectId, () => []).add(t.name);
+        uncovered
+            .putIfAbsent(t.subjectId, () => [])
+            .add((name: t.name, id: t.id));
       }
     }
 
@@ -424,6 +444,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       examDate: examDate,
       limit: subjects.length,
       coveragePercent: coveragePercent,
+      weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
     ).map((s) => s.subjectId).toList();
 
     final ordered = <SubjectModel>[
@@ -473,10 +494,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       for (final e in coverage.entries)
         if (e.value.hasTopics) e.key: e.value.ratio,
     };
-    final uncovered = <String, List<String>>{};
+    final uncovered = <String, List<UncoveredTopic>>{};
     for (final t in ref.read(topicProvider)) {
       if (t.status != TopicStatus.reviewed && t.status != TopicStatus.studied) {
-        uncovered.putIfAbsent(t.subjectId, () => []).add(t.name);
+        uncovered
+            .putIfAbsent(t.subjectId, () => [])
+            .add((name: t.name, id: t.id));
       }
     }
 
@@ -486,6 +509,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       examDate: examDate,
       limit: subjects.length,
       coveragePercent: coveragePercent,
+      weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
     ).map((s) => s.subjectId).toList();
 
     final ordered = <SubjectModel>[
@@ -548,6 +572,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             priority: b.priority,
             estimatedMinutes: b.minutes,
             difficulty: TopicDifficulty.medium,
+            topicId: b.topicId,
           );
           count++;
         }
@@ -610,6 +635,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           scheduledTime: scheduled,
           estimatedMinutes: b.minutes,
           difficulty: TopicDifficulty.medium,
+          topicId: b.topicId,
         );
       }
     }

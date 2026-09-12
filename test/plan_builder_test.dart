@@ -93,7 +93,11 @@ void main() {
     final r = PlanBuilder.build(
       orderedSubjects: [_sub('Matematik')],
       uncoveredTopics: {
-        'id-Matematik': ['Türev', 'İntegral', 'Limit'],
+        'id-Matematik': [
+          (name: 'Türev', id: 'topic-turev'),
+          (name: 'İntegral', id: 'topic-integral'),
+          (name: 'Limit', id: 'topic-limit'),
+        ],
       },
       fillToCapacity: true,
       hoursAvailable: 3, // 180 dk / 45 = 4 blok
@@ -101,23 +105,29 @@ void main() {
     );
     expect(r.blocks.length, 4);
     expect(r.blocks[0].title, 'Matematik: Türev');
+    expect(r.blocks[0].topicId, 'topic-turev');
     expect(r.blocks[1].title, 'Matematik: İntegral');
     expect(r.blocks[2].title, 'Matematik: Limit');
-    // Konu havuzu bitince ders adına döner.
+    // Konu havuzu bitince ders adına döner, topicId yok.
     expect(r.blocks[3].title, 'Matematik');
+    expect(r.blocks[3].topicId, isNull);
   });
 
   test('fillToCapacity yokken görev sayısı ders sayısıyla sınırlı', () {
     final r = PlanBuilder.build(
       orderedSubjects: [_sub('Matematik')],
       uncoveredTopics: {
-        'id-Matematik': ['Türev', 'İntegral'],
+        'id-Matematik': [
+          (name: 'Türev', id: 'topic-turev'),
+          (name: 'İntegral', id: 'topic-integral'),
+        ],
       },
       hoursAvailable: 3,
       energy: 'orta',
     );
     expect(r.blocks.length, 1);
     expect(r.blocks.first.title, 'Matematik: Türev');
+    expect(r.blocks.first.topicId, 'topic-turev');
   });
 
   test('düşük enerji → 25 dk + ters sıra', () {
@@ -176,7 +186,11 @@ void main() {
       final w = PlanBuilder.buildWeek(
         orderedSubjects: [_sub('Matematik')],
         uncoveredTopics: {
-          'id-Matematik': ['Türev', 'İntegral', 'Limit'],
+          'id-Matematik': [
+            (name: 'Türev', id: 'topic-turev'),
+            (name: 'İntegral', id: 'topic-integral'),
+            (name: 'Limit', id: 'topic-limit'),
+          ],
         },
         hoursPerDay: 1,
         startDate: start,

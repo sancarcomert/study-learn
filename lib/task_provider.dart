@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -6,8 +7,14 @@ import 'task_model.dart';
 import 'task_repository.dart';
 import 'stats_provider.dart';
 import 'notification_service.dart';
+import 'topic_model.dart';
+import 'topic_provider.dart';
 
 const _uuidTask = Uuid();
+
+/// `updateTask`'ın `topicId` parametresi için sentinel — "geçilmedi" (mevcut
+/// bağı koru) ile "açıkça null geçildi" (bağı kaldır) arasını ayırt eder.
+const Object _unset = Object();
 
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {
   return TaskRepository();
@@ -59,6 +66,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     TopicDifficulty difficulty = TopicDifficulty.medium,
     DateTime? scheduledTime,
     int? estimatedMinutes,
+    String? topicId,
   }) {
     final newTask = TaskModel(
       id: _uuidTask.v4(),
@@ -70,6 +78,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
       createdAt: DateTime.now(),
       scheduledTime: scheduledTime,
       estimatedMinutes: estimatedMinutes,
+      topicId: topicId,
     );
 
     _repository.addTask(newTask);
@@ -187,6 +196,21 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
           .read(statsProvider.notifier)
           .adjustStudyMinutes(taskAfter.estimatedMinutes ?? 0);
 
+      // Göreve bağlı bir konu varsa, tamamlanınca otomatik "çalışıldı"ya
+      // geçer — Konu Takip'i elle ayrıca işaretleme zorunluluğunu kaldırır.
+      // Zaten "tekrar edildi" ise geri düşürmez; geri alma (undo) da bu
+      // ilerlemeyi bozmaz (seri/rütbe gibi tek yönlü — bkz. proje geneli).
+      final linkedTopicId = taskAfter.topicId;
+      if (linkedTopicId != null) {
+        final topics = ref.read(topicProvider);
+        final topic =
+            topics.where((t) => t.id == linkedTopicId).firstOrNull;
+        if (topic != null && topic.status == TopicStatus.notStarted) {
+          ref
+              .read(topicProvider.notifier)
+              .setStatus(linkedTopicId, TopicStatus.studied);
+        }
+      }
 
       final completedToday =
           state.where(
@@ -326,6 +350,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     DateTime? scheduledTime,
     int? estimatedMinutes,
     TopicDifficulty difficulty = TopicDifficulty.medium,
+    Object? topicId = _unset,
   }) {
 
     task.title = title;
@@ -335,6 +360,11 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     task.scheduledTime = scheduledTime;
     task.estimatedMinutes = estimatedMinutes;
     task.difficulty = difficulty;
+    // Çağıran taraf topicId geçmezse (ör. taşıma/postponeTask) mevcut bağ
+    // korunur — sentinel [_unset] ile "değiştirme" ile "null'a çek" ayrılır.
+    if (!identical(topicId, _unset)) {
+      task.topicId = topicId as String?;
+    }
 
 
     _repository.updateTask(task);
