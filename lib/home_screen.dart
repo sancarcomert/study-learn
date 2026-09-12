@@ -1,4 +1,6 @@
 // lib/home_screen.dart
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
@@ -35,6 +37,90 @@ import 'widgets/app_snackbar.dart';
 import 'widgets/share_card.dart';
 import 'notification_service.dart';
 import 'dart:async';
+
+/// Home'un arkasındaki yumuşak, yavaşça süzülen renkli parıltı — Home'u
+/// tamamen düz koyu zeminden ayıran tek en büyük "premium" sinyali (konsept
+/// tasarım geçişi, 2026-09). Sabit üç leke (altın/mor/nane) tek bir
+/// ImageFiltered blur katmanı içinde — üçünü ayrı ayrı bulanıklaştırmak
+/// yerine tek geçişte, performans için. `RepaintBoundary` bu alt ağacın
+/// her karede yeniden boyanmasını geri kalan Home'dan izole ediyor.
+class _AuroraBackground extends StatefulWidget {
+  const _AuroraBackground();
+
+  @override
+  State<_AuroraBackground> createState() => _AuroraBackgroundState();
+}
+
+class _AuroraBackgroundState extends State<_AuroraBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 24),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    if (!reduceMotion) _controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: ClipRect(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final t = _controller.value * 2 * math.pi;
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: -130 + math.sin(t) * 12,
+                      left: -70 + math.cos(t) * 10,
+                      child: _blob(260, AppColors.primary, 0.24),
+                    ),
+                    Positioned(
+                      top: -100 + math.cos(t * 0.9) * 10,
+                      right: -90 + math.sin(t * 0.9) * 10,
+                      child: _blob(240, AppColors.vibrantViolet, 0.16),
+                    ),
+                    Positioned(
+                      top: 240 + math.sin(t * 0.7) * 14,
+                      left: 40 + math.cos(t * 0.7) * 12,
+                      child: _blob(280, AppColors.vibrantMint, 0.10),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _blob(double size, Color color, double alpha) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: alpha),
+      ),
+    );
+  }
+}
 
 class HomeScreen extends ConsumerStatefulWidget {
   // MainShell, IndexedStack kullanıyor — sekmeler arasında geçince bu
@@ -176,11 +262,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final stats = ref.read(statsProvider);
     final today = DateTime.now();
 
-    final completedToday = ref.read(taskProvider).where((t) =>
-        t.isCompleted &&
-        t.dueDate.year == today.year &&
-        t.dueDate.month == today.month &&
-        t.dueDate.day == today.day).length;
+    final completedToday = ref
+        .read(taskProvider)
+        .where((t) =>
+            t.isCompleted &&
+            t.dueDate.year == today.year &&
+            t.dueDate.month == today.month &&
+            t.dueDate.day == today.day)
+        .length;
 
     if (completedToday >= stats.dailyGoal) return;
 
@@ -328,15 +417,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         priority: t.priority,
         scheduledTime: st == null
             ? null
-            : DateTime(
-                tomorrow.year, tomorrow.month, tomorrow.day, st.hour, st.minute),
+            : DateTime(tomorrow.year, tomorrow.month, tomorrow.day, st.hour,
+                st.minute),
         estimatedMinutes: t.estimatedMinutes,
         difficulty: t.difficulty,
       );
     }
     if (mounted) {
-      AppSnackBar.success(context,
-          n == 1 ? 'Görev yarına taşındı' : '$n görev yarına taşındı');
+      AppSnackBar.success(
+          context, n == 1 ? 'Görev yarına taşındı' : '$n görev yarına taşındı');
     }
   }
 
@@ -348,7 +437,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? 'İyi günler'
             : 'İyi akşamlar';
     final emoji = hour < 12 ? '☀️' : (hour < 18 ? '👋' : '🌙');
-    final who = (name != null && name.trim().isNotEmpty) ? ', ${name.trim()}' : '';
+    final who =
+        (name != null && name.trim().isNotEmpty) ? ', ${name.trim()}' : '';
     return '$base$who! $emoji';
   }
 
@@ -633,214 +723,227 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : const <StudySuggestion>[];
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            // 1) HEADER — 32dp
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 20, 0),
-              child: SizedBox(
-                height: 32,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _ProfileRing(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            if (examDate != null && daysUntilExam(examDate) >= 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TapScale(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const StatsScreen()),
-                    ),
-                    child: ExamCountdownChip(examDate: examDate),
-                  ),
-                ),
-              ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
-
-                  // 2) HERO
-                  Text(_greeting(stats.userName),
-                      style: AppTextStyles.heading1),
-                  const SizedBox(height: 8),
-                  Text(
-                    _statusLine(
-                          overdue: overdueTasks,
-                          inProgress: inProgressTask,
-                          upcoming: upcomingTask,
-                        ) ??
-                        _subGreeting(
-                          total: totalCount,
-                          completed: completedCount,
-                        ),
-                    style: AppTextStyles.bodySecondary.copyWith(
-                      color: overdueTasks.isNotEmpty
-                          ? AppColors.warning
-                          : null,
-                      fontWeight: overdueTasks.isNotEmpty
-                          ? FontWeight.w600
-                          : null,
-                    ),
-                  ),
-
-                  if (showYesterdayIntent) ...[
-                    const SizedBox(height: 10),
-                    _YesterdayIntentLine(text: yesterdayIntent),
-                  ],
-
-                  const SizedBox(height: 32),
-
-                  // 3) KRAL BUTON
-                  _KingButton(
-                    label: 'Bugünü Planla',
-                    icon: Icons.auto_awesome_outlined,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CoachScreen()),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 3.5) RÜTBE — türetilmiş merdiven (P0-2)
-                  TapScale(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const RankLadderScreen()),
-                    ),
-                    child: _RankStrip(info: ref.watch(rankProvider)),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // 4) BENTO GRID
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _BentoCard(
-                          eyebrow: 'BUGÜN',
-                          value: '$completedCount/$totalCount',
-                          sub: 'görev tamam',
-                          icon: Icons.check_circle_outline,
-                          tint: AppColors.vibrantMint,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _BentoCard(
-                          eyebrow: 'KALAN SÜRE',
-                          value: _fmtDuration(remainingMin),
-                          sub: 'bugün',
-                          icon: Icons.hourglass_bottom,
-                          tint: AppColors.vibrantSky,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  if (thisWeekCompleted > 0) ...[
-                    const SizedBox(height: 12),
-                    _WeekCompareStrip(
-                      thisWeek: thisWeekCompleted,
-                      lastWeek: lastWeekCompleted,
-                    ),
-                  ],
-
-                  if (upcomingTask != null) ...[
-                    const SizedBox(height: 28),
-                    NextTaskCard(task: upcomingTask, subjects: subjects),
-                  ],
-
-                  if (showCloseOutCard) ...[
-                    const SizedBox(height: 28),
-                    _CloseOutCard(
-                      onTap: _closeOutToday,
-                      onDismiss: () =>
-                          setState(() => _closeOutDismissed = true),
-                    ),
-                  ],
-
-                  const SizedBox(height: 32),
-
-                  // 5) BUGÜNKÜ GÖREVLER — gün kapatıldıysa yerini sakin bir
-                  // "dinlenme modu" kartı alır (kullanıcı bulgusu: kapatınca
-                  // görev listesi hâlâ orada durmak yanlış hissettiriyordu).
-                  if (todayCloseout != null)
-                    _RelaxModeCard(
-                      closeout: todayCloseout,
-                      onReopen: () => ref
-                          .read(dailyCloseoutProvider.notifier)
-                          .reopenToday(),
-                    )
-                  else ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _AuroraBackground()),
+          SafeArea(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // 1) HEADER — 32dp
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 20, 0),
+                  child: SizedBox(
+                    height: 32,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Eyebrow(text: 'BUGÜNKÜ GÖREVLER'),
-                        if (totalCount > 0)
-                          Text(
-                            '$completedCount/$totalCount',
-                            style: AppTextStyles.caption
-                                .copyWith(fontWeight: FontWeight.w700),
+                        _ProfileRing(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const ProfileScreen()),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    if (!stats.hasSeenTaskHints &&
-                        todayTasks.any((t) => !t.isCompleted)) ...[
-                      _HintStrip(
-                        onDismiss: () => ref
-                            .read(statsProvider.notifier)
-                            .markTaskHintsSeen(),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (todayTasks.isEmpty)
-                      suggestions.isEmpty
-                          ? const EmptyStateCard(
-                              icon: Icons.task_alt_outlined,
-                              message:
-                                  'Bugün için görev yok.\nSağ alttaki + ile ekleyebilirsin.',
-                            )
-                          : _SuggestionStrip(
-                              suggestions: suggestions,
-                              onTap: _handleSuggestionTap,
-                            )
-                    else
-                      Column(
-                        children: todayTasks
-                            .map((task) => _AnimatedTaskEntry(
-                                  key: ValueKey(task.id),
-                                  child:
-                                      TaskTile(task: task, subjects: subjects),
-                                ))
-                            .toList(),
-                      ),
-                  ],
+                  ),
+                ),
 
-                  const SizedBox(height: 96),
-                ],
-              ),
+                if (examDate != null && daysUntilExam(examDate) >= 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TapScale(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const StatsScreen()),
+                        ),
+                        child: ExamCountdownChip(examDate: examDate),
+                      ),
+                    ),
+                  ),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 24),
+
+                      // 2) HERO
+                      Text(_greeting(stats.userName),
+                          style: AppTextStyles.heading1),
+                      const SizedBox(height: 8),
+                      Text(
+                        _statusLine(
+                              overdue: overdueTasks,
+                              inProgress: inProgressTask,
+                              upcoming: upcomingTask,
+                            ) ??
+                            _subGreeting(
+                              total: totalCount,
+                              completed: completedCount,
+                            ),
+                        style: AppTextStyles.bodySecondary.copyWith(
+                          color: overdueTasks.isNotEmpty
+                              ? AppColors.warning
+                              : null,
+                          fontWeight:
+                              overdueTasks.isNotEmpty ? FontWeight.w600 : null,
+                        ),
+                      ),
+
+                      if (showYesterdayIntent) ...[
+                        const SizedBox(height: 10),
+                        _YesterdayIntentLine(text: yesterdayIntent),
+                      ],
+
+                      const SizedBox(height: 32),
+
+                      // 3) KRAL BUTON
+                      _KingButton(
+                        label: 'Bugünü Planla',
+                        icon: Icons.auto_awesome_outlined,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const CoachScreen()),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // 3.5) RÜTBE — türetilmiş merdiven (P0-2)
+                      TapScale(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const RankLadderScreen()),
+                        ),
+                        child: _RankStrip(
+                          info: ref.watch(rankProvider),
+                          streak: stats.currentStreak,
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // 4) BENTO GRID
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _BentoCard(
+                              eyebrow: 'BUGÜN',
+                              value: '$completedCount/$totalCount',
+                              sub: 'görev tamam',
+                              icon: Icons.check_circle_outline,
+                              tint: AppColors.vibrantMint,
+                              progress: totalCount == 0
+                                  ? 0
+                                  : completedCount / totalCount,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _BentoCard(
+                              eyebrow: 'KALAN SÜRE',
+                              value: _fmtDuration(remainingMin),
+                              sub: 'bugün',
+                              icon: Icons.hourglass_bottom,
+                              tint: AppColors.vibrantSky,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (thisWeekCompleted > 0) ...[
+                        const SizedBox(height: 12),
+                        _WeekCompareStrip(
+                          thisWeek: thisWeekCompleted,
+                          lastWeek: lastWeekCompleted,
+                        ),
+                      ],
+
+                      if (upcomingTask != null) ...[
+                        const SizedBox(height: 28),
+                        NextTaskCard(task: upcomingTask, subjects: subjects),
+                      ],
+
+                      if (showCloseOutCard) ...[
+                        const SizedBox(height: 28),
+                        _CloseOutCard(
+                          onTap: _closeOutToday,
+                          onDismiss: () =>
+                              setState(() => _closeOutDismissed = true),
+                        ),
+                      ],
+
+                      const SizedBox(height: 32),
+
+                      // 5) BUGÜNKÜ GÖREVLER — gün kapatıldıysa yerini sakin bir
+                      // "dinlenme modu" kartı alır (kullanıcı bulgusu: kapatınca
+                      // görev listesi hâlâ orada durmak yanlış hissettiriyordu).
+                      if (todayCloseout != null)
+                        _RelaxModeCard(
+                          closeout: todayCloseout,
+                          onReopen: () => ref
+                              .read(dailyCloseoutProvider.notifier)
+                              .reopenToday(),
+                        )
+                      else ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Eyebrow(text: 'BUGÜNKÜ GÖREVLER'),
+                            if (totalCount > 0)
+                              Text(
+                                '$completedCount/$totalCount',
+                                style: AppTextStyles.caption
+                                    .copyWith(fontWeight: FontWeight.w700),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (!stats.hasSeenTaskHints &&
+                            todayTasks.any((t) => !t.isCompleted)) ...[
+                          _HintStrip(
+                            onDismiss: () => ref
+                                .read(statsProvider.notifier)
+                                .markTaskHintsSeen(),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        if (todayTasks.isEmpty)
+                          suggestions.isEmpty
+                              ? const EmptyStateCard(
+                                  icon: Icons.task_alt_outlined,
+                                  message:
+                                      'Bugün için görev yok.\nSağ alttaki + ile ekleyebilirsin.',
+                                )
+                              : _SuggestionStrip(
+                                  suggestions: suggestions,
+                                  onTap: _handleSuggestionTap,
+                                )
+                        else
+                          Column(
+                            children: todayTasks
+                                .map((task) => _AnimatedTaskEntry(
+                                      key: ValueKey(task.id),
+                                      child: TaskTile(
+                                          task: task, subjects: subjects),
+                                    ))
+                                .toList(),
+                          ),
+                      ],
+
+                      const SizedBox(height: 96),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       // Kral buton "Bugünü Planla" ekranın baskın eylemi; FAB ikincil
       // kalsın diye dar/dairesel (extended değil).
@@ -919,8 +1022,9 @@ class _HintStrip extends StatelessWidget {
 /// Home'daki kompakt rütbe şeridi (P0-2). Dokun → Profil (tam kart).
 class _RankStrip extends StatelessWidget {
   final RankInfo info;
+  final int streak;
 
-  const _RankStrip({required this.info});
+  const _RankStrip({required this.info, required this.streak});
 
   @override
   Widget build(BuildContext context) {
@@ -942,17 +1046,41 @@ class _RankStrip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       info.name.toUpperCase(),
                       style: AppTextStyles.eyebrow.copyWith(color: color),
                     ),
                     const Spacer(),
-                    Text(
-                      info.atMax
-                          ? 'En üst rütbe'
-                          : '${info.nextName} için ${info.xpToNextRank} XP',
-                      style: AppTextStyles.caption,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          info.atMax
+                              ? 'En üst rütbe'
+                              : '${info.nextName} için ${info.xpToNextRank} XP',
+                          style: AppTextStyles.caption,
+                        ),
+                        if (streak > 0) ...[
+                          const SizedBox(height: 3),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.local_fire_department,
+                                  size: 12, color: AppColors.vibrantAmber),
+                              const SizedBox(width: 3),
+                              Text(
+                                '$streak gün',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.vibrantAmber,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -997,7 +1125,8 @@ class _WeekCompareStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.insights_outlined, size: 18, color: AppColors.primary),
+          const Icon(Icons.insights_outlined,
+              size: 18, color: AppColors.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1060,96 +1189,97 @@ class _RelaxModeCard extends StatelessWidget {
     return TapScale(
       onTap: () => showDailyCloseoutSheet(context),
       child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.surfaceVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.tonal(AppColors.secondary),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.bedtime_outlined,
-                color: AppColors.secondary, size: 28),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Bugünü kapattın',
-            style: AppTextStyles.heading3,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            closeout.completedTasks == 0
-                ? 'Dinlenme vaktin. Yarın devam.'
-                : '${closeout.completedTasks} görev bitirdin. Dinlenme vaktin.',
-            style: AppTextStyles.bodySecondary,
-            textAlign: TextAlign.center,
-          ),
-          if (hasIntent) ...[
-            const SizedBox(height: 16),
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.surfaceVariant),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(14),
+                color: AppColors.tonal(AppColors.secondary),
+                shape: BoxShape.circle,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('YARIN', style: AppTextStyles.eyebrow),
-                  const SizedBox(height: 4),
-                  Text(
-                    closeout.intent,
-                    style: AppTextStyles.body
-                        .copyWith(color: AppColors.textPrimary),
-                  ),
-                ],
+              child: const Icon(Icons.bedtime_outlined,
+                  color: AppColors.secondary, size: 28),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Bugünü kapattın',
+              style: AppTextStyles.heading3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              closeout.completedTasks == 0
+                  ? 'Dinlenme vaktin. Yarın devam.'
+                  : '${closeout.completedTasks} görev bitirdin. Dinlenme vaktin.',
+              style: AppTextStyles.bodySecondary,
+              textAlign: TextAlign.center,
+            ),
+            if (hasIntent) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('YARIN', style: AppTextStyles.eyebrow),
+                    const SizedBox(height: 4),
+                    Text(
+                      closeout.intent,
+                      style: AppTextStyles.body
+                          .copyWith(color: AppColors.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            // "Aslında biraz daha çalışacağım" — bugünü yeniden açar (kaydı
+            // siler), kart kaybolup yerini yeniden görev listesi alır. Ayrı
+            // TapScale: dış karttaki (düzenle) dokunmayla çakışmasın. Diğer
+            // ikincil aksiyon çiplerinin (ör. "Detayları Gizle") aynı dili —
+            // tonal dolgu + ikon — burada da, altı çizili düz metin yerine.
+            TapScale(
+              onTap: onReopen,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.tonal(AppColors.textSecondary),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.replay_outlined,
+                        size: 16, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Bugünü yeniden aç',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          // "Aslında biraz daha çalışacağım" — bugünü yeniden açar (kaydı
-          // siler), kart kaybolup yerini yeniden görev listesi alır. Ayrı
-          // TapScale: dış karttaki (düzenle) dokunmayla çakışmasın. Diğer
-          // ikincil aksiyon çiplerinin (ör. "Detayları Gizle") aynı dili —
-          // tonal dolgu + ikon — burada da, altı çizili düz metin yerine.
-          TapScale(
-            onTap: onReopen,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.tonal(AppColors.textSecondary),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.replay_outlined,
-                      size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Bugünü yeniden aç',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
       ),
     );
   }
@@ -1213,7 +1343,8 @@ class _CloseOutCard extends StatelessWidget {
                 onTap: onDismiss,
                 child: const Padding(
                   padding: EdgeInsets.all(8),
-                  child: Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                  child:
+                      Icon(Icons.close, size: 16, color: AppColors.textMuted),
                 ),
               ),
             ),
@@ -1295,10 +1426,35 @@ class _SuggestionStrip extends StatelessWidget {
   }
 }
 
-class _ProfileRing extends StatelessWidget {
+class _ProfileRing extends StatefulWidget {
   final VoidCallback onTap;
 
   const _ProfileRing({required this.onTap});
+
+  @override
+  State<_ProfileRing> createState() => _ProfileRingState();
+}
+
+class _ProfileRingState extends State<_ProfileRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    if (!reduceMotion) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1306,29 +1462,44 @@ class _ProfileRing extends StatelessWidget {
       button: true,
       label: 'Profil',
       child: TapScale(
-        onTap: onTap,
-        child: Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.tonal(AppColors.primary),
-            border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
-          ),
-          child: const Icon(
-            Icons.person_outline,
-            size: 18,
-            color: AppColors.primary,
-          ),
+        onTap: widget.onTap,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value;
+            return Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.tonal(AppColors.primary),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.4 - t * 0.15),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.16 - t * 0.1),
+                    blurRadius: 6 + t * 6,
+                    spreadRadius: t * 2,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.person_outline,
+                size: 18,
+                color: AppColors.primary,
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _KingButton extends StatelessWidget {
+class _KingButton extends StatefulWidget {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
@@ -1340,12 +1511,45 @@ class _KingButton extends StatelessWidget {
   });
 
   @override
+  State<_KingButton> createState() => _KingButtonState();
+}
+
+class _KingButtonState extends State<_KingButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 4500),
+  );
+  // Konsept tasarımdaki sheen sweep: döngünün ilk ~%28'inde soldan sağa
+  // kayar, kalan süre boyunca dışarıda bekler — sürekli parlayan değil,
+  // arada bir "ışık değen" bir buton hissi.
+  late final Animation<double> _sweep = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.0, 0.28, curve: Curves.easeInOut),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    if (!reduceMotion) _controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TapScale(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         height: 64,
         width: double.infinity,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           gradient: AppColors.primaryGradient,
           borderRadius: BorderRadius.circular(32),
@@ -1354,12 +1558,45 @@ class _KingButton extends StatelessWidget {
             AppColors.glow(AppColors.primary),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            Icon(icon, size: 20, color: AppColors.ink),
-            const SizedBox(width: 10),
-            Text(label, style: AppTextStyles.button.copyWith(fontSize: 16)),
+            AnimatedBuilder(
+              animation: _sweep,
+              builder: (context, _) {
+                return Positioned.fill(
+                  child: LayoutBuilder(builder: (context, c) {
+                    final x = -100 + _sweep.value * (c.maxWidth + 200);
+                    return Transform.translate(
+                      offset: Offset(x, 0),
+                      child: Transform.rotate(
+                        angle: -0.35,
+                        child: Container(
+                          width: 46,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0),
+                                Colors.white.withValues(alpha: 0.5),
+                                Colors.white.withValues(alpha: 0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(widget.icon, size: 20, color: AppColors.ink),
+                const SizedBox(width: 10),
+                Text(widget.label,
+                    style: AppTextStyles.button.copyWith(fontSize: 16)),
+              ],
+            ),
           ],
         ),
       ),
@@ -1373,6 +1610,10 @@ class _BentoCard extends StatelessWidget {
   final String sub;
   final Color tint;
   final IconData icon;
+  // Yalnız BUGÜN kartı için — verilirse köşedeki düz ikon rozeti yerine
+  // tamamlanma oranını gösteren bir ilerleme halkası çizilir (konsept
+  // tasarımdaki "ring gauge" dili).
+  final double? progress;
 
   const _BentoCard({
     required this.eyebrow,
@@ -1380,6 +1621,7 @@ class _BentoCard extends StatelessWidget {
     required this.sub,
     required this.icon,
     this.tint = AppColors.vibrantMint,
+    this.progress,
   });
 
   @override
@@ -1401,12 +1643,26 @@ class _BentoCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Eyebrow(text: eyebrow, color: tint),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-                child: Icon(icon, size: 16, color: AppColors.onColor(tint)),
-              ),
+              if (progress != null)
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    value: progress!.clamp(0.0, 1.0),
+                    strokeWidth: 4,
+                    strokeCap: StrokeCap.round,
+                    backgroundColor: Colors.white.withValues(alpha: 0.14),
+                    valueColor: AlwaysStoppedAnimation(tint),
+                  ),
+                )
+              else
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration:
+                      BoxDecoration(color: tint, shape: BoxShape.circle),
+                  child: Icon(icon, size: 16, color: AppColors.onColor(tint)),
+                ),
             ],
           ),
           Column(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +19,6 @@ import 'tap_scale.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'widgets/eyebrow.dart';
-import 'widgets/animated_progress_bar.dart';
 import 'widgets/app_snackbar.dart';
 
 /// Odak seansı — iki mod:
@@ -340,7 +340,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       remainingSec = _blockMin * 60 - _freeElapsedSec;
       title = 'Hedefe ulaştın 🎯';
       final note = _noteController.text.trim();
-      body = note.isEmpty ? 'Odak hedefine ulaştın.' : '$note · hedefe ulaştın.';
+      body =
+          note.isEmpty ? 'Odak hedefine ulaştın.' : '$note · hedefe ulaştın.';
     } else if (_phase == _Phase.work) {
       remainingSec = _phaseTargetSec - _phaseElapsedSec;
       title = 'Çalışma bloğu bitti';
@@ -390,8 +391,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
 
   void _commitCurrentWorkBlock() {
     if (_phase != _Phase.work) return;
-    final workedMin =
-        math.min(_phaseElapsedSec, _blockMin * 60) ~/ 60;
+    final workedMin = math.min(_phaseElapsedSec, _blockMin * 60) ~/ 60;
     if (workedMin >= 1) {
       ref.read(statsProvider.notifier).addFocusMinutes(workedMin);
       ref.read(focusSessionProvider.notifier).log(
@@ -506,6 +506,21 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     return '$m:$ss';
   }
 
+  /// Halkanın içinde saatin altında gösterilen ders/konu notu — seçiliyse.
+  String? _noteLabel() {
+    final subjectId = _selectedSubjectId;
+    if (subjectId == null) return null;
+    final subject =
+        ref.read(subjectProvider).where((s) => s.id == subjectId).firstOrNull;
+    if (subject == null) return null;
+    if (_selectedTopicId == null) return subject.name;
+    final topic = ref
+        .read(topicsForSubjectProvider(subjectId))
+        .where((t) => t.id == _selectedTopicId)
+        .firstOrNull;
+    return topic == null ? subject.name : '${subject.name} · ${topic.name}';
+  }
+
   String get _phaseLabel {
     switch (_phase) {
       case _Phase.work:
@@ -552,232 +567,472 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       child: Scaffold(
         appBar: AppBar(
           title: Text('Odak', style: AppTextStyles.heading2),
-          actions: [
-            IconButton(
-              tooltip: 'Geçmiş',
-              icon: const Icon(Icons.history_outlined),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const FocusHistoryScreen()),
+        ),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: _FocusAuroraBackground()),
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Eyebrow(text: 'ODAK SEANSI'),
+                    const SizedBox(height: 12),
+
+                    // mod seçici
+                    _ModeToggle(
+                      mode: _mode,
+                      enabled: !_running,
+                      onChanged: _switchMode,
+                    ),
+
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _noteController,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        hintText: 'Ne üzerinde çalışıyorsun? (opsiyonel)',
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    _SubjectTopicPicker(
+                      enabled: !_running,
+                      selectedSubjectId: _selectedSubjectId,
+                      selectedTopicId: _selectedTopicId,
+                      onSubjectChanged: (id) => setState(() {
+                        _selectedSubjectId = id;
+                        _selectedTopicId = null;
+                      }),
+                      onTopicChanged: (id) =>
+                          setState(() => _selectedTopicId = id),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    Center(
+                      child: _TimerRing(
+                        progress: progress,
+                        accent:
+                            (isBreak || reached) ? AppColors.success : accent,
+                        running: _running,
+                        clock: clock,
+                        clockColor: (isBreak || reached)
+                            ? AppColors.success
+                            : AppColors.textPrimary,
+                        statusLabel: _mode == _Mode.free
+                            ? (reached
+                                ? 'hedefe ulaştın 🎯'
+                                : 'hedef $_blockMin dk')
+                            : _phaseLabel,
+                        statusColor: (isBreak || reached)
+                            ? AppColors.success
+                            : AppColors.textMuted,
+                        noteLabel: _noteLabel(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+                    if (!isBreak)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppColors.surfaceVariant),
+                        ),
+                        child: Wrap(
+                          spacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: _blockOptions.map((min) {
+                            final selected = _blockMin == min;
+                            return TapScale(
+                              onTap: _running
+                                  ? () {}
+                                  : () => setState(() => _blockMin = min),
+                              child: Opacity(
+                                opacity: _running ? 0.4 : 1,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    // CTA hiyerarşisi: altın yalnız Başlat/Duraklat
+                                    // butonu için.
+                                    color: selected
+                                        ? AppColors.secondary
+                                        : AppColors.tonal(AppColors.secondary),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '$min dk',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: selected
+                                          ? AppColors.onColor(
+                                              AppColors.secondary)
+                                          : AppColors.secondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      )
+                    else
+                      Center(
+                        child: TapScale(
+                          onTap: () => _advancePhase(auto: false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.tonal(AppColors.success),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Molayı geç',
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(height: 40),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _RoundControlButton(
+                          label: 'Bitir',
+                          icon: Icons.stop_rounded,
+                          onTap: _exit,
+                        ),
+                        const SizedBox(width: 26),
+                        _RoundControlButton(
+                          // Aksiyona göre renk — başlat=yeşil, duraklat=turuncu
+                          // (kullanıcı isteğiyle, referans uygulamalardaki gibi).
+                          color: _running
+                              ? AppColors.vibrantCoral
+                              : AppColors.vibrantMint,
+                          main: true,
+                          icon: _running ? Icons.pause : Icons.play_arrow,
+                          label: _running ? 'Duraklat' : 'Başlat',
+                          onTap: _toggleRun,
+                        ),
+                        const SizedBox(width: 26),
+                        _RoundControlButton(
+                          label: 'Geçmiş',
+                          icon: Icons.history_rounded,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const FocusHistoryScreen()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      ),
+    );
+  }
+}
+
+/// Odak ekranının arkasındaki yumuşak parıltı — Home'daki aurora ile aynı
+/// dil (mercan/mor), tek blur geçişi içinde iki leke.
+class _FocusAuroraBackground extends StatelessWidget {
+  const _FocusAuroraBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: ClipRect(
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+            child: Stack(
               children: [
-                const Eyebrow(text: 'ODAK SEANSI'),
-                const SizedBox(height: 12),
-
-                // mod seçici
-                _ModeToggle(
-                  mode: _mode,
-                  enabled: !_running,
-                  onChanged: _switchMode,
-                ),
-
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _noteController,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    hintText: 'Ne üzerinde çalışıyorsun? (opsiyonel)',
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-                _SubjectTopicPicker(
-                  enabled: !_running,
-                  selectedSubjectId: _selectedSubjectId,
-                  selectedTopicId: _selectedTopicId,
-                  onSubjectChanged: (id) => setState(() {
-                    _selectedSubjectId = id;
-                    _selectedTopicId = null;
-                  }),
-                  onTopicChanged: (id) => setState(() => _selectedTopicId = id),
-                ),
-
-                const SizedBox(height: 40),
-
-                Center(
-                  child: Text(
-                    clock,
-                    style: AppTextStyles.heading1.copyWith(
-                      fontSize: 64,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
-                      color: (isBreak || reached)
-                          ? AppColors.success
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    _mode == _Mode.free
-                        ? (reached ? 'hedefe ulaştın 🎯' : 'hedef $_blockMin dk')
-                        : _phaseLabel,
-                    style: AppTextStyles.caption.copyWith(
-                      color: (isBreak || reached)
-                          ? AppColors.success
-                          : AppColors.textMuted,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                AnimatedProgressBar(
-                  value: progress,
-                  color: accent,
-                  backgroundColor: AppColors.surfaceVariant,
-                  height: 8,
-                  borderRadius: 8,
-                ),
-
-                const SizedBox(height: 24),
-                if (!isBreak)
-                  Container(
-                    padding: const EdgeInsets.all(12),
+                Positioned(
+                  top: -150,
+                  left: 60,
+                  child: Container(
+                    width: 300,
+                    height: 300,
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.surfaceVariant),
-                    ),
-                    child: Wrap(
-                      spacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: _blockOptions.map((min) {
-                        final selected = _blockMin == min;
-                        return TapScale(
-                          onTap: _running
-                              ? () {}
-                              : () => setState(() => _blockMin = min),
-                          child: Opacity(
-                            opacity: _running ? 0.4 : 1,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                // CTA hiyerarşisi: altın yalnız Başlat/Duraklat
-                                // butonu için.
-                                color: selected
-                                    ? AppColors.secondary
-                                    : AppColors.tonal(AppColors.secondary),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '$min dk',
-                                style: AppTextStyles.body.copyWith(
-                                  color: selected
-                                      ? AppColors.onColor(AppColors.secondary)
-                                      : AppColors.secondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  )
-                else
-                  Center(
-                    child: TapScale(
-                      onTap: () => _advancePhase(auto: false),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.tonal(AppColors.success),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'Molayı geç',
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      shape: BoxShape.circle,
+                      color: AppColors.vibrantCoral.withValues(alpha: 0.16),
                     ),
                   ),
-
-                const SizedBox(height: 40),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: TapScale(
-                        onTap: _toggleRun,
-                        child: Container(
-                          height: 64,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            // Aksiyona göre renk — başlat=yeşil, duraklat=
-                            // turuncu (kullanıcı isteğiyle, referans
-                            // uygulamalardaki gibi).
-                            color: _running
-                                ? AppColors.vibrantCoral
-                                : AppColors.vibrantMint,
-                            borderRadius: BorderRadius.circular(32),
-                            boxShadow: AppColors.cardShadow,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _running ? Icons.pause : Icons.play_arrow,
-                                size: 22,
-                                color: AppColors.onColor(_running
-                                    ? AppColors.vibrantCoral
-                                    : AppColors.vibrantMint),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _running ? 'Duraklat' : 'Başlat',
-                                style: AppTextStyles.button.copyWith(
-                                  fontSize: 16,
-                                  color: AppColors.onColor(_running
-                                      ? AppColors.vibrantCoral
-                                      : AppColors.vibrantMint),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                ),
+                Positioned(
+                  bottom: -120,
+                  right: -60,
+                  child: Container(
+                    width: 260,
+                    height: 260,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.vibrantViolet.withValues(alpha: 0.12),
                     ),
-                    const SizedBox(width: 12),
-                    TapScale(
-                      onTap: _exit,
-                      child: Container(
-                        height: 64,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          'Bitir',
-                          style: AppTextStyles.body
-                              .copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Odak sayacının kalbi — konsept tasarımdaki dramatik gradyan halka + ince
+/// kadran çizgileri. `progress`/`clock`/`accent` iş mantığından (yukarıdaki
+/// State) hesaplanmış hazır değerler olarak gelir; bu widget saf görsel.
+class _TimerRing extends StatefulWidget {
+  final double progress;
+  final String clock;
+  final Color clockColor;
+  final String statusLabel;
+  final Color statusColor;
+  final String? noteLabel;
+  final Color accent;
+  final bool running;
+
+  const _TimerRing({
+    required this.progress,
+    required this.clock,
+    required this.clockColor,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.accent,
+    required this.running,
+    this.noteLabel,
+  });
+
+  @override
+  State<_TimerRing> createState() => _TimerRingState();
+}
+
+class _TimerRingState extends State<_TimerRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2200),
+  );
+
+  bool get _shouldAnimate =>
+      widget.running &&
+      !WidgetsBinding
+          .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_shouldAnimate) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _TimerRing oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_shouldAnimate && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!_shouldAnimate && _controller.isAnimating) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  static const double _diameter = 240;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _diameter,
+      height: _diameter,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final glowT = widget.running ? _controller.value : 0.0;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // nefes alan parıltı
+              Container(
+                width: 170 + glowT * 16,
+                height: 170 + glowT * 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      widget.accent.withValues(alpha: 0.30 + glowT * 0.08),
+                      widget.accent.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+              CustomPaint(
+                size: const Size(_diameter, _diameter),
+                painter: _TickPainter(
+                    color: AppColors.textMuted.withValues(alpha: 0.28)),
+              ),
+              SizedBox(
+                width: 210,
+                height: 210,
+                child: CircularProgressIndicator(
+                  value: widget.progress,
+                  strokeWidth: 13,
+                  strokeCap: StrokeCap.round,
+                  backgroundColor: AppColors.surfaceVariant,
+                  valueColor: AlwaysStoppedAnimation(widget.accent),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.statusLabel,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption.copyWith(
+                      color: widget.statusColor,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.clock,
+                    style: AppTextStyles.heading1.copyWith(
+                      fontSize: 46,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0,
+                      color: widget.clockColor,
+                    ),
+                  ),
+                  if (widget.noteLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.noteLabel!,
+                      style: AppTextStyles.caption,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 12 eşit aralıklı kadran çizgisi (0/90/180/270'te belirgin) — konsept
+/// tasarımdaki hassas cihaz hissini veren detay.
+class _TickPainter extends CustomPainter {
+  final Color color;
+  const _TickPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    for (var i = 0; i < 12; i++) {
+      final angle = (i * 30) * math.pi / 180;
+      final isMajor = i % 3 == 0;
+      final outer = radius - 2;
+      final inner = outer - (isMajor ? 10 : 6);
+      final dx = math.sin(angle);
+      final dy = -math.cos(angle);
+      final p1 = center + Offset(dx * inner, dy * inner);
+      final p2 = center + Offset(dx * outer, dy * outer);
+      canvas.drawLine(
+        p1,
+        p2,
+        Paint()
+          ..color = color
+          ..strokeWidth = isMajor ? 2 : 1.2
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TickPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Odak kontrol satırındaki dairesel buton — konsept tasarımın 3'lü
+/// (ikincil/ana/ikincil) düzeni. Ana buton daha büyük + gradyan + parıltı.
+class _RoundControlButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+  final bool main;
+
+  const _RoundControlButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+    this.main = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = main ? 76.0 : 56.0;
+    final fg =
+        color == null ? AppColors.textSecondary : AppColors.onColor(color!);
+    return TapScale(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: color == null
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [color!, color!.withValues(alpha: 0.75)],
+                    ),
+              color: color == null ? AppColors.surface : null,
+              border: color == null
+                  ? Border.all(color: AppColors.surfaceVariant)
+                  : null,
+              boxShadow: color == null
+                  ? AppColors.softShadow
+                  : [
+                      ...AppColors.cardShadow,
+                      AppColors.glow(color!),
+                    ],
+            ),
+            child: Icon(icon, size: main ? 30 : 22, color: fg),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: AppTextStyles.caption),
+        ],
       ),
     );
   }
@@ -848,8 +1103,8 @@ class _SubjectTopicPicker extends ConsumerWidget {
                       label: t.name,
                       selected: selectedTopicId == t.id,
                       color: AppColors.secondary,
-                      onTap: () => onTopicChanged(
-                          selectedTopicId == t.id ? null : t.id),
+                      onTap: () =>
+                          onTopicChanged(selectedTopicId == t.id ? null : t.id),
                     ),
                 ],
               ),
