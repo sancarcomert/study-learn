@@ -17,13 +17,17 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    TasksScreen(),
-    PlanScreen(),
-    StatsScreen(),
-    ProfileScreen(),
-  ];
+  // const değil — HomeScreen'e hangi sekmenin görünür olduğunu iletebilmek
+  // için her build'de yeniden kuruluyor (bkz. home_screen.dart isActive).
+  // IndexedStack aynı pozisyondaki widget'ın State'ini koruduğu için bu,
+  // sekme değişince HomeScreen'in dispose/yeniden oluşturulmasına yol açmaz.
+  List<Widget> get _screens => [
+        HomeScreen(isActive: _currentIndex == 0),
+        const TasksScreen(),
+        const PlanScreen(),
+        const StatsScreen(),
+        const ProfileScreen(),
+      ];
 
   @override
   void initState() {

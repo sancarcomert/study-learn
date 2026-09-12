@@ -36,7 +36,13 @@ import 'notification_service.dart';
 import 'dart:async';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  // MainShell, IndexedStack kullanıyor — sekmeler arasında geçince bu
+  // ekran dispose OLMUYOR, sadece görünmez oluyor. isActive olmadan
+  // 30 sn'lik canlı saat zamanlayıcısı başka bir sekmedeyken bile
+  // çalışmaya devam edip gereksiz yere StudyAdvisor.suggest gibi ağır
+  // hesaplamaları tetikliyordu (bkz. main_shell.dart).
+  final bool isActive;
+  const HomeScreen({super.key, this.isActive = true});
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -76,9 +82,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted) await _maybeScheduleStreakRisk();
     });
 
+    if (widget.isActive) _startLiveClockTicker();
+  }
+
+  void _startLiveClockTicker() {
+    _liveClockTicker?.cancel();
     _liveClockTicker = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      // Sekmeye geri dönüldü — "X dk sonra" gibi metinler sekmede
+      // değilken bayatlamış olabilir, hemen tazele ve zamanlayıcıyı
+      // yeniden başlat.
+      _startLiveClockTicker();
+      setState(() {});
+    } else if (!widget.isActive && oldWidget.isActive) {
+      _liveClockTicker?.cancel();
+      _liveClockTicker = null;
+    }
   }
 
   @override
