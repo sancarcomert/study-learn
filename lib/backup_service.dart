@@ -238,6 +238,7 @@ class BackupService {
         'difficulty': t.difficulty.name,
         'recurringGroupId': t.recurringGroupId,
         'recurrenceRule': t.recurrenceRule,
+        'topicId': t.topicId,
       };
 
   static TaskModel _taskFromMap(Map<String, dynamic> m) => TaskModel(
@@ -256,6 +257,7 @@ class BackupService {
             TopicDifficulty.values, m['difficulty'], TopicDifficulty.medium),
         recurringGroupId: m['recurringGroupId'] as String?,
         recurrenceRule: m['recurrenceRule'] as String?,
+        topicId: m['topicId'] as String?,
       );
 
   static Map<String, dynamic> _topicToMap(TopicModel t) => {
@@ -282,6 +284,9 @@ class BackupService {
         'endedAt': f.endedAt.toIso8601String(),
         'minutes': f.minutes,
         'mode': f.mode,
+        'subjectId': f.subjectId,
+        'topicId': f.topicId,
+        'note': f.note,
       };
 
   static FocusSession _focusFromMap(Map<String, dynamic> m) => FocusSession(
@@ -289,6 +294,9 @@ class BackupService {
         endedAt: _date(m['endedAt']) ?? DateTime.now(),
         minutes: (m['minutes'] as num?)?.toInt() ?? 0,
         mode: (m['mode'] as String?) ?? 'serbest',
+        subjectId: m['subjectId'] as String?,
+        topicId: m['topicId'] as String?,
+        note: m['note'] as String?,
       );
 
   static Map<String, dynamic> _closeoutToMap(DailyCloseout c) => {
@@ -357,6 +365,8 @@ class BackupService {
         'gradeLevel': s.gradeLevel,
         'hasSeenExactAlarmPrompt': s.hasSeenExactAlarmPrompt,
         'hasAddedFirstTask': s.hasAddedFirstTask,
+        'targetNetTYT': s.targetNetTYT,
+        'targetNetAYT': s.targetNetAYT,
       };
 
   static UserStatsModel _statsFromMap(Map<String, dynamic> m) => UserStatsModel(
@@ -382,6 +392,8 @@ class BackupService {
         // Eski yedekte alan yoksa muhtemelen zaten görevi olan bir
         // kullanıcı — true (geriye dönük kutlama çıkmasın).
         hasAddedFirstTask: (m['hasAddedFirstTask'] as bool?) ?? true,
+        targetNetTYT: (m['targetNetTYT'] as num?)?.toDouble(),
+        targetNetAYT: (m['targetNetAYT'] as num?)?.toDouble(),
       );
 
   // ------------------------------------------------------------------ UTIL
