@@ -1,4 +1,4 @@
-package com.example.study_planner
+package com.dodom.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

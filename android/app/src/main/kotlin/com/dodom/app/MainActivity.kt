@@ -1,4 +1,4 @@
-package com.example.study_planner
+package com.dodom.app
 
 import io.flutter.embedding.android.FlutterActivity
 
