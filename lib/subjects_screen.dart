@@ -138,23 +138,31 @@ class _SubjectCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Color(subject.colorValue).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: Color(subject.colorValue).withValues(alpha: 0.35)),
             boxShadow: AppColors.cardShadow,
           ),
           child: Row(
             children: [
               Container(
-                width: 10,
+                width: 40,
                 height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Color(subject.colorValue),
-                  borderRadius: BorderRadius.circular(6),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(Icons.menu_book_outlined,
+                    size: 18,
+                    color: AppColors.onColor(Color(subject.colorValue))),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(subject.name, style: AppTextStyles.body),
+                child: Text(subject.name,
+                    style: AppTextStyles.body
+                        .copyWith(fontWeight: FontWeight.w700)),
               ),
               const Icon(
                 Icons.chevron_right,
