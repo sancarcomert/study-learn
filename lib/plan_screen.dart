@@ -24,6 +24,7 @@ class PlanScreen extends StatelessWidget {
             icon: Icons.auto_awesome_outlined,
             title: "Çalışma Koçu",
             subtitle: "Sohbetle bugünkü planını oluştur",
+            tint: AppColors.vibrantViolet,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CoachScreen()),
@@ -34,6 +35,7 @@ class PlanScreen extends StatelessWidget {
             icon: Icons.checklist_rtl_outlined,
             title: "Konu Takip",
             subtitle: "Konuları işaretle, ilerlemeni gör",
+            tint: AppColors.vibrantMint,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const KonuTakipScreen()),
@@ -44,6 +46,7 @@ class PlanScreen extends StatelessWidget {
             icon: Icons.timer_outlined,
             title: "Odak Seansı",
             subtitle: "Kronometreyle çalış, süren kaydedilsin",
+            tint: AppColors.vibrantCoral,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FocusScreen()),
@@ -54,6 +57,7 @@ class PlanScreen extends StatelessWidget {
             icon: Icons.insights_outlined,
             title: "Deneme Takip",
             subtitle: "TYT/AYT netini gir, trendini gör",
+            tint: AppColors.vibrantSky,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const DenemeScreen()),
@@ -69,6 +73,7 @@ class _PlanEntry extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color tint;
   final VoidCallback onTap;
 
   const _PlanEntry({
@@ -76,6 +81,7 @@ class _PlanEntry extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.tint = AppColors.primary,
   });
 
   @override
@@ -87,6 +93,7 @@ class _PlanEntry extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: tint.withValues(alpha: 0.3)),
           boxShadow: AppColors.cardShadow,
         ),
         child: Row(
@@ -95,11 +102,8 @@ class _PlanEntry extends StatelessWidget {
               width: 48,
               height: 48,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.tonal(AppColors.primary),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: AppColors.primary),
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, color: AppColors.onColor(tint)),
             ),
             const SizedBox(width: 14),
             Expanded(

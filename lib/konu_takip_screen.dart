@@ -50,14 +50,17 @@ class KonuTakipScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.tonal(AppColors.primary),
+                      color: AppColors.vibrantMint.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                          color: AppColors.vibrantMint.withValues(alpha: 0.4)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Eyebrow(
-                            text: 'GENEL KAPSAMA', color: AppColors.primary),
+                            text: 'GENEL KAPSAMA',
+                            color: AppColors.vibrantMint),
                         const SizedBox(height: 8),
                         Text('%${(overall * 100).round()}',
                             style: AppTextStyles.heading1),
@@ -67,7 +70,7 @@ class KonuTakipScreen extends ConsumerWidget {
                         const SizedBox(height: 14),
                         AnimatedProgressBar(
                           value: overall,
-                          color: AppColors.primary,
+                          color: AppColors.vibrantMint,
                           backgroundColor: AppColors.surfaceVariant,
                         ),
                       ],
