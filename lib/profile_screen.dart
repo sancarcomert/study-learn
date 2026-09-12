@@ -136,12 +136,13 @@ class ProfileScreen extends ConsumerWidget {
                     height: 64,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.tonal(AppColors.primary),
+                      gradient: AppColors.primaryGradient,
                       shape: BoxShape.circle,
+                      boxShadow: [AppColors.glow(AppColors.primary)],
                     ),
                     child: const Icon(
                       Icons.person_outline,
-                      color: AppColors.primary,
+                      color: AppColors.ink,
                       size: 32,
                     ),
                   ),
@@ -178,65 +179,25 @@ class ProfileScreen extends ConsumerWidget {
 
           const Eyebrow(text: 'SINIF'),
           const SizedBox(height: 10),
-          TapScale(
+          _ProfileRow(
+            icon: Icons.school_outlined,
+            tint: AppColors.vibrantAmber,
+            label: UserStatsModel.gradeLabel(stats.gradeLevel),
             onTap: () => _showGradePicker(context, ref, stats.gradeLevel),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppColors.softShadow,
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.school_outlined,
-                      size: 20, color: AppColors.primary),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      UserStatsModel.gradeLabel(stats.gradeLevel),
-                      style: AppTextStyles.body,
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right,
-                      color: AppColors.textSecondary),
-                ],
-              ),
-            ),
           ),
 
           const SizedBox(height: 28),
 
           const Eyebrow(text: 'DERSLERİM'),
           const SizedBox(height: 10),
-          TapScale(
+          _ProfileRow(
+            icon: Icons.menu_book_outlined,
+            tint: AppColors.vibrantMint,
+            label: subjects.isEmpty
+                ? 'Ders ekle ve düzenle'
+                : '${subjects.length} ders — düzenle / sil',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SubjectsScreen()),
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppColors.softShadow,
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.menu_book_outlined,
-                      size: 20, color: AppColors.primary),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      subjects.isEmpty
-                          ? 'Ders ekle ve düzenle'
-                          : '${subjects.length} ders — düzenle / sil',
-                      style: AppTextStyles.body,
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right,
-                      color: AppColors.textSecondary),
-                ],
-              ),
             ),
           ),
 
@@ -282,13 +243,13 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.tonal(AppColors.primary),
+              color: AppColors.vibrantSky.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 const Icon(Icons.ac_unit,
-                    color: AppColors.primary, size: 18),
+                    color: AppColors.vibrantSky, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -319,24 +280,35 @@ class ProfileScreen extends ConsumerWidget {
           const Eyebrow(text: 'HEDEF'),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
+              border:
+                  Border.all(color: AppColors.vibrantAmber.withValues(alpha: 0.22)),
               boxShadow: AppColors.softShadow,
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(
-                    'Günlük hedef',
-                    style: AppTextStyles.body,
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.vibrantAmber.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.flag_outlined,
+                      size: 18, color: AppColors.vibrantAmber),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text('Günlük hedef', style: AppTextStyles.body),
                 ),
                 Text(
                   '${stats.dailyGoal} görev',
-                  style: AppTextStyles.heading3,
+                  style: AppTextStyles.heading3
+                      .copyWith(color: AppColors.vibrantAmber),
                 ),
               ],
             ),
@@ -357,7 +329,7 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 _StudyTimeRow(
                   icon: Icons.timer_outlined,
-                  iconColor: AppColors.primary,
+                  iconColor: AppColors.vibrantSky,
                   label: 'Odak seansı',
                   minutes: stats.focusMinutes,
                 ),
@@ -366,7 +338,7 @@ class ProfileScreen extends ConsumerWidget {
                     color: AppColors.textSecondary.withValues(alpha: 0.12)),
                 _StudyTimeRow(
                   icon: Icons.check_circle_outline,
-                  iconColor: AppColors.secondary,
+                  iconColor: AppColors.vibrantMint,
                   label: 'Tamamlanan görevler (tahmini)',
                   minutes: stats.totalStudyMinutes,
                 ),
@@ -388,35 +360,68 @@ class ProfileScreen extends ConsumerWidget {
 
           const Eyebrow(text: 'HAKKINDA'),
           const SizedBox(height: 10),
-          TapScale(
+          _ProfileRow(
+            icon: Icons.shield_outlined,
+            tint: AppColors.vibrantSky,
+            label: 'Verin sende — gizlilik ve şeffaflık',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AboutScreen()),
             ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppColors.softShadow,
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.shield_outlined,
-                      size: 20, color: AppColors.primary),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      'Verin sende — gizlilik ve şeffaflık',
-                      style: AppTextStyles.body,
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right,
-                      color: AppColors.textSecondary),
-                ],
-              ),
-            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Profil'deki tıklanabilir tek satırlık ayar/gezinti kartı — SINIF,
+/// DERSLERİM, HAKKINDA hepsi aynı çıplak Container'ı kopyalıyordu. Her
+/// satır artık about_screen.dart'taki _InfoRow ile aynı dilde: dolu ikon
+/// rozeti + kendi vurgu rengi, salt metin ikonu değil.
+class _ProfileRow extends StatelessWidget {
+  final IconData icon;
+  final Color tint;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ProfileRow({
+    required this.icon,
+    required this.tint,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: tint.withValues(alpha: 0.22)),
+          boxShadow: AppColors.softShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 18, color: tint),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(label, style: AppTextStyles.body),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }

@@ -83,20 +83,39 @@ class RankLadderScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                  color: AppColors.vibrantAmber.withValues(alpha: 0.2)),
+              boxShadow: AppColors.softShadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Rütbe nasıl yükselir?',
-                  style: AppTextStyles.body
-                      .copyWith(fontWeight: FontWeight.w700),
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.vibrantAmber.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.bolt_outlined,
+                          size: 17, color: AppColors.vibrantAmber),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Rütbe nasıl yükselir?',
+                      style: AppTextStyles.body
+                          .copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 const _XpSource(label: 'Bir görevi bitir', xp: '+10'),
                 const _XpSource(label: 'Günlük hedefini tuttur', xp: '+30'),
                 const _XpSource(label: 'Bir konuyu tamamla', xp: '+12'),

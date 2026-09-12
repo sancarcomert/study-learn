@@ -87,6 +87,8 @@ class StatsScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: _WeekTile(
+                  icon: Icons.check_circle_outline,
+                  tint: AppColors.vibrantMint,
                   value: '$weekCount',
                   label: 'görev bitirdin',
                 ),
@@ -94,6 +96,8 @@ class StatsScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _WeekTile(
+                  icon: Icons.calendar_today_outlined,
+                  tint: AppColors.vibrantSky,
                   value: '$activeDays/7',
                   label: 'gün çalıştın',
                 ),
@@ -419,23 +423,42 @@ class _FocusWeekBar extends StatelessWidget {
 }
 
 class _WeekTile extends StatelessWidget {
+  final IconData icon;
+  final Color tint;
   final String value;
   final String label;
 
-  const _WeekTile({required this.value, required this.label});
+  const _WeekTile({
+    required this.icon,
+    required this.tint,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tint.withValues(alpha: 0.22)),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: tint),
+          ),
+          const SizedBox(height: 10),
           Text(value, style: AppTextStyles.heading2),
           const SizedBox(height: 2),
           Text(label, style: AppTextStyles.caption),
@@ -676,8 +699,8 @@ class _ExamDateCard extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceVariant,
+              decoration: BoxDecoration(
+                color: AppColors.tonal(AppColors.primary),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.event_outlined,
