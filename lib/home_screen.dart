@@ -931,8 +931,9 @@ class _RankStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 16, 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
         boxShadow: AppColors.softShadow,
       ),
       child: Row(
@@ -1310,17 +1311,19 @@ class _ProfileRing extends StatelessWidget {
       child: TapScale(
         onTap: onTap,
         child: Container(
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.textMuted, width: 1.4),
+            color: AppColors.tonal(AppColors.primary),
+            border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
           ),
           child: const Icon(
             Icons.person_outline,
             size: 18,
-            color: AppColors.textSecondary,
+            color: AppColors.primary,
           ),
         ),
       ),
@@ -1347,9 +1350,20 @@ class _KingButton extends StatelessWidget {
         height: 64,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [AppColors.primary, Color(0xFFE8C989)],
+          ),
           borderRadius: BorderRadius.circular(32),
-          boxShadow: AppColors.cardShadow,
+          boxShadow: [
+            ...AppColors.cardShadow,
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.35),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
