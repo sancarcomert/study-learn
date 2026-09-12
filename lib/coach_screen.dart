@@ -14,6 +14,7 @@ import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'stats_provider.dart';
 import 'deneme_provider.dart';
+import 'subject_ai.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/exam_countdown.dart';
 
@@ -116,22 +117,26 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   static final _todayIntentRe = RegExp(
       r'(sadece bugün|sadece bugun|sadece bu gün|bugün olsun|bugun olsun|tek gün|tek gun|sadece bugüne|sadece bugune)');
 
-  // --- Duygu durumu / sınır testi tespiti --------------------------------
-  // Gerçek bir LLM DEĞİL (CLAUDE.md: "LLM YOK") — yalnız belirli kelime
-  // öbeklerini yakalayıp önceden yazılmış, empatik-ama-yönlendirici bir
-  // yerel cevap seçiyor. Açık uçlu anlama yok, yalnız bu iki dar kategori.
+  // --- Duygu durumu / sınır testi / günlük sohbet tespiti ----------------
+  // Gerçek bir LLM DEĞİL (CLAUDE.md: "LLM YOK") — yalnız kelime KÖKLERİNİ
+  // (çekim ekinden bağımsız, substring ile) yakalayıp önceden yazılmış,
+  // duruma uygun bir yerel cevap seçiyor. Açık uçlu anlama yok. Kökler
+  // bilerek tam kelime değil — Türkçe çekim çeşitliliği yüzünden ("yoruldum"
+  // / "yoruluyorum" / "yorulmuşum" hepsi "yorul" kökünü paylaşır) tam
+  // kelime listesi çok dar kalırdı.
   static const List<String> _burnoutPhrases = [
-    'bıktım', 'biktim',
-    'çok yoruldum', 'cok yoruldum',
-    'çalışasım yok', 'calisasim yok',
-    'çalışasım gelmiyor', 'calisasim gelmiyor',
-    'çalışamıyorum', 'calisamiyorum',
-    'bırakıyorum', 'birakiyorum',
-    'pes ediyorum', 'pes ettim',
-    'motivasyonum yok', 'motivasyon yok',
+    'bıktım', 'biktim', 'bıkkın', 'bikkin',
+    'yorul', 'yorgun',
+    'çalışasım', 'calisasim',
+    'çalışamı', 'calisami',
+    'bırakıyor', 'birakiyor', 'bırakacağ', 'birakacag',
+    'pes ediyorum', 'pes ettim', 'pes edece',
+    'motivasyon', 'isteksiz',
     'elimden gelmiyor',
-    'sıkıldım artık', 'sikildim artik',
-    'napayım artık', 'naapayım artık',
+    'sıkıl', 'sikil',
+    'bezdim', 'bezmiş', 'bezmis',
+    'tükendim', 'tukendim', 'tükenmiş', 'tukenmis',
+    'napayım artık', 'naapayım artık', 'ne yapayım artık',
   ];
 
   // Kök hâlde tutuluyor (ör. "salak" → "salaksın"/"salak mısın"/"salak"
@@ -139,8 +144,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   // tutulmaz.
   static const List<String> _hostilePhrases = [
     'amk', 'aq', 'mk', 'siktir', 'sikeyim', 'orospu', 'piç', 'pic',
-    'gerizekalı', 'gerizekali', 'şerefsiz', 'serefsiz', 'dallama',
+    'gerizekalı', 'gerizekali', 'gerzek', 'şerefsiz', 'serefsiz', 'dallama',
     'aptal', 'salak', 'ahmak', 'embesil', 'geri zekalı', 'geri zekali',
+    'öküz', 'okuz', 'mal mısın', 'mal misin',
   ];
 
   // Konu anlatımı / soru çözme talebi — kesin kapsam sınırı (CLAUDE.md):
@@ -150,41 +156,81 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   // Bunun yerine sınırı net ama sıcak bir dille söyleyip plana geri
   // çeker.
   static const List<String> _contentRequestPhrases = [
-    'anlatır mısın', 'anlatirmisin', 'anlatir misin',
-    'açıklar mısın', 'aciklar misin',
-    'nasıl çözülür', 'nasil cozulur',
-    'çözer misin', 'cozer misin',
-    'soru çöz', 'soru coz',
-    'konu anlat', 'video öner', 'video oner',
-    'anlamadım bunu', 'anlamiyorum bunu', 'bunu anlamıyorum',
-    'bunu anlamadım',
+    'anlat', 'açıkla', 'acikla',
+    'nasıl çözül', 'nasil cozul', 'nasıl yapılır', 'nasil yapilir',
+    'çöz', 'coz',
+    'video öner', 'video oner', 'video izle',
+    'anlamıyorum', 'anlamiyorum', 'anlamadım', 'anlamadim',
+    'çıkmış soru', 'cikmis soru',
   ];
 
   // Sınav kaygısı — tükenmişlikten farklı: "yapamıyorum" değil "olmayacak/
   // kaybedeceğim" korkusu. Ayrı bir ton hak ediyor (güven verici,
   // somutlaştırıcı).
   static const List<String> _examFearPhrases = [
-    'başaramayacağım', 'basaramayacagim',
-    'kazanamayacağım', 'kazanamayacagim',
-    'elenecem', 'eleneceğim', 'elenecegim',
-    'kaybedeceğim', 'kaybedecegim',
-    'çok korkuyorum', 'cok korkuyorum',
-    'sınavdan korkuyorum', 'sinavdan korkuyorum',
+    'başarama', 'basarama',
+    'kazanama',
+    'elenece', 'eleniyo',
+    'kaybede',
+    'korkuyorum', 'korkuyoum',
+    'kaygı', 'kaygi',
+    'panik',
     'yapamayacağım', 'yapamayacagim',
   ];
 
   // Başkasıyla kıyaslama — YKS öğrencilerinde çok yaygın bir kaygı kaynağı.
   static const List<String> _comparisonPhrases = [
-    'benden daha çok', 'benden daha cok',
-    'benden iyi', 'benden daha iyi',
+    'benden daha', 'benden iyi',
     'herkes benden', 'arkadaşım benden', 'arkadasim benden',
-    'ondan geride', 'geride kaldım', 'geride kaldim',
+    'sınıfta herkes', 'sinifta herkes',
+    'ondan geride', 'geride kal', 'geri kalıyorum', 'geri kaliyorum',
+  ];
+
+  // Ders hakkında olumsuz duygu ("nefret ediyorum", "zor geliyor") —
+  // [_detectSubjectMention] ile birlikte kullanılır, ders adı bulunursa
+  // cevaba işlenir.
+  static const List<String> _negativeSubjectSentiment = [
+    'nefret ediyorum', 'sevmiyorum', 'sevmedim',
+    'zor geliyor', 'zor geliyo', 'çok zor', 'cok zor',
+    'anlayamıyorum', 'anlayamiyorum',
+    'kötüyüm', 'kotuyum', 'başarısızım', 'basarisizim',
+  ];
+
+  // Ders hakkında olumlu duygu — [_detectSubjectMention] ile birlikte.
+  static const List<String> _positiveSubjectSentiment = [
+    'seviyorum', 'bayılıyorum', 'bayiliyorum',
+    'en sevdiğim', 'en sevdigim',
+    'kolay geliyor', 'çok iyiyim',
   ];
 
   // Doğal sohbet — sadece giriş selamında değil, sohbet ortasında da
-  // gelebilir ("naber" gibi). Kısa, sıcak, hemen plana geri döner.
-  static const List<String> _smallTalkPhrases = [
-    'naber', 'ne haber', 'nasılsın', 'nasilsin', 'nabersin',
+  // gelebilir. Üç alt kategoriye ayrılıyor çünkü her biri farklı bir
+  // cevap hak ediyor (selam ≠ "sen kimsin" ≠ "ne yapıyorsun").
+  static const List<String> _greetingPhrases = [
+    'naber', 'ne haber', 'nabersin',
+    'selam', 'merhaba', 'hey',
+    'günaydın', 'gunaydin',
+    'iyi akşamlar', 'iyi aksamlar', 'iyi geceler', 'iyi günler', 'iyi gunler',
+  ];
+
+  static const List<String> _wellbeingCheckPhrases = [
+    'nasılsın', 'nasilsin', 'iyi misin', 'nasıl gidiyor', 'nasil gidiyor',
+  ];
+
+  static const List<String> _botIdentityPhrases = [
+    'sen kimsin', 'kimsin', 'adın ne', 'adin ne', 'ismin ne',
+    'yapay zeka mısın', 'yapay zeka misin', 'bot musun', 'robot musun',
+    'gerçek misin', 'gercek misin', 'insan mısın', 'insan misin',
+  ];
+
+  static const List<String> _casualCheckInPhrases = [
+    'ne yapıyorsun', 'ne yapiyorsun', 'napıyorsun', 'napiyorsun',
+    'ne yapıyon', 'ne yapiyon',
+  ];
+
+  static const List<String> _jokePhrases = [
+    'espri yap', 'şaka yap', 'saka yap', 'fıkra anlat', 'fikra anlat',
+    'beni güldür', 'beni guldur',
   ];
 
   // Uygulamayı nasıl kullanacağını bilmeyen kullanıcı — kısa kullanım
@@ -198,6 +244,17 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
   bool _matchesAny(String low, List<String> phrases) =>
       phrases.any((p) => low.contains(p));
+
+  /// [raw] içinde kullanıcının kendi ders listesindeki bir dersin adı ya da
+  /// (yoksa) [SubjectAI] tahmini geçiyorsa adını döndürür — ders duygusu
+  /// tespitinde ("matematikten nefret ediyorum") kullanılır.
+  String? _detectSubjectMention(String raw) {
+    final low = raw.toLowerCase().replaceAll('̇', '');
+    for (final s in ref.read(subjectProvider)) {
+      if (low.contains(s.name.toLowerCase())) return s.name;
+    }
+    return SubjectAI.predict(raw);
+  }
 
   void _onSend() {
     final raw = _input.text.trim();
@@ -270,6 +327,32 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       return;
     }
 
+    final subjectMention = _detectSubjectMention(raw);
+    if (subjectMention != null && _matchesAny(low, _negativeSubjectSentiment)) {
+      _say(_pick([
+        '$subjectMention pek çok kişinin zorlandığı bir ders — yalnız '
+            'değilsin. Küçük adımlarla başlarsak korkusu azalır, 15 '
+            'dakika dener misin?',
+        '$subjectMention için bu his normal. Sevmesen de birazcık '
+            'çalışmak fark yaratır — kaç dakika ayırabilirsin?',
+        'Zor gelmesi sevmediğin anlamına gelmez, alışkın olmadığın '
+            'anlamına gelir. $subjectMention\'a küçük bir blokla '
+            'başlayalım mı?',
+      ]));
+      return;
+    }
+    if (subjectMention != null && _matchesAny(low, _positiveSubjectSentiment)) {
+      _say(_pick([
+        'Harika, $subjectMention seni motive ediyor 🎉 O zaman bugün ona '
+            'biraz zaman ayıralım — kaç dakika?',
+        '$subjectMention senin güçlü yanın gibi duruyor, bu enerjiyi '
+            'kullanalım. Ne kadar çalışacaksın?',
+        'Sevdiğin bir derste ilerlemek daha kolay — hadi $subjectMention '
+            'için bir blok ayarlayalım.',
+      ]));
+      return;
+    }
+
     if (_matchesAny(low, _usageConfusionPhrases)) {
       _say('Basit: bana bir ders + süre söyle ("yarın 2 saat matematik" '
           'gibi), planına eklerim. İstersen "sen ayarla" de, günü ben '
@@ -277,11 +360,45 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       return;
     }
 
-    if (_matchesAny(low, _smallTalkPhrases)) {
+    if (_matchesAny(low, _botIdentityPhrases)) {
+      _say('Ben Pusula\'nın Çalışma Koçu\'yum — karmaşık bir yapay zeka '
+          'değilim, basit ama işe yarar bir planlama yardımcısıyım 😊 '
+          'Ne çalışalım?');
+      return;
+    }
+
+    if (_matchesAny(low, _wellbeingCheckPhrases)) {
       _say(_pick([
         'İyiyim, sağ ol! 😊 Sıra sende — bugün ne çalışıyoruz?',
         'Gayet iyi! Sen nasılsın, bugün çalışmaya hazır mısın?',
         'Keyifler yerinde 👋 Hadi başlayalım — ne çalışmak istersin?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _casualCheckInPhrases)) {
+      _say(_pick([
+        'Seni bekliyordum aslında 😄 Ne çalışmak istersin?',
+        'Planlar kuruyorum, tam senlik bir iş — hangi derse bakalım?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _jokePhrases)) {
+      _say(_pick([
+        'Şakada pek iyi değilim ama planlamada eşim yok 😅 Hadi bir ders '
+            'seçelim.',
+        'Espri konusunda zayıfım, plan konusunda güçlüyüm. Ne '
+            'çalışıyoruz?',
+      ]));
+      return;
+    }
+
+    if (_matchesAny(low, _greetingPhrases)) {
+      _say(_pick([
+        'Selam! 👋 Bugün ne çalışmak istersin?',
+        'Merhaba! Hazırsan başlayalım — hangi ders?',
+        'Selam sana da 😊 Ne kadar vaktin var bugün?',
       ]));
       return;
     }
