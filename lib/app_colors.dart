@@ -29,13 +29,26 @@ class AppColors {
   static const Color priorityMedium = warning;
   static const Color priorityHigh = Color(0xFFC97A66);
 
+  // Canlı/renkli vurgu paleti (2026-09, kullanıcı isteğiyle) — istatistik/
+  // özet kartlarını tek nötr "surface" yerine kategoriye göre renklendirmek
+  // için. subjectPalette'ten (dersler, bilinçli desatüre) ayrı: bunlar
+  // doygun/enerjik, koyu zeminde gerçekten "cıvıl cıvıl" hissettirsin diye.
+  static const Color vibrantMint = Color(0xFF3DDC97);
+  static const Color vibrantCoral = Color(0xFFFF7A6B);
+  static const Color vibrantSky = Color(0xFF4FC3F7);
+  static const Color vibrantViolet = Color(0xFFB388FF);
+  static const Color vibrantAmber = Color(0xFFFFC857);
+
+  // Doygunluğu artırıldı (2026-09, kullanıcı isteğiyle: "cıvıl cıvıl") —
+  // aynı renk ailesi (mor/yeşil/mavi/turuncu/pembe/turkuaz) korunuyor,
+  // önceki desatüre pastel tonların yerini daha canlı versiyonları aldı.
   static const List<Color> subjectPalette = [
-    Color(0xFFA79FC9),
-    Color(0xFF8FB39A),
-    Color(0xFF8FA8C9),
-    Color(0xFFB98A5E),
-    Color(0xFFC79797),
-    Color(0xFF7FB3AC),
+    Color(0xFFA78BFA),
+    Color(0xFF2DD4A8),
+    Color(0xFF38BDF8),
+    Color(0xFFFFB347),
+    Color(0xFFFB7185),
+    Color(0xFF2DD4BF),
   ];
 
   static List<BoxShadow> get cardShadow => [

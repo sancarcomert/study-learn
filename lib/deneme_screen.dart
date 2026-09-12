@@ -131,6 +131,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                           child: _StatTile(
                             value: summary.average.toStringAsFixed(1),
                             label: 'ortalama net',
+                            tint: AppColors.vibrantSky,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -138,7 +139,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                           child: _StatTile(
                             value: summary.best.toStringAsFixed(1),
                             label: 'en iyi net',
-                            valueColor: AppColors.success,
+                            tint: AppColors.vibrantMint,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -146,6 +147,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                           child: _StatTile(
                             value: '${summary.count}',
                             label: summary.count == 1 ? 'deneme' : 'deneme',
+                            tint: AppColors.vibrantViolet,
                           ),
                         ),
                       ],
@@ -360,26 +362,27 @@ class ExamTypeToggle extends StatelessWidget {
 class _StatTile extends StatelessWidget {
   final String value;
   final String label;
-  final Color? valueColor;
+  final Color tint;
 
-  const _StatTile({required this.value, required this.label, this.valueColor});
+  const _StatTile({
+    required this.value,
+    required this.label,
+    this.tint = AppColors.vibrantSky,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: tint.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tint.withValues(alpha: 0.4)),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(
         children: [
-          Text(
-            value,
-            style: AppTextStyles.heading2
-                .copyWith(color: valueColor ?? AppColors.textPrimary),
-          ),
+          Text(value, style: AppTextStyles.heading2.copyWith(color: tint)),
           const SizedBox(height: 2),
           Text(label, style: AppTextStyles.caption, textAlign: TextAlign.center),
         ],

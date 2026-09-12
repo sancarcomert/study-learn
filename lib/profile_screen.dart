@@ -260,7 +260,7 @@ class ProfileScreen extends ConsumerWidget {
               Expanded(
                 child: _ProfileStatCard(
                   icon: Icons.local_fire_department_outlined,
-                  iconColor: AppColors.warning,
+                  iconColor: AppColors.vibrantCoral,
                   value: '${stats.currentStreak}',
                   label: 'Mevcut Seri',
                 ),
@@ -510,13 +510,19 @@ class _ProfileStatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: iconColor.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: iconColor.withValues(alpha: 0.45)),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(
         children: [
-          Icon(icon, color: iconColor, size: 26),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle),
+            child: Icon(icon, color: AppColors.onColor(iconColor), size: 20),
+          ),
           const SizedBox(height: 8),
           Text(value, style: AppTextStyles.heading2),
           const SizedBox(height: 2),

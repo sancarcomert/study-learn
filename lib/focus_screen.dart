@@ -720,7 +720,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                           height: 64,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            // Aksiyona göre renk — başlat=yeşil, duraklat=
+                            // turuncu (kullanıcı isteğiyle, referans
+                            // uygulamalardaki gibi).
+                            color: _running
+                                ? AppColors.vibrantCoral
+                                : AppColors.vibrantMint,
                             borderRadius: BorderRadius.circular(32),
                             boxShadow: AppColors.cardShadow,
                           ),
@@ -730,13 +735,19 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                               Icon(
                                 _running ? Icons.pause : Icons.play_arrow,
                                 size: 22,
-                                color: AppColors.ink,
+                                color: AppColors.onColor(_running
+                                    ? AppColors.vibrantCoral
+                                    : AppColors.vibrantMint),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 _running ? 'Duraklat' : 'Başlat',
-                                style: AppTextStyles.button
-                                    .copyWith(fontSize: 16),
+                                style: AppTextStyles.button.copyWith(
+                                  fontSize: 16,
+                                  color: AppColors.onColor(_running
+                                      ? AppColors.vibrantCoral
+                                      : AppColors.vibrantMint),
+                                ),
                               ),
                             ],
                           ),

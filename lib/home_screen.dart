@@ -737,6 +737,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           eyebrow: 'BUGÜN',
                           value: '$completedCount/$totalCount',
                           sub: 'görev tamam',
+                          icon: Icons.check_circle_outline,
+                          tint: AppColors.vibrantMint,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -745,6 +747,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           eyebrow: 'KALAN SÜRE',
                           value: _fmtDuration(remainingMin),
                           sub: 'bugün',
+                          icon: Icons.hourglass_bottom,
+                          tint: AppColors.vibrantSky,
                         ),
                       ),
                     ],
@@ -1364,29 +1368,44 @@ class _BentoCard extends StatelessWidget {
   final String eyebrow;
   final String value;
   final String sub;
+  final Color tint;
+  final IconData icon;
 
   const _BentoCard({
     required this.eyebrow,
     required this.value,
     required this.sub,
+    required this.icon,
+    this.tint = AppColors.vibrantMint,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 110,
+      height: 130,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: tint.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.surfaceVariant, width: 1),
+        border: Border.all(color: tint.withValues(alpha: 0.45), width: 1),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Eyebrow(text: eyebrow),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Eyebrow(text: eyebrow, color: tint),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+                child: Icon(icon, size: 16, color: AppColors.onColor(tint)),
+              ),
+            ],
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
