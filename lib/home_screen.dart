@@ -1559,6 +1559,7 @@ class _KingButtonState extends State<_KingButton>
           ],
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
             AnimatedBuilder(
               animation: _sweep,
