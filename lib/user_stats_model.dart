@@ -112,13 +112,6 @@ class UserStatsModel extends HiveObject {
   @HiveField(18)
   DateTime? lastCarryOverPromptDate;
 
-  // "Bugünü kapat" giriş kartının "×" ile gizlendiği son gün — aynı bug
-  // sınıfı (kullanıcı bulgusu): önceden State içi geçici bir bayraktı,
-  // uygulama yeniden açılınca aynı gün içinde kart geri geliyordu. Artık
-  // gün bazında kalıcı; ertesi gün otomatik sıfırlanır.
-  @HiveField(19)
-  DateTime? lastCloseOutDismissDate;
-
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -141,7 +134,6 @@ class UserStatsModel extends HiveObject {
     this.targetNetTYT,
     this.targetNetAYT,
     this.lastCarryOverPromptDate,
-    this.lastCloseOutDismissDate,
   });
 
   /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.

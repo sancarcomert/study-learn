@@ -36,14 +36,13 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       targetNetTYT: fields[16] as double?,
       targetNetAYT: fields[17] as double?,
       lastCarryOverPromptDate: fields[18] as DateTime?,
-      lastCloseOutDismissDate: fields[19] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserStatsModel obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.currentStreak)
       ..writeByte(1)
@@ -81,9 +80,7 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       ..writeByte(17)
       ..write(obj.targetNetAYT)
       ..writeByte(18)
-      ..write(obj.lastCarryOverPromptDate)
-      ..writeByte(19)
-      ..write(obj.lastCloseOutDismissDate);
+      ..write(obj.lastCarryOverPromptDate);
   }
 
   @override

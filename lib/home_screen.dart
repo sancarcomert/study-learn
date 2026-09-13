@@ -151,10 +151,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // oturum başına bir kez.
   bool _carryOverPrompted = false;
 
-  // Akşam "Bugünü kapat" kartını bu oturumda elle kapattıysa tekrar
-  // göstermeyiz (ertesi gün yeniden çıkar).
-  bool _closeOutDismissed = false;
-
   // "Yarına taşıyalım mı?" sorusu oturum başına bir kez — "Kalsın" dedikten
   // sonra kartı tekrar açınca (düzenlemek için) yeniden sorulmasın.
   bool _carryForwardTonightAsked = false;
@@ -706,13 +702,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // yok" tutarsız hissettiriyordu. Şimdi kapatılmadığı sürece her zaman
     // görünür.
     final isEvening = now.hour >= 18;
-    // Bug (kullanıcı bulgusu): _closeOutDismissed State içi geçici bir
-    // bayraktı — "×" ile gizleyip uygulamadan çıkınca bir sonraki açılışta
-    // aynı gün içinde kart geri geliyordu. wasCloseOutDismissedToday
-    // (statsProvider, kalıcı) artık bunun yerini alıyor.
-    final showCloseOutCard = todayCloseout == null &&
-        !_closeOutDismissed &&
-        !ref.read(statsProvider.notifier).wasCloseOutDismissedToday;
+    // Kullanıcı isteğiyle "×" ile gizleme kaldırıldı — kart artık
+    // kapatılana kadar her zaman görünür kalıyor.
+    final showCloseOutCard = todayCloseout == null;
     final showYesterdayIntent = !isEvening &&
         todayCloseout == null &&
         yesterdayIntent != null &&
@@ -887,15 +879,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       if (showCloseOutCard) ...[
                         const SizedBox(height: 28),
-                        _CloseOutCard(
-                          onTap: _closeOutToday,
-                          onDismiss: () {
-                            ref
-                                .read(statsProvider.notifier)
-                                .markCloseOutDismissedToday();
-                            setState(() => _closeOutDismissed = true);
-                          },
-                        ),
+                        _CloseOutCard(onTap: _closeOutToday),
                       ],
 
                       const SizedBox(height: 32),
@@ -1306,15 +1290,13 @@ class _RelaxModeCard extends StatelessWidget {
 }
 
 /// Akşam Home'da beliren "Bugünü kapat" giriş kartı (B3). Dokun → özet
-/// sayfası. "×" → bu oturumda gizle (ertesi gün yeniden çıkar). Yalnız
-/// henüz kapatılmadıysa gösterilir — kapatıldıktan sonra yerini
-/// _RelaxModeCard alır (o da dokununca aynı sheet'i Güncelle modunda
-/// açar), iki kart aynı "kapattın" mesajını tekrar etmesin diye.
+/// sayfası. Yalnız henüz kapatılmadıysa gösterilir — kapatıldıktan sonra
+/// yerini _RelaxModeCard alır (o da dokununca aynı sheet'i Güncelle
+/// modunda açar), iki kart aynı "kapattın" mesajını tekrar etmesin diye.
 class _CloseOutCard extends StatelessWidget {
   final VoidCallback onTap;
-  final VoidCallback onDismiss;
 
-  const _CloseOutCard({required this.onTap, required this.onDismiss});
+  const _CloseOutCard({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1356,18 +1338,8 @@ class _CloseOutCard extends StatelessWidget {
                 ],
               ),
             ),
-            Semantics(
-              button: true,
-              label: 'Kartı gizle',
-              child: TapScale(
-                onTap: onDismiss,
-                child: const Padding(
-                  padding: EdgeInsets.all(8),
-                  child:
-                      Icon(Icons.close, size: 16, color: AppColors.textMuted),
-                ),
-              ),
-            ),
+            const Icon(Icons.chevron_right,
+                size: 20, color: AppColors.textSecondary),
           ],
         ),
       ),
