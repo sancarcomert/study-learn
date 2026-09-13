@@ -294,7 +294,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// önerir — profesyonel yapılacaklar uygulamalarındaki "carry over" akışı.
   /// Görev oluşturma/güncelleme mevcut `taskProvider.updateTask` ile yapılır.
   Future<void> _maybeShowCarryOverPrompt() async {
-    if (_carryOverPrompted || !mounted) return;
+    // Bug (kullanıcı bulgusu): bu bayrak önceden sadece _carryOverPrompted
+    // (State içi, geçici) idi — "Şimdi Değil" deyip uygulamadan çıkınca bir
+    // sonraki açılışta State sıfırdan kurulduğu için aynı gün içinde defalarca
+    // soruyordu. Artık gün bazında kalıcı bir kayda (statsProvider) bakılıyor;
+    // bugün zaten sorulduysa cevap ne olursa olsun bir daha sorulmaz.
+    if (_carryOverPrompted ||
+        !mounted ||
+        ref.read(statsProvider.notifier).wasCarryOverPromptedToday) {
+      return;
+    }
 
     final now = DateTime.now();
     final stale = ref
@@ -304,6 +313,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (stale.isEmpty) return;
 
     _carryOverPrompted = true;
+    ref.read(statsProvider.notifier).markCarryOverPromptedToday();
     final n = stale.length;
 
     final move = await showDialog<bool>(
@@ -696,7 +706,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // yok" tutarsız hissettiriyordu. Şimdi kapatılmadığı sürece her zaman
     // görünür.
     final isEvening = now.hour >= 18;
-    final showCloseOutCard = todayCloseout == null && !_closeOutDismissed;
+    // Bug (kullanıcı bulgusu): _closeOutDismissed State içi geçici bir
+    // bayraktı — "×" ile gizleyip uygulamadan çıkınca bir sonraki açılışta
+    // aynı gün içinde kart geri geliyordu. wasCloseOutDismissedToday
+    // (statsProvider, kalıcı) artık bunun yerini alıyor.
+    final showCloseOutCard = todayCloseout == null &&
+        !_closeOutDismissed &&
+        !ref.read(statsProvider.notifier).wasCloseOutDismissedToday;
     final showYesterdayIntent = !isEvening &&
         todayCloseout == null &&
         yesterdayIntent != null &&
@@ -873,8 +889,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const SizedBox(height: 28),
                         _CloseOutCard(
                           onTap: _closeOutToday,
-                          onDismiss: () =>
-                              setState(() => _closeOutDismissed = true),
+                          onDismiss: () {
+                            ref
+                                .read(statsProvider.notifier)
+                                .markCloseOutDismissedToday();
+                            setState(() => _closeOutDismissed = true);
+                          },
                         ),
                       ],
 

@@ -247,8 +247,8 @@ class BackupService {
         subjectId: m['subjectId'] as String?,
         dueDate: _date(m['dueDate']) ?? DateTime.now(),
         isCompleted: (m['isCompleted'] as bool?) ?? false,
-        priority:
-            _enumByName(TaskPriority.values, m['priority'], TaskPriority.medium),
+        priority: _enumByName(
+            TaskPriority.values, m['priority'], TaskPriority.medium),
         createdAt: _date(m['createdAt']) ?? DateTime.now(),
         completedAt: _date(m['completedAt']),
         scheduledTime: _date(m['scheduledTime']),
@@ -308,7 +308,8 @@ class BackupService {
         'closedAt': c.closedAt.toIso8601String(),
       };
 
-  static DailyCloseout _closeoutFromMap(Map<String, dynamic> m) => DailyCloseout(
+  static DailyCloseout _closeoutFromMap(Map<String, dynamic> m) =>
+      DailyCloseout(
         id: m['id'] as String,
         date: _date(m['date']) ?? DateTime.now(),
         intent: (m['intent'] as String?) ?? '',
@@ -367,6 +368,8 @@ class BackupService {
         'hasAddedFirstTask': s.hasAddedFirstTask,
         'targetNetTYT': s.targetNetTYT,
         'targetNetAYT': s.targetNetAYT,
+        'lastCarryOverPromptDate': s.lastCarryOverPromptDate?.toIso8601String(),
+        'lastCloseOutDismissDate': s.lastCloseOutDismissDate?.toIso8601String(),
       };
 
   static UserStatsModel _statsFromMap(Map<String, dynamic> m) => UserStatsModel(
@@ -394,6 +397,8 @@ class BackupService {
         hasAddedFirstTask: (m['hasAddedFirstTask'] as bool?) ?? true,
         targetNetTYT: (m['targetNetTYT'] as num?)?.toDouble(),
         targetNetAYT: (m['targetNetAYT'] as num?)?.toDouble(),
+        lastCarryOverPromptDate: _date(m['lastCarryOverPromptDate']),
+        lastCloseOutDismissDate: _date(m['lastCloseOutDismissDate']),
       );
 
   // ------------------------------------------------------------------ UTIL
@@ -405,7 +410,8 @@ class BackupService {
   static DateTime? _date(Object? v) =>
       v == null ? null : DateTime.tryParse(v.toString());
 
-  static T _enumByName<T extends Enum>(List<T> values, Object? name, T fallback) {
+  static T _enumByName<T extends Enum>(
+      List<T> values, Object? name, T fallback) {
     for (final v in values) {
       if (v.name == name) return v;
     }

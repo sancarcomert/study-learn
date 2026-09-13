@@ -101,6 +101,24 @@ class UserStatsModel extends HiveObject {
   @HiveField(17)
   double? targetNetAYT;
 
+  // "Önceki günden kalan görevler" taşıma sorusunun son sorulduğu gün.
+  // Bug: bu daha önce State içindeki geçici bir bayraktı — kullanıcı
+  // "Şimdi Değil" deyip uygulamadan çıkınca, bir sonraki açılışta State
+  // sıfırdan kurulduğu için aynı gün içinde tekrar tekrar soruyordu.
+  // Artık gün bazında kalıcı: bugün zaten sorulduysa (cevap ne olursa
+  // olsun) uygulama yeniden açılsa da tekrar sorulmaz, ertesi gün
+  // otomatik sıfırlanır (tarih karşılaştırması ile, ayrı bir "sıfırla"
+  // işlemi gerekmez). Nullable: hiç sorulmadıysa null.
+  @HiveField(18)
+  DateTime? lastCarryOverPromptDate;
+
+  // "Bugünü kapat" giriş kartının "×" ile gizlendiği son gün — aynı bug
+  // sınıfı (kullanıcı bulgusu): önceden State içi geçici bir bayraktı,
+  // uygulama yeniden açılınca aynı gün içinde kart geri geliyordu. Artık
+  // gün bazında kalıcı; ertesi gün otomatik sıfırlanır.
+  @HiveField(19)
+  DateTime? lastCloseOutDismissDate;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -122,6 +140,8 @@ class UserStatsModel extends HiveObject {
     this.hasAddedFirstTask = false,
     this.targetNetTYT,
     this.targetNetAYT,
+    this.lastCarryOverPromptDate,
+    this.lastCloseOutDismissDate,
   });
 
   /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.

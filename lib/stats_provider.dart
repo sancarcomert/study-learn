@@ -42,7 +42,42 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       hasAddedFirstTask: _stats.hasAddedFirstTask,
       targetNetTYT: _stats.targetNetTYT,
       targetNetAYT: _stats.targetNetAYT,
+      lastCarryOverPromptDate: _stats.lastCarryOverPromptDate,
+      lastCloseOutDismissDate: _stats.lastCloseOutDismissDate,
     );
+  }
+
+  /// Bugün zaten "önceki günden kalan görevleri taşı" sorulduysa (cevap ne
+  /// olursa olsun) true — bkz. lastCarryOverPromptDate'teki not.
+  bool get wasCarryOverPromptedToday {
+    final last = _stats.lastCarryOverPromptDate;
+    if (last == null) return false;
+    final today = DateTime.now();
+    return last.year == today.year &&
+        last.month == today.month &&
+        last.day == today.day;
+  }
+
+  void markCarryOverPromptedToday() {
+    _stats.lastCarryOverPromptDate = DateTime.now();
+    _stats.save();
+    _emit();
+  }
+
+  /// Bugün zaten "Bugünü kapat" kartı "×" ile gizlendiyse true.
+  bool get wasCloseOutDismissedToday {
+    final last = _stats.lastCloseOutDismissDate;
+    if (last == null) return false;
+    final today = DateTime.now();
+    return last.year == today.year &&
+        last.month == today.month &&
+        last.day == today.day;
+  }
+
+  void markCloseOutDismissedToday() {
+    _stats.lastCloseOutDismissDate = DateTime.now();
+    _stats.save();
+    _emit();
   }
 
   void markGoalCompletedToday() {
@@ -217,7 +252,8 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   }
 }
 
-final statsProvider = StateNotifierProvider<StatsNotifier, UserStatsModel>((ref) {
+final statsProvider =
+    StateNotifierProvider<StatsNotifier, UserStatsModel>((ref) {
   final stats = ref.watch(statsRepositoryProvider);
   return StatsNotifier(stats);
 });
