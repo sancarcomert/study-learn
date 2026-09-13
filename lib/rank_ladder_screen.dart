@@ -5,6 +5,8 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'rank_provider.dart';
 import 'rank_system.dart';
+import 'stats_provider.dart';
+import 'task_provider.dart';
 import 'widgets/rank_bar.dart';
 import 'widgets/rank_emblem.dart';
 
@@ -18,6 +20,10 @@ class RankLadderScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final info = ref.watch(rankProvider);
     final color = Color(info.colorHex);
+    final stats = ref.watch(statsProvider);
+    final completedTasks =
+        ref.watch(taskProvider).where((t) => t.isCompleted).length;
+    final focusHours = stats.focusMinutes / 60;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -38,8 +44,8 @@ class RankLadderScreen extends ConsumerWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color.alphaBlend(color.withValues(alpha: 0.16),
-                      AppColors.surface),
+                  Color.alphaBlend(
+                      color.withValues(alpha: 0.16), AppColors.surface),
                   AppColors.surface,
                 ],
               ),
@@ -62,6 +68,37 @@ class RankLadderScreen extends ConsumerWidget {
                       : '${info.nextName} için ${info.xpToNextRank} XP',
                   style: AppTextStyles.bodySecondary
                       .copyWith(color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 18),
+                // Karakter kartı istatistik satırı — rakip araştırmasındaki
+                // Habitica bulgusu: rozet + XP çubuğunun altına üç küçük
+                // istatistik, tek "kimlik" bloğu olarak.
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CharStat(
+                        icon: Icons.local_fire_department,
+                        value: '${stats.currentStreak}',
+                        label: 'GÜN SERİ',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _CharStat(
+                        icon: Icons.check_circle_outline,
+                        value: '$completedTasks',
+                        label: 'GÖREV',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _CharStat(
+                        icon: Icons.timer_outlined,
+                        value: '${focusHours.toStringAsFixed(0)}sa',
+                        label: 'ODAK',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -234,7 +271,43 @@ class _LadderRow extends StatelessWidget {
             Icon(Icons.my_location_outlined, size: 18, color: color)
           else if (reached)
             const Icon(Icons.check_rounded,
+                size: 18, color: AppColors.textMuted)
+          else
+            const Icon(Icons.lock_outline,
                 size: 18, color: AppColors.textMuted),
+        ],
+      ),
+    );
+  }
+}
+
+/// Karakter kartındaki tek istatistik hücresi (seri/görev/odak).
+class _CharStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _CharStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(height: 6),
+          Text(value, style: AppTextStyles.heading3),
+          const SizedBox(height: 1),
+          Text(label, style: AppTextStyles.caption.copyWith(fontSize: 9.5)),
         ],
       ),
     );

@@ -8,7 +8,6 @@ import 'subject_provider.dart';
 import 'task_provider.dart';
 import 'stats_provider.dart';
 import 'user_stats_model.dart';
-import 'widgets/app_buttons.dart';
 import 'widgets/eyebrow.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -48,7 +47,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _startWithSubject() {
-    final subjectName = _selectedSubject ?? _customSubjectController.text.trim();
+    final subjectName =
+        _selectedSubject ?? _customSubjectController.text.trim();
     if (subjectName.isEmpty) return;
 
     final colorValue = AppColors.subjectPalette.first.toARGB32();
@@ -108,7 +108,50 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // Adım noktaları — rakip araştırmasındaki (2025-26 onboarding
+                // trendleri) "ilerleme hissi" bulgusu: form tek ekranda kalsa
+                // da kullanıcı nerede olduğunu görsün. Üçüncü nokta "başla"
+                // adımını temsil eder, gönderene kadar sönük kalır.
+                Row(
+                  children: [
+                    Expanded(
+                      child:
+                          _StepDot(on: _nameController.text.trim().isNotEmpty),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(child: _StepDot(on: hasSubject)),
+                    const SizedBox(width: 6),
+                    const Expanded(child: _StepDot(on: false)),
+                  ],
+                ),
+
+                const SizedBox(height: 22),
+
+                // Değer önerisi rozeti — karşılama artık doğrudan forma değil,
+                // tek bir görsel çapaya açılıyor (2025-26 onboarding
+                // araştırması: kullanıcıların %80'i değeri hemen görmezse
+                // bırakıyor).
+                Center(
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        AppColors.glow(AppColors.primary),
+                        ...AppColors.cardShadow,
+                      ],
+                    ),
+                    child: const Icon(Icons.auto_awesome,
+                        color: AppColors.ink, size: 32),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
 
                 const Eyebrow(text: 'BAŞLANGIÇ'),
                 const SizedBox(height: 6),
@@ -259,8 +302,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const SizedBox(height: 32),
 
-                PrimaryButton(
+                _ChunkyButton(
                   label: 'Başlayalım',
+                  icon: Icons.auto_awesome,
                   onPressed: hasSubject ? _startWithSubject : null,
                 ),
 
@@ -292,6 +336,78 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Adım noktası — karşılama ekranının en üstündeki ilerleme şeridi.
+class _StepDot extends StatelessWidget {
+  final bool on;
+  const _StepDot({required this.on});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: 4,
+      decoration: BoxDecoration(
+        color: on ? AppColors.primary : AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
+}
+
+/// Karşılamaya özgü "dokunsal" (pressed) buton — rakip araştırmasındaki
+/// Duolingo bulgusu: bulanık parıltı yerine düz, ofsetli koyu-altın bir
+/// gölge katmanı. Bilinçli olarak uygulamanın geri kalanındaki paylaşılan
+/// PrimaryButton'dan (yumuşak parıltı dili) ayrı tutuldu — yalnız bu
+/// karşılama anını daha "oyunlaştırılmış/canlı" hissettirsin diye.
+class _ChunkyButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _ChunkyButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return TapScale(
+      onTap: onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 60,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: enabled ? AppColors.primaryGradient : null,
+          color: enabled ? null : AppColors.tonal(AppColors.textSecondary),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: enabled
+              ? const [
+                  BoxShadow(color: Color(0xFFA9803F), offset: Offset(0, 6)),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 20, color: enabled ? AppColors.ink : AppColors.textMuted),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: AppTextStyles.button.copyWith(
+                color: enabled ? AppColors.ink : AppColors.textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );

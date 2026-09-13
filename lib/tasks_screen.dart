@@ -69,8 +69,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     final scheduled = dayTasks.where((t) => t.scheduledTime != null).toList()
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
-    final unscheduled =
-        dayTasks.where((t) => t.scheduledTime == null).toList();
+    final unscheduled = dayTasks.where((t) => t.scheduledTime == null).toList();
 
     final now = DateTime.now();
     final isTodaySelected = _isSameDay(_selectedDate, now);
@@ -136,8 +135,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         const Eyebrow(text: 'SAATSİZ GÖREVLER'),
                         const SizedBox(height: 12),
                         ...unscheduled.map(
-                          (task) =>
-                              TaskTile(task: task, subjects: subjects),
+                          (task) => TaskTile(task: task, subjects: subjects),
                         ),
                       ],
                     ],
@@ -170,8 +168,18 @@ class _WeekNavRow extends StatelessWidget {
   const _WeekNavRow({required this.weekAnchor, required this.onShift});
 
   static const _months = [
-    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
-    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
+    'Oca',
+    'Şub',
+    'Mar',
+    'Nis',
+    'May',
+    'Haz',
+    'Tem',
+    'Ağu',
+    'Eyl',
+    'Eki',
+    'Kas',
+    'Ara',
   ];
 
   @override
@@ -200,8 +208,7 @@ class _WeekNavRow extends StatelessWidget {
             onTap: () => onShift(7),
             child: const Padding(
               padding: EdgeInsets.all(10),
-              child:
-                  Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              child: Icon(Icons.chevron_right, color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -329,9 +336,8 @@ class _TimelineRow extends ConsumerWidget {
     final inProgress = st == TaskTimeStatus.inProgress;
     // Kart zemini sakin kalır (ders tonu); gecikmişse yalnız nokta + saat
     // etiketi + saat aralığı kehribara döner — "bağır" değil "işaretle".
-    final dotColor = overdue
-        ? AppColors.warning
-        : (inProgress ? AppColors.primary : color);
+    final dotColor =
+        overdue ? AppColors.warning : (inProgress ? AppColors.primary : color);
 
     return IntrinsicHeight(
       child: Row(
@@ -381,117 +387,137 @@ class _TimelineRow extends ConsumerWidget {
                 task: task,
                 margin: EdgeInsets.zero,
                 borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.tonal(color),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TapScale(
-                            onTap: () => ref
-                                .read(taskProvider.notifier)
-                                .toggleTaskCompletion(task.id, ref),
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: task.isCompleted
-                                    ? AppColors.tonal(AppColors.vibrantMint)
-                                    : Colors.transparent,
-                                border: task.isCompleted
-                                    ? null
-                                    : Border.all(
-                                        color: AppColors.textSecondary
-                                            .withValues(alpha: 0.5),
-                                        width: 1.4,
-                                      ),
-                              ),
-                              child: task.isCompleted
-                                  ? const Icon(
-                                      Icons.check_rounded,
-                                      size: 16,
-                                      color: AppColors.vibrantMint,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TapScale(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      AddTaskScreen(taskToEdit: task),
-                                ),
-                              ),
-                              child: Text(
-                                task.title,
-                                style: AppTextStyles.body.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  decoration: task.isCompleted
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  color: task.isCompleted
-                                      ? AppColors.textSecondary
-                                      : AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (subject != null) ...[
-                        const SizedBox(height: 4),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 30),
-                          child: Text(
-                            subject!.name,
-                            style: AppTextStyles.caption.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(17, 14, 14, 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.tonal(color),
                         ),
-                      ],
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 30),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              overdue
-                                  ? Icons.warning_amber_rounded
-                                  : Icons.timer_outlined,
-                              size: 12,
-                              color: overdue
-                                  ? AppColors.warning
-                                  : (inProgress
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                TapScale(
+                                  onTap: () => ref
+                                      .read(taskProvider.notifier)
+                                      .toggleTaskCompletion(task.id, ref),
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: task.isCompleted
+                                          ? AppColors.tonal(
+                                              AppColors.vibrantMint)
+                                          : Colors.transparent,
+                                      border: task.isCompleted
+                                          ? null
+                                          : Border.all(
+                                              color: AppColors.textSecondary
+                                                  .withValues(alpha: 0.5),
+                                              width: 1.4,
+                                            ),
+                                    ),
+                                    child: task.isCompleted
+                                        ? const Icon(
+                                            Icons.check_rounded,
+                                            size: 16,
+                                            color: AppColors.vibrantMint,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TapScale(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            AddTaskScreen(taskToEdit: task),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      task.title,
+                                      style: AppTextStyles.body.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        decoration: task.isCompleted
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                        color: task.isCompleted
+                                            ? AppColors.textSecondary
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')} - ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}'
-                              '${overdue ? ' · gecikti' : (inProgress ? ' · şimdi' : '')}',
-                              style: AppTextStyles.caption.copyWith(
-                                color: overdue
-                                    ? AppColors.warning
-                                    : (inProgress ? AppColors.primary : null),
-                                fontWeight: (overdue || inProgress)
-                                    ? FontWeight.w700
-                                    : null,
+                            if (subject != null) ...[
+                              const SizedBox(height: 4),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 30),
+                                child: Text(
+                                  subject!.name,
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: color,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 30),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    overdue
+                                        ? Icons.warning_amber_rounded
+                                        : Icons.timer_outlined,
+                                    size: 12,
+                                    color: overdue
+                                        ? AppColors.warning
+                                        : (inProgress
+                                            ? AppColors.primary
+                                            : AppColors.textSecondary),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')} - ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}'
+                                    '${overdue ? ' · gecikti' : (inProgress ? ' · şimdi' : '')}',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: overdue
+                                          ? AppColors.warning
+                                          : (inProgress
+                                              ? AppColors.primary
+                                              : null),
+                                      fontWeight: (overdue || inProgress)
+                                          ? FontWeight.w700
+                                          : null,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      // Öncelik çizgisi — Todoist usulü, ders rengiyle
+                      // (arka plan dolgusu) karışmasın diye ayrı bir sinyal.
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 3,
+                          color: _priorityColor(task.priority),
                         ),
                       ),
                     ],
@@ -503,5 +529,16 @@ class _TimelineRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Color _priorityColor(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.low:
+        return AppColors.priorityLow;
+      case TaskPriority.medium:
+        return AppColors.priorityMedium;
+      case TaskPriority.high:
+        return AppColors.priorityHigh;
+    }
   }
 }
