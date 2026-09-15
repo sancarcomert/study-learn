@@ -45,7 +45,7 @@ class AppBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 76,
+          height: 82,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Row(
@@ -63,9 +63,13 @@ class AppBottomNav extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? item.color.withValues(alpha: 0.16)
+                            ? item.color.withValues(alpha: 0.22)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
+                        border: isSelected
+                            ? Border.all(
+                                color: item.color.withValues(alpha: 0.4))
+                            : null,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -85,6 +89,18 @@ class AppBottomNav extends StatelessWidget {
                               fontWeight: isSelected
                                   ? FontWeight.w700
                                   : FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Aktif sekmeyi tek bakışta belli eden ince alt
+                          // çizgi — pil rengiyle birlikte çift sinyal.
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            width: isSelected ? 16 : 0,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: item.color,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
                         ],

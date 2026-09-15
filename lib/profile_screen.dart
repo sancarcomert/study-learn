@@ -20,7 +20,8 @@ import 'widgets/eyebrow.dart';
 import 'widgets/rank_bar.dart';
 import 'widgets/rank_emblem.dart';
 
-void _showEditNameDialog(BuildContext context, WidgetRef ref, String? currentName) {
+void _showEditNameDialog(
+    BuildContext context, WidgetRef ref, String? currentName) {
   final controller = TextEditingController(text: currentName ?? '');
 
   showDialog(
@@ -177,7 +178,9 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'SINIF'),
+          // SINIF + DERSLERİM — önceden iki ayrı eyebrow/kart bloğuydu,
+          // dikey yığılmayı azaltmak için tek "HESAP" grubuna toplandı.
+          const Eyebrow(text: 'HESAP'),
           const SizedBox(height: 10),
           _ProfileRow(
             icon: Icons.school_outlined,
@@ -185,10 +188,6 @@ class ProfileScreen extends ConsumerWidget {
             label: UserStatsModel.gradeLabel(stats.gradeLevel),
             onTap: () => _showGradePicker(context, ref, stats.gradeLevel),
           ),
-
-          const SizedBox(height: 28),
-
-          const Eyebrow(text: 'DERSLERİM'),
           const SizedBox(height: 10),
           _ProfileRow(
             icon: Icons.menu_book_outlined,
@@ -214,7 +213,9 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'SERİ'),
+          // SERİ + dondurma + HEDEF — üçü de "günlük tempo" hakkında,
+          // tek grupta toplandı (önceden ayrı ayrı 3 eyebrow'du).
+          const Eyebrow(text: 'SERİ & HEDEF'),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -275,17 +276,14 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 28),
-
-          const Eyebrow(text: 'HEDEF'),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: AppColors.vibrantAmber.withValues(alpha: 0.22)),
+              border: Border.all(
+                  color: AppColors.vibrantAmber.withValues(alpha: 0.22)),
               boxShadow: AppColors.softShadow,
             ),
             child: Row(
@@ -348,17 +346,12 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'BİLDİRİMLER'),
+          // BİLDİRİMLER + HAKKINDA — ikisi de "AYARLAR" başlığı altında;
+          // Veri yedekleme kendi başlığını taşıdığı için (VERİLER) ayrı
+          // bırakıldı, üst üste iki eyebrow görünmesin diye.
+          const Eyebrow(text: 'AYARLAR'),
           const SizedBox(height: 10),
           const _NotificationStatusCard(),
-
-          const SizedBox(height: 28),
-
-          const DataBackupSection(),
-
-          const SizedBox(height: 28),
-
-          const Eyebrow(text: 'HAKKINDA'),
           const SizedBox(height: 10),
           _ProfileRow(
             icon: Icons.shield_outlined,
@@ -368,6 +361,10 @@ class ProfileScreen extends ConsumerWidget {
               MaterialPageRoute(builder: (_) => const AboutScreen()),
             ),
           ),
+
+          const SizedBox(height: 28),
+
+          const DataBackupSection(),
         ],
       ),
     );
@@ -461,8 +458,8 @@ class _RankCard extends StatelessWidget {
                         Text(info.name, style: AppTextStyles.heading2),
                         const Spacer(),
                         Text('${info.rank}/6',
-                            style: AppTextStyles.caption
-                                .copyWith(color: color)),
+                            style:
+                                AppTextStyles.caption.copyWith(color: color)),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -483,8 +480,8 @@ class _RankCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('Toplam ${info.xp} XP',
-                    style: AppTextStyles.caption),
+                child:
+                    Text('Toplam ${info.xp} XP', style: AppTextStyles.caption),
               ),
               Text('Tüm rütbeler',
                   style: AppTextStyles.caption.copyWith(color: color)),
@@ -581,7 +578,8 @@ class _NotificationStatusCardState extends State<_NotificationStatusCard>
   }
 
   Future<void> _refresh() async {
-    final notif = await NotificationService.instance.hasNotificationPermission();
+    final notif =
+        await NotificationService.instance.hasNotificationPermission();
     final exact = await NotificationService.instance.hasExactAlarmPermission();
     if (!mounted) return;
     setState(() {

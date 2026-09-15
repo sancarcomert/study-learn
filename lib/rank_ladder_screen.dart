@@ -229,53 +229,66 @@ class _LadderRow extends StatelessWidget {
       statusColor = AppColors.textMuted;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: current
-            ? Border.all(color: color, width: 1.4)
-            : Border.all(color: AppColors.surfaceVariant, width: 1),
-        boxShadow: current ? AppColors.softShadow : null,
-      ),
-      child: Row(
-        children: [
-          Opacity(
-            opacity: reached || current ? 1 : 0.7,
-            child: RankEmblem(rank: rank, size: 46),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: AppTextStyles.body.copyWith(
-                    color: current || reached
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
+    final locked = !current && !reached;
+
+    return Opacity(
+      // Kilitli rütbeler artık bütünüyle soluk — önceden yalnız amblem
+      // hafifçe soluyordu, "kilitli" hissi zayıftı.
+      opacity: locked ? 0.5 : 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: current
+              ? Border.all(color: color, width: 1.6)
+              : Border.all(color: AppColors.surfaceVariant, width: 1),
+          boxShadow: current
+              ? [
+                  ...AppColors.softShadow,
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    spreadRadius: -2,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  status,
-                  style: AppTextStyles.caption.copyWith(color: statusColor),
-                ),
-              ],
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            RankEmblem(rank: rank, size: 46),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: AppTextStyles.body.copyWith(
+                      color: current || reached
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    status,
+                    style: AppTextStyles.caption.copyWith(color: statusColor),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (current)
-            Icon(Icons.my_location_outlined, size: 18, color: color)
-          else if (reached)
-            const Icon(Icons.check_rounded,
-                size: 18, color: AppColors.textMuted)
-          else
-            const Icon(Icons.lock_outline,
-                size: 18, color: AppColors.textMuted),
-        ],
+            if (current)
+              Icon(Icons.my_location_outlined, size: 18, color: color)
+            else if (reached)
+              const Icon(Icons.check_rounded,
+                  size: 18, color: AppColors.textMuted)
+            else
+              const Icon(Icons.lock_outline,
+                  size: 18, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }

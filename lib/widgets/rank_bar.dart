@@ -97,9 +97,9 @@ class _Segment extends StatelessWidget {
                       color: color,
                       boxShadow: [
                         BoxShadow(
-                          color: color.withValues(alpha: 0.7),
-                          blurRadius: 10,
-                          spreadRadius: -1,
+                          color: color.withValues(alpha: 0.85),
+                          blurRadius: 15,
+                          spreadRadius: 0,
                         ),
                       ],
                     ),

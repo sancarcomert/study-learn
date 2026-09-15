@@ -33,6 +33,9 @@ class FocusScreen extends ConsumerStatefulWidget {
   final int? initialTargetMin;
   final String? initialSubjectId;
   final String? initialTopicId;
+  // Koç'un "Pomodoro Başlat" hızlı aksiyonundan gelen giriş — verilirse
+  // ekran Serbest yerine doğrudan Pomodoro modunda açılır.
+  final bool initialPomodoro;
 
   const FocusScreen({
     super.key,
@@ -40,6 +43,7 @@ class FocusScreen extends ConsumerStatefulWidget {
     this.initialTargetMin,
     this.initialSubjectId,
     this.initialTopicId,
+    this.initialPomodoro = false,
   });
 
   @override
@@ -56,7 +60,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   bool _running = false;
   bool _leaving = false;
 
-  _Mode _mode = _Mode.free;
+  late _Mode _mode = widget.initialPomodoro ? _Mode.pomodoro : _Mode.free;
   late int _blockMin = widget.initialTargetMin ?? 25;
 
   late final TextEditingController _noteController =

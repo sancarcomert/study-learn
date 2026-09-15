@@ -61,9 +61,8 @@ class StatsScreen extends ConsumerWidget {
       countsByDay[d] = (countsByDay[d] ?? 0) + 1;
     }
 
-    final weekCompleted = completedTasks
-        .where((t) => !_taskDay(t).isBefore(thisMonday))
-        .toList();
+    final weekCompleted =
+        completedTasks.where((t) => !_taskDay(t).isBefore(thisMonday)).toList();
     final weekCount = weekCompleted.length;
     final activeDays = weekCompleted.map(_taskDay).toSet().length;
 
@@ -72,7 +71,8 @@ class StatsScreen extends ConsumerWidget {
     final denemeCount = ref.watch(denemeProvider).length;
     final latestDeneme = ref.watch(latestDenemeProvider);
     return Scaffold(
-      appBar: AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
+      appBar:
+          AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -136,8 +136,7 @@ class StatsScreen extends ConsumerWidget {
                 }
               }
             },
-            onClear: () =>
-                ref.read(statsProvider.notifier).setExamDate(null),
+            onClear: () => ref.read(statsProvider.notifier).setExamDate(null),
           ),
 
           const SizedBox(height: 28),
@@ -277,30 +276,30 @@ class StatsScreen extends ConsumerWidget {
           else
             _DenemeSummaryCard(entry: latestDeneme, count: denemeCount),
 
-         const SizedBox(height: 28),
-         const Eyebrow(text: 'BAŞARILAR'),
-const SizedBox(height: 12),
+          const SizedBox(height: 28),
+          const Eyebrow(text: 'BAŞARILAR'),
+          const SizedBox(height: 12),
 
-AchievementCard(
-  title: 'İlk Adım',
-  description: 'İlk görevini tamamla',
-  icon: Icons.flag_outlined,
-  unlocked: totalCompleted >= 1,
-),
+          AchievementCard(
+            title: 'İlk Adım',
+            description: 'İlk görevini tamamla',
+            icon: Icons.flag_outlined,
+            unlocked: totalCompleted >= 1,
+          ),
 
-AchievementCard(
-  title: 'Çalışkan Öğrenci',
-  description: '50 görevi tamamla',
-  icon: Icons.star_outline,
-  unlocked: totalCompleted >= 50,
-),
+          AchievementCard(
+            title: 'Çalışkan Öğrenci',
+            description: '50 görevi tamamla',
+            icon: Icons.star_outline,
+            unlocked: totalCompleted >= 50,
+          ),
 
-AchievementCard(
-  title: 'Usta Planlayıcı',
-  description: '100 görevi tamamla',
-  icon: Icons.workspace_premium_outlined,
-  unlocked: totalCompleted >= 100,
-),
+          AchievementCard(
+            title: 'Usta Planlayıcı',
+            description: '100 görevi tamamla',
+            icon: Icons.workspace_premium_outlined,
+            unlocked: totalCompleted >= 100,
+          ),
 
           const SizedBox(height: 28),
           const Eyebrow(text: 'KONU İLERLEMESİ'),
@@ -502,8 +501,9 @@ class _SubjectDistributionState extends State<_SubjectDistribution> {
         .map((s) => MapEntry(s, counts[s.id] ?? 0))
         .toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final maxCount =
-        rows.isEmpty ? 0 : rows.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+    final maxCount = rows.isEmpty
+        ? 0
+        : rows.map((e) => e.value).reduce((a, b) => a > b ? a : b);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,7 +597,7 @@ class _PeriodChip extends StatelessWidget {
     return TapScale(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
           // CTA hiyerarşisi: altın yalnız birincil aksiyon için — bu bir
           // dönem seçici, secondary (indigo) daha doğru.
@@ -679,8 +679,18 @@ class _ExamDateCard extends StatelessWidget {
   });
 
   static const _months = [
-    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
-    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
+    'Oca',
+    'Şub',
+    'Mar',
+    'Nis',
+    'May',
+    'Haz',
+    'Tem',
+    'Ağu',
+    'Eyl',
+    'Eki',
+    'Kas',
+    'Ara',
   ];
 
   @override
@@ -743,7 +753,6 @@ class _ExamDateCard extends StatelessWidget {
   }
 }
 
-
 class _GoalButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -754,14 +763,22 @@ class _GoalButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TapScale(
       onTap: onTap,
+      // Dış kutu 44x44 — mobil ergonomi için gerçek dokunma alanı; görsel
+      // daire içeride 32x32 kalıyor, satır şişmiyor.
       child: Container(
-        width: 32,
-        height: 32,
-        decoration: const BoxDecoration(
-          color: AppColors.surfaceVariant,
-          shape: BoxShape.circle,
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceVariant,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: AppColors.primary),
         ),
-        child: Icon(icon, size: 18, color: AppColors.primary),
       ),
     );
   }
