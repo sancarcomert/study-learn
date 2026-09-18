@@ -222,6 +222,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('Şimdi Değil'),
           ),
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Devam Et'),
           ),
@@ -315,6 +316,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('Şimdi Değil'),
           ),
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Bugüne Taşı'),
           ),
