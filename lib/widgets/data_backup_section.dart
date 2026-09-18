@@ -229,7 +229,7 @@ class _DataBackupSectionState extends ConsumerState<DataBackupSection> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text(
+            child: Text(
               'Geri yükle',
               style: TextStyle(
                 color: AppColors.danger,

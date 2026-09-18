@@ -4,10 +4,11 @@ import '../app_colors.dart';
 import '../app_text_styles.dart';
 
 /// GitHub tarzı aktivite ısı haritası — süreklilik göstergesi. Her hücre
-/// bir gün; renk yoğunluğu o gün tamamlanan görev sayısına göre. Salt görsel:
-/// gün → sayı haritası alır, hiçbir şey hesaplamaz/yazmaz.
+/// bir gün; renk yoğunluğu o gün ölçülen aktiviteye göre. Salt görsel:
+/// gün → sayı haritası alır, hiçbir şey hesaplamaz/yazmaz — "aktivite"nin
+/// ne sayıldığına (görev, odak seansı, ikisi) çağıran karar verir.
 class ActivityHeatmap extends StatelessWidget {
-  /// Anahtar = gün (yıl/ay/gün, saat sıfır), değer = o gün tamamlanan görev.
+  /// Anahtar = gün (yıl/ay/gün, saat sıfır), değer = o günkü aktivite sayısı.
   final Map<DateTime, int> countsByDay;
   final int weeks;
 

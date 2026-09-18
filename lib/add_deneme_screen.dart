@@ -213,7 +213,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today_outlined,
+                          Icon(Icons.calendar_today_outlined,
                               size: 18, color: AppColors.secondary),
                           const SizedBox(width: 10),
                           Text(_formatDate(_date), style: AppTextStyles.body),
@@ -264,7 +264,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (added)
-                                const Icon(Icons.check,
+                                Icon(Icons.check,
                                     size: 14, color: AppColors.textMuted),
                               if (added) const SizedBox(width: 4),
                               Text(
@@ -301,7 +301,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
                     onTap: _addCustomSection,
                     child: Row(
                       children: [
-                        const Icon(Icons.add_circle_outline,
+                        Icon(Icons.add_circle_outline,
                             size: 18, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Text(
@@ -387,8 +387,8 @@ class _SectionCard extends StatelessWidget {
               ),
               TapScale(
                 onTap: onRemove,
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
                   child:
                       Icon(Icons.close, size: 18, color: AppColors.textMuted),
                 ),

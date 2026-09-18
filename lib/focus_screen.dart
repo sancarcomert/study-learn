@@ -15,6 +15,7 @@ import 'hive_boxes.dart';
 import 'notification_service.dart';
 import 'stats_provider.dart';
 import 'subject_provider.dart';
+import 'task_provider.dart';
 import 'tap_scale.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
@@ -36,6 +37,12 @@ class FocusScreen extends ConsumerStatefulWidget {
   // Koç'un "Pomodoro Başlat" hızlı aksiyonundan gelen giriş — verilirse
   // ekran Serbest yerine doğrudan Pomodoro modunda açılır.
   final bool initialPomodoro;
+  // Bir görevden başlatıldıysa o görevin id'si — Serbest modun hedefi
+  // (görevin tahmini süresi) dolunca bu görevi doğrudan tamamlanmış
+  // işaretleyebilmek için (bkz. _celebrateFreeTargetReached). Önceden
+  // seans bitince görevle HİÇBİR bağlantı yoktu — kronometre dolsa da
+  // görev Görevler'de işaretsiz kalıyordu.
+  final String? initialTaskId;
 
   const FocusScreen({
     super.key,
@@ -44,6 +51,7 @@ class FocusScreen extends ConsumerStatefulWidget {
     this.initialSubjectId,
     this.initialTopicId,
     this.initialPomodoro = false,
+    this.initialTaskId,
   });
 
   @override
@@ -95,6 +103,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   int _pomoCycle = 1; // üzerinde çalışılan / son biten çalışma bloğu no'su
   int _phaseAccumSec = 0;
   DateTime? _phaseSegStart;
+
+  // Serbest hedefi bir kez kutlanır — ticker her saniye çalıştığı için
+  // bayrak olmadan aynı dialog defalarca açılırdı.
+  bool _freeTargetCelebrated = false;
 
   @override
   void initState() {
@@ -236,7 +248,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(
+        icon: Icon(
           Icons.alarm_outlined,
           color: AppColors.primary,
           size: 32,
@@ -301,6 +313,13 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
           _phaseElapsedSec >= _phaseTargetSec) {
         _advancePhase(auto: true);
       }
+      if (_mode == _Mode.free &&
+          _running &&
+          !_freeTargetCelebrated &&
+          _freeElapsedSec >= _blockMin * 60) {
+        _freeTargetCelebrated = true;
+        _celebrateFreeTargetReached();
+      }
       setState(() {});
     });
   }
@@ -342,14 +361,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     final String body;
     if (_mode == _Mode.free) {
       remainingSec = _blockMin * 60 - _freeElapsedSec;
-      title = 'Hedefe ulaştın 🎯';
+      title = 'Hedefe ulaştın';
       final note = _noteController.text.trim();
       body =
           note.isEmpty ? 'Odak hedefine ulaştın.' : '$note · hedefe ulaştın.';
     } else if (_phase == _Phase.work) {
       remainingSec = _phaseTargetSec - _phaseElapsedSec;
       title = 'Çalışma bloğu bitti';
-      body = 'Mola zamanı geldi 🎯';
+      body = 'Mola zamanı geldi.';
     } else {
       remainingSec = _phaseTargetSec - _phaseElapsedSec;
       title = 'Mola bitti';
@@ -388,6 +407,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _pomoCycle = 1;
       _phaseAccumSec = 0;
       _phaseSegStart = null;
+      _freeTargetCelebrated = false;
     });
   }
 
@@ -422,6 +442,94 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     }
   }
 
+  /// Serbest modun hedefi (bir görevden başlatıldıysa görevin tahmini
+  /// süresi) dolunca — önceden burada HİÇBİR şey olmuyordu, saat yeşile
+  /// dönüp sessizce saymaya devam ediyordu; kronometrenin bittiği an ile
+  /// başlatıldığı görev arasında hiçbir bağlantı yoktu. Artık gerçek bir
+  /// an: dokunuşsal geri bildirim + görevi doğrudan tamamlama seçeneği.
+  void _celebrateFreeTargetReached() {
+    HapticFeedback.heavyImpact();
+    final taskId = widget.initialTaskId;
+    final task = taskId == null
+        ? null
+        : ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
+    final canCompleteTask = task != null && !task.isCompleted;
+
+    _showFocusCelebration(
+      title: 'Hedefe ulaştın',
+      body: '$_blockMin dakikalık hedefini tamamladın.',
+      actionLabel: canCompleteTask ? 'Görevi Tamamla' : null,
+      onAction: canCompleteTask ? () => _completeLinkedTask(task.id) : null,
+    );
+  }
+
+  void _completeLinkedTask(String taskId) {
+    final task =
+        ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
+    if (task == null || task.isCompleted) return;
+    ref.read(taskProvider.notifier).toggleTaskCompletion(taskId, ref);
+    if (mounted) {
+      AppSnackBar.success(context, '"${task.title}" tamamlandı');
+    }
+  }
+
+  /// Odak tamamlanma anları için tek, paylaşılan görsel dil — koyu yeşil
+  /// onay rozeti + net başlık/gövde. Önceki hâlde bu anlar (Pomodoro bloğu
+  /// bitişi, Serbest hedefi) ya küçük bir snackbar ya da hiçbir şeydi.
+  Future<void> _showFocusCelebration({
+    required String title,
+    required String body,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        icon: Container(
+          width: 56,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.tonal(AppColors.success),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.check_rounded,
+              color: AppColors.success, size: 30),
+        ),
+        title: Text(title, style: AppTextStyles.heading3,
+            textAlign: TextAlign.center),
+        content: Text(body,
+            style: AppTextStyles.bodySecondary, textAlign: TextAlign.center),
+        actionsAlignment: actionLabel == null
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.spaceBetween,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(actionLabel == null ? 'Tamam' : 'Devam Et'),
+          ),
+          if (actionLabel != null)
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.ink,
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                onAction?.call();
+              },
+              child: Text(actionLabel),
+            ),
+        ],
+      ),
+    );
+  }
+
   /// [auto] true ise sayaç bittiği için otomatik geçiş; false ise molayı
   /// kullanıcı elle geçti.
   void _advancePhase({bool auto = false}) {
@@ -433,10 +541,21 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       final isLong = _pomoCycle % 4 == 0;
       _phase = isLong ? _Phase.longBreak : _Phase.shortBreak;
       if (mounted) {
-        AppSnackBar.info(
-          context,
-          isLong ? 'Uzun mola · 15 dk' : 'Mola · 5 dk',
-        );
+        if (auto) {
+          // Sayaç gerçekten sıfırlandığı (kullanıcı elle atlamadığı) an —
+          // önceden yalnız küçük bir snackbar vardı, "yazıdan ibaret"
+          // kalıyordu. Artık gerçek bir dokunuşsal + görsel an.
+          _showFocusCelebration(
+            title: 'Çalışma bloğu bitti',
+            body:
+                '$_blockMin dakika çalıştın. ${isLong ? "Uzun mola" : "Mola"} zamanı.',
+          );
+        } else {
+          AppSnackBar.info(
+            context,
+            isLong ? 'Uzun mola · 15 dk' : 'Mola · 5 dk',
+          );
+        }
       }
     } else {
       _pomoCycle++;
@@ -488,6 +607,27 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
 
   void _exit() {
     _saveIfNeeded();
+    if (!mounted || _leaving) return;
+    setState(() => _leaving = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  // "Bitir" butonundan FARKLI: kullanıcı sadece geri gidiyor (geri tuşu/
+  // nav bar), seansı bilerek bitirmiyor. Önceden PopScope de _exit()'i
+  // (dolayısıyla _saveIfNeeded()'i) çağırıyordu — bu, ekrandan çıkılınca
+  // seansı SONLANDIRIP çapayı siliyordu; dakika henüz 1'i bulmadıysa
+  // (ör. birkaç saniye sonra geri dönülürse) hiçbir iz bile kalmıyor,
+  // Focus'a tekrar girince sıfırdan başlıyordu — kullanıcı "sıfırlandı"
+  // olarak görüyordu. Artık uygulamanın arka plana alınmasıyla (bkz.
+  // didChangeAppLifecycleState) BİREBİR aynı yol: checkpoint + çapa yaz,
+  // seansı bitirme. Focus'a (Home/Koç, her neredense) tekrar girildiğinde
+  // kaldığı yerden — duvar saatiyle, geçen süre kadar ileriden — devam
+  // ediyor; tamamlanma bildirimi de iptal edilmiyor, zamanı gelince düşer.
+  void _leaveWhileRunning() {
+    _checkpointProgress();
+    if (_running) _writeAnchor();
     if (!mounted || _leaving) return;
     setState(() => _leaving = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -566,7 +706,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     return PopScope(
       canPop: _leaving || !_hasUnsavedProgress,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _exit();
+        if (!didPop) _leaveWhileRunning();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -627,7 +767,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                             : AppColors.textPrimary,
                         statusLabel: _mode == _Mode.free
                             ? (reached
-                                ? 'hedefe ulaştın 🎯'
+                                ? 'hedefe ulaştın'
                                 : 'hedef $_blockMin dk')
                             : _phaseLabel,
                         statusColor: (isBreak || reached)
@@ -654,7 +794,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                             return TapScale(
                               onTap: _running
                                   ? () {}
-                                  : () => setState(() => _blockMin = min),
+                                  : () => setState(() {
+                                        _blockMin = min;
+                                        _freeTargetCelebrated = false;
+                                      }),
                               child: Opacity(
                                 opacity: _running ? 0.4 : 1,
                                 child: Container(

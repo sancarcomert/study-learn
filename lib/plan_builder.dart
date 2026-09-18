@@ -132,13 +132,13 @@ class PlanBuilder {
 
     final String reason;
     if (examSoon) {
-      reason = 'Sınava $examDays gün — öncelikler yükseltildi 📌';
+      reason = 'Sınava $examDays gün — öncelikler yükseltildi.';
     } else if (energy == 'düşük') {
-      reason = 'Enerjin düşük — daha kısa bloklar seçildi 🌱';
+      reason = 'Enerjin düşük — daha kısa bloklar seçildi.';
     } else if (energy == 'yüksek') {
-      reason = 'Enerjin yüksek — uzun çalışma blokları seçildi 🔥';
+      reason = 'Enerjin yüksek — uzun çalışma blokları seçildi.';
     } else {
-      reason = 'Dengeli bir çalışma planı 🎯';
+      reason = 'Dengeli bir çalışma planı.';
     }
 
     return PlanResult(blocks: blocks, unfitTitles: unfit, reason: reason);
@@ -226,8 +226,8 @@ class PlanBuilder {
     }
 
     final reason = examSoon
-        ? 'Sınava $examDays gün — haftalık program, öncelikler yüksek 📌'
-        : 'Önümüzdeki ${dayPlans.length} güne dengeli bir program 🗓️';
+        ? 'Sınava $examDays gün — haftalık program, öncelikler yüksek.'
+        : 'Önümüzdeki ${dayPlans.length} güne dengeli bir program.';
 
     return WeekPlanResult(
       days: dayPlans,

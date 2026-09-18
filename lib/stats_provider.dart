@@ -43,6 +43,7 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       targetNetTYT: _stats.targetNetTYT,
       targetNetAYT: _stats.targetNetAYT,
       lastCarryOverPromptDate: _stats.lastCarryOverPromptDate,
+      themeMode: _stats.themeMode,
     );
   }
 
@@ -202,6 +203,14 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
   void updateUserName(String name) {
     final trimmed = name.trim();
     _stats.userName = trimmed.isEmpty ? null : trimmed;
+    _stats.save();
+    _emit();
+  }
+
+  // Görünüm tercihi — 'light' | 'dark'. Ayarlar'dan çağrılır.
+  void updateThemeMode(String mode) {
+    if (mode != 'light' && mode != 'dark') return;
+    _stats.themeMode = mode;
     _stats.save();
     _emit();
   }

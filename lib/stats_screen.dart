@@ -4,7 +4,8 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'tap_scale.dart';
 import 'widgets/achievement_card.dart';
-import 'widgets/eyebrow.dart';
+import 'widgets/section_header.dart';
+import 'widgets/metric_tile.dart';
 import 'widgets/exam_countdown.dart';
 import 'widgets/activity_heatmap.dart';
 import 'deneme_model.dart';
@@ -54,20 +55,32 @@ class StatsScreen extends ConsumerWidget {
     final today = DateTime(now.year, now.month, now.day);
     final thisMonday = today.subtract(Duration(days: today.weekday - 1));
 
-    // Isı haritası: gün → tamamlanan görev sayısı
+    final focusByDay = ref.watch(focusMinutesByDayProvider);
+    final focusWeekMin = ref.watch(focusThisWeekMinutesProvider);
+
+    // Isı haritası: gün → tamamlanan görev sayısı + (o gün odak seansı
+    // yapıldıysa +1). "Sonuç değil çaba" — yalnız görev tamamlamadan
+    // Pomodoro yapılan bir gün de haritada yanmalı, boş görünmemeli.
     final countsByDay = <DateTime, int>{};
     for (final t in completedTasks) {
       final d = _taskDay(t);
       countsByDay[d] = (countsByDay[d] ?? 0) + 1;
     }
+    for (final entry in focusByDay.entries) {
+      if (entry.value <= 0) continue;
+      countsByDay[entry.key] = (countsByDay[entry.key] ?? 0) + 1;
+    }
 
     final weekCompleted =
         completedTasks.where((t) => !_taskDay(t).isBefore(thisMonday)).toList();
     final weekCount = weekCompleted.length;
-    final activeDays = weekCompleted.map(_taskDay).toSet().length;
-
-    final focusByDay = ref.watch(focusMinutesByDayProvider);
-    final focusWeekMin = ref.watch(focusThisWeekMinutesProvider);
+    // "X/7 gün çalıştın" da aynı mantıkla: görev bitirilen VEYA odaklanılan
+    // gün, aktif gün sayılır.
+    final activeDays = <DateTime>{
+      ...weekCompleted.map(_taskDay),
+      for (final entry in focusByDay.entries)
+        if (entry.value > 0 && !entry.key.isBefore(thisMonday)) entry.key,
+    }.length;
     final denemeCount = ref.watch(denemeProvider).length;
     final latestDeneme = ref.watch(latestDenemeProvider);
     return Scaffold(
@@ -76,37 +89,33 @@ class StatsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Eyebrow(text: 'BU HAFTA'),
-          const SizedBox(height: 4),
-          Text(
-            'Pazartesiden bugüne kadar olan durumun.',
-            style: AppTextStyles.caption,
+          const SectionHeader(
+            title: 'Bu Hafta',
+            subtitle: 'Pazartesiden bugüne kadar olan durumun.',
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _WeekTile(
+                child: MetricTile(
                   icon: Icons.check_circle_outline,
-                  tint: AppColors.vibrantMint,
                   value: '$weekCount',
-                  label: 'görev bitirdin',
+                  label: 'GÖREV BİTİRDİN',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _WeekTile(
+                child: MetricTile(
                   icon: Icons.calendar_today_outlined,
-                  tint: AppColors.vibrantSky,
                   value: '$activeDays/7',
-                  label: 'gün çalıştın',
+                  label: 'GÜN ÇALIŞTIN',
                 ),
               ),
             ],
           ),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'SINAV'),
+          const SectionHeader(title: 'Sınav'),
           const SizedBox(height: 12),
           _ExamDateCard(
             examDate: stats.examDate,
@@ -142,7 +151,7 @@ class StatsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
 
           // GÜNLÜK HEDEF AYARI
-          const Eyebrow(text: 'GÜNLÜK HEDEF'),
+          const SectionHeader(title: 'Günlük Hedef'),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -187,19 +196,17 @@ class StatsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 28),
-          const Eyebrow(text: 'ÇALIŞMA TAKVİMİ'),
-          const SizedBox(height: 4),
-          Text(
-            'Son 12 hafta. Her kare bir gün — ne kadar çok görev '
-            'bitirdiysen kare o kadar koyu olur.',
-            style: AppTextStyles.caption,
+          const SectionHeader(
+            title: 'Çalışma Takvimi',
+            subtitle: 'Son 12 hafta. Her kare bir gün — görev bitirdiğin ya da '
+                'odaklandığın günler kare o kadar koyu olur.',
           ),
           const SizedBox(height: 12),
-          totalCompleted == 0
+          countsByDay.isEmpty
               ? const EmptyStateCard(
                   icon: Icons.calendar_month_outlined,
-                  message: 'Henüz görev bitirmedin. İlk görevini '
-                      'tamamlayınca bugünün karesi burada yanar.',
+                  message: 'Henüz görev bitirmedin ya da odaklanmadın. '
+                      'İlkini yapınca bugünün karesi burada yanar.',
                 )
               : Container(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -212,12 +219,10 @@ class StatsScreen extends ConsumerWidget {
                 ),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'ODAK SÜRESİ'),
-          const SizedBox(height: 4),
-          Text(
-            'Odak Seansı\'nda (Plan sekmesi) kronometreyle ölçülen süre. '
-            'Aşağıda bu haftanın gün gün dağılımı.',
-            style: AppTextStyles.caption,
+          const SectionHeader(
+            title: 'Odak Süresi',
+            subtitle: 'Odak Seansı\'nda (Plan sekmesi) kronometreyle ölçülen '
+                'süre. Aşağıda bu haftanın gün gün dağılımı.',
           ),
           const SizedBox(height: 12),
           focusWeekMin == 0
@@ -248,23 +253,19 @@ class StatsScreen extends ConsumerWidget {
                 ),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'HANGİ DERSE ÇALIŞTIN'),
-          const SizedBox(height: 4),
-          Text(
-            'Seçili dönemde her derste kaç görev bitirdin. En kısa çubuk '
-            '= en az vakit ayırdığın ders.',
-            style: AppTextStyles.caption,
+          const SectionHeader(
+            title: 'Hangi Derse Çalıştın',
+            subtitle: 'Seçili dönemde her derste kaç görev bitirdin. En kısa '
+                'çubuk = en az vakit ayırdığın ders.',
           ),
           const SizedBox(height: 12),
           _SubjectDistribution(tasks: completedTasks, subjects: subjects),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'DENEME NETİ'),
-          const SizedBox(height: 4),
-          Text(
-            'Son eklediğin TYT/AYT denemesi. Tümünü Plan → Deneme '
-            'Takip\'te gör.',
-            style: AppTextStyles.caption,
+          const SectionHeader(
+            title: 'Deneme Neti',
+            subtitle: 'Son eklediğin TYT/AYT denemesi. Tümünü Plan → Deneme '
+                'Takip\'te gör.',
           ),
           const SizedBox(height: 12),
           if (latestDeneme == null)
@@ -277,7 +278,7 @@ class StatsScreen extends ConsumerWidget {
             _DenemeSummaryCard(entry: latestDeneme, count: denemeCount),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'BAŞARILAR'),
+          const SectionHeader(title: 'Başarılar'),
           const SizedBox(height: 12),
 
           AchievementCard(
@@ -302,12 +303,10 @@ class StatsScreen extends ConsumerWidget {
           ),
 
           const SizedBox(height: 28),
-          const Eyebrow(text: 'KONU İLERLEMESİ'),
-          const SizedBox(height: 4),
-          Text(
-            'Konu Takip\'te "çalışıldı" işaretlediğin konuların '
-            'toplam müfredata oranı.',
-            style: AppTextStyles.caption,
+          const SectionHeader(
+            title: 'Konu İlerlemesi',
+            subtitle: 'Konu Takip\'te "çalışıldı" işaretlediğin konuların '
+                'toplam müfredata oranı.',
           ),
           const SizedBox(height: 12),
           if (subjects.isEmpty)
@@ -417,52 +416,6 @@ class _FocusWeekBar extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _WeekTile extends StatelessWidget {
-  final IconData icon;
-  final Color tint;
-  final String value;
-  final String label;
-
-  const _WeekTile({
-    required this.icon,
-    required this.tint,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tint.withValues(alpha: 0.22)),
-        boxShadow: AppColors.softShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 16, color: tint),
-          ),
-          const SizedBox(height: 10),
-          Text(value, style: AppTextStyles.heading2),
-          const SizedBox(height: 2),
-          Text(label, style: AppTextStyles.caption),
-        ],
-      ),
     );
   }
 }
@@ -713,7 +666,7 @@ class _ExamDateCard extends StatelessWidget {
                 color: AppColors.tonal(AppColors.primary),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.event_outlined,
+              child: Icon(Icons.event_outlined,
                   size: 20, color: AppColors.primary),
             ),
             const SizedBox(width: 14),
@@ -739,11 +692,11 @@ class _ExamDateCard extends StatelessWidget {
                     ),
             ),
             if (date == null)
-              const Icon(Icons.add, size: 20, color: AppColors.textSecondary)
+              Icon(Icons.add, size: 20, color: AppColors.textSecondary)
             else
               TapScale(
                 onTap: onClear,
-                child: const Icon(Icons.close,
+                child: Icon(Icons.close,
                     size: 18, color: AppColors.textMuted),
               ),
           ],
@@ -773,7 +726,7 @@ class _GoalButton extends StatelessWidget {
           width: 32,
           height: 32,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.surfaceVariant,
             shape: BoxShape.circle,
           ),

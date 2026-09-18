@@ -71,7 +71,7 @@ class _DailyCloseoutSheetState extends ConsumerState<_DailyCloseoutSheet> {
           intent: _intent.text,
         );
     Navigator.of(context).pop();
-    AppSnackBar.success(context, 'İyi dinlen 🌙 Yarın görüşürüz.');
+    AppSnackBar.success(context, 'İyi dinlen. Yarın görüşürüz.');
   }
 
   @override

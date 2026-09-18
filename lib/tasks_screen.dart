@@ -11,7 +11,7 @@ import 'task_model.dart';
 import 'add_task_screen.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_buttons.dart';
-import 'widgets/eyebrow.dart';
+import 'widgets/section_header.dart';
 import 'widgets/task_tile.dart';
 import 'task_time_status.dart';
 import 'tap_scale.dart';
@@ -132,7 +132,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         }),
                       if (unscheduled.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        const Eyebrow(text: 'SAATSİZ GÖREVLER'),
+                        const SectionHeader(title: 'Saatsiz Görevler'),
                         const SizedBox(height: 12),
                         ...unscheduled.map(
                           (task) => TaskTile(task: task, subjects: subjects),
@@ -198,16 +198,16 @@ class _WeekNavRow extends StatelessWidget {
         children: [
           TapScale(
             onTap: () => onShift(-7),
-            child: const Padding(
-              padding: EdgeInsets.all(10),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
               child: Icon(Icons.chevron_left, color: AppColors.textSecondary),
             ),
           ),
           Text(label, style: AppTextStyles.bodySecondary),
           TapScale(
             onTap: () => onShift(7),
-            child: const Padding(
-              padding: EdgeInsets.all(10),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
               child: Icon(Icons.chevron_right, color: AppColors.textSecondary),
             ),
           ),
@@ -267,12 +267,13 @@ class _DaySelectorStrip extends StatelessWidget {
                       // görüntülemek için seçilen gün bir aksiyon değil,
                       // secondary (indigo) kullanılır.
                       gradient: isSelected
-                          ? const LinearGradient(
+                          ? LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
                                 AppColors.secondary,
-                                Color(0xFF9498CC),
+                                Color.lerp(AppColors.secondary, Colors.white,
+                                    0.3)!,
                               ],
                             )
                           : null,
@@ -414,7 +415,7 @@ class _TimelineRow extends ConsumerWidget {
                                       shape: BoxShape.circle,
                                       color: task.isCompleted
                                           ? AppColors.tonal(
-                                              AppColors.vibrantMint)
+                                              AppColors.success)
                                           : Colors.transparent,
                                       border: task.isCompleted
                                           ? null
@@ -425,10 +426,10 @@ class _TimelineRow extends ConsumerWidget {
                                             ),
                                     ),
                                     child: task.isCompleted
-                                        ? const Icon(
+                                        ? Icon(
                                             Icons.check_rounded,
                                             size: 16,
-                                            color: AppColors.vibrantMint,
+                                            color: AppColors.success,
                                           )
                                         : null,
                                   ),

@@ -69,7 +69,7 @@ class FocusHistoryScreen extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.timer_outlined,
+                      Icon(Icons.timer_outlined,
                           size: 18, color: AppColors.vibrantSky),
                       const SizedBox(width: 10),
                       Expanded(
@@ -145,7 +145,7 @@ class FocusHistoryScreen extends ConsumerWidget {
                             color: AppColors.tonal(AppColors.danger),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(Icons.delete_outline,
+                          child: Icon(Icons.delete_outline,
                               color: AppColors.danger),
                         ),
                         onDismissed: (_) {

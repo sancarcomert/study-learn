@@ -8,6 +8,7 @@ import 'topic_provider.dart';
 import 'subject_topics_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
+import 'widgets/section_header.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/animated_progress_bar.dart';
 
@@ -58,7 +59,7 @@ class KonuTakipScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Eyebrow(
+                        Eyebrow(
                             text: 'GENEL KAPSAMA',
                             color: AppColors.vibrantMint),
                         const SizedBox(height: 8),
@@ -78,7 +79,7 @@ class KonuTakipScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                 ],
-                const Eyebrow(text: 'DERSLER'),
+                const SectionHeader(title: 'Dersler'),
                 const SizedBox(height: 12),
                 ...subjects.map((s) {
                   final c = coverage[s.id] ?? const TopicCoverage(0, 0);
@@ -157,7 +158,7 @@ class _SubjectRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.chevron_right,
+                Icon(Icons.chevron_right,
                     size: 18, color: AppColors.textMuted),
               ],
             ),

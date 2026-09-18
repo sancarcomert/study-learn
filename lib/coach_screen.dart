@@ -16,6 +16,7 @@ import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'stats_provider.dart';
 import 'deneme_provider.dart';
+import 'focus_session_provider.dart';
 import 'subject_ai.dart';
 import 'tap_scale.dart';
 import 'widgets/app_buttons.dart';
@@ -96,9 +97,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final name = stats.userName?.trim();
     final n = (name != null && name.isNotEmpty) ? ' $name' : '';
     _say(_pick([
-      'Selam$n 👋 Nasıl gidiyor?',
-      'Merhaba$n 👋 Bugün keyifler nasıl?',
-      'Selam$n ✨ Hazırsan başlayalım.',
+      'Selam$n. Nasıl gidiyor?',
+      'Merhaba$n, bugün keyifler nasıl?',
+      'Selam$n, hazırsan başlayalım.',
     ]));
 
     final examDate = stats.examDate;
@@ -1013,7 +1014,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (_matchesAny(low, _contentRequestPhrases)) {
       _say(_pick([
         'Ben konu anlatmıyorum ya da soru çözmüyorum — o iş kitabında/'
-            'öğretmeninde 😊 Ama planını kurmakta ve takibinde tam '
+            'öğretmeninde. Ama planını kurmakta ve takibinde tam '
             'yanındayım. Bu konuya çalışma bloğu ayarlayalım mı?',
         'Bunu sana ben anlatamam, kapsamım dışında. Onun yerine bu konuyu '
             'ne zaman çalışacağını planlayalım — kaç dakika ayırırsın?',
@@ -1071,7 +1072,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
     if (subjectMention != null && _matchesAny(low, _positiveSubjectSentiment)) {
       _say(_pick([
-        'Harika, $subjectMention seni motive ediyor 🎉 O zaman bugün ona '
+        'Güzel, $subjectMention seni motive ediyor. O zaman bugün ona '
             'biraz zaman ayıralım — kaç dakika?',
         '$subjectMention senin güçlü yanın gibi duruyor, bu enerjiyi '
             'kullanalım. Ne kadar çalışacaksın?',
@@ -1090,12 +1091,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _say(_pick([
         'Bu kelimeler netlerini artırmayacak. Enerjini masadaki kitaba '
             'harcayalım — hangi derse çalışıyorsun?',
-        'Küfürle net gelmiyor 😅 Onun yerine bir ders adı ve süre ver, '
+        'Küfürle net gelmiyor. Onun yerine bir ders adı ve süre ver, '
             'işe koyulalım.',
         'Bunu bir kenara bırakalım. Şu an hangi dersle uğraşıyorsun?',
-        'Bu enerjiyle bir konu bile bitirebilirdik aslında 😏 Hadi o '
+        'Bu enerjiyle bir konu bile bitirebilirdik aslında. Hadi o '
             'gazı derse ver — hangisi?',
-        'Küfür yerine matematik kas, daha çok işine yarar 😄 Hangi '
+        'Küfür yerine matematik kas, daha çok işine yarar. Hangi '
             'derse geçiyoruz?',
       ]));
       return;
@@ -1110,23 +1111,23 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     if (_matchesAny(low, _botIdentityPhrases)) {
       _say('Ben Pusula\'nın Çalışma Koçu\'yum — karmaşık bir yapay zeka '
-          'değilim, basit ama işe yarar bir planlama yardımcısıyım 😊 '
+          'değilim, basit ama işe yarar bir planlama yardımcısıyım. '
           'Ne çalışalım?');
       return;
     }
 
     if (_matchesAny(low, _wellbeingCheckPhrases)) {
       _say(_pick([
-        'İyiyim, sağ ol! 😊 Sıra sende — bugün ne çalışıyoruz?',
-        'Gayet iyi! Sen nasılsın, bugün çalışmaya hazır mısın?',
-        'Keyifler yerinde 👋 Hadi başlayalım — ne çalışmak istersin?',
+        'İyiyim, sağ ol. Sıra sende — bugün ne çalışıyoruz?',
+        'Gayet iyi. Sen nasılsın, bugün çalışmaya hazır mısın?',
+        'Keyifler yerinde. Hadi başlayalım — ne çalışmak istersin?',
       ]));
       return;
     }
 
     if (_matchesAny(low, _casualCheckInPhrases)) {
       _say(_pick([
-        'Seni bekliyordum aslında 😄 Ne çalışmak istersin?',
+        'Seni bekliyordum aslında. Ne çalışmak istersin?',
         'Planlar kuruyorum, tam senlik bir iş — hangi derse bakalım?',
       ]));
       return;
@@ -1134,7 +1135,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     if (_matchesAny(low, _jokePhrases)) {
       _say(_pick([
-        'Şakada pek iyi değilim ama planlamada eşim yok 😅 Hadi bir ders '
+        'Şakada pek iyi değilim ama planlamada eşim yok. Hadi bir ders '
             'seçelim.',
         'Espri konusunda zayıfım, plan konusunda güçlüyüm. Ne '
             'çalışıyoruz?',
@@ -1144,9 +1145,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     if (_matchesAny(low, _greetingPhrases)) {
       _say(_pick([
-        'Selam! 👋 Bugün ne çalışmak istersin?',
-        'Merhaba! Hazırsan başlayalım — hangi ders?',
-        'Selam sana da 😊 Ne kadar vaktin var bugün?',
+        'Selam. Bugün ne çalışmak istersin?',
+        'Merhaba, hazırsan başlayalım — hangi ders?',
+        'Selam sana da. Ne kadar vaktin var bugün?',
       ]));
       return;
     }
@@ -1192,8 +1193,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       return;
     }
     if (_pending == null && _draft.isEmpty && _finish.hasMatch(low)) {
-      _say(_pick(
-          ['Kolay gelsin 👋', 'İyi çalışmalar 👋', 'Hadi kolay gelsin ✨']));
+      _say(_pick(['Kolay gelsin.', 'İyi çalışmalar.', 'Hadi kolay gelsin.']));
       return;
     }
 
@@ -1542,6 +1542,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       limit: subjects.length,
       coveragePercent: coveragePercent,
       weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
+      focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
     ).map((s) => s.subjectId).toList();
 
     final ordered = _rotated(<SubjectModel>[
@@ -1607,6 +1608,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       limit: subjects.length,
       coveragePercent: coveragePercent,
       weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
+      focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
     ).map((s) => s.subjectId).toList();
 
     final ordered = _rotated(<SubjectModel>[
@@ -1683,12 +1685,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _regenerateOffset = 0;
       if (isFirstTaskEver) {
         ref.read(statsProvider.notifier).markFirstTaskAdded();
-        _say('İlk görevlerini ekledin 🎉 $count görev ${week.days.length} '
+        _say('İlk görevlerini ekledin. $count görev ${week.days.length} '
             'güne yayıldı. Başka bir şey var mı?');
       } else {
         _say(_pick([
-          '$count görev ${week.days.length} güne yayıldı 👍 Başka bir şey var mı?',
-          'Hepsi eklendi — $count görev, ${week.days.length} gün 👍 '
+          '$count görev ${week.days.length} güne yayıldı. Başka bir şey var mı?',
+          'Hepsi eklendi — $count görev, ${week.days.length} gün. '
               'Devam edelim mi?',
         ]));
       }
@@ -1715,6 +1717,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         recurrenceRule: _pendingRecurrence,
         estimatedMinutes: b.minutes,
         scheduledTimeOfDay: timeOfDay,
+        topicId: b.topicId,
       );
     } else {
       for (final b in blocks) {
@@ -1748,18 +1751,18 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (isFirstTaskEver) {
       ref.read(statsProvider.notifier).markFirstTaskAdded();
       _say(n == 1
-          ? 'İlk görevini ekledin 🎉 Başka bir şey planlayalım mı?'
-          : 'İlk görevlerini ekledin 🎉 $n görev listene eklendi. '
+          ? 'İlk görevini ekledin. Başka bir şey planlayalım mı?'
+          : 'İlk görevlerini ekledin. $n görev listene eklendi. '
               'Başka bir şey var mı?');
     } else {
       _say(n == 1
           ? _pick([
-              'Eklendi 👍 Başka bir şey planlayalım mı?',
-              'Tamamdır, listene ekledim 👍 Devam edelim mi?',
+              'Eklendi. Başka bir şey planlayalım mı?',
+              'Tamamdır, listene ekledim. Devam edelim mi?',
             ])
           : _pick([
-              '$n görev eklendi 👍 Başka bir şey var mı?',
-              '$n görevi listene koydum 👍 Başka?',
+              '$n görev eklendi. Başka bir şey var mı?',
+              '$n görevi listene koydum. Başka?',
             ]));
     }
   }
@@ -1804,7 +1807,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                   _QuickActionPill(
                     icon: Icons.timer_outlined,
                     label: '25 dk Pomodoro Başlat',
-                    tint: AppColors.vibrantCoral,
+                    tint: AppColors.vibrantViolet,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -1825,7 +1828,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                   _QuickActionPill(
                     icon: Icons.add_task_outlined,
                     label: 'Hızlı görev ekle',
-                    tint: AppColors.vibrantMint,
+                    tint: AppColors.vibrantViolet,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const AddTaskScreen()),
@@ -1947,7 +1950,7 @@ class _HighlightingController extends TextEditingController {
     // ("çirkin/kaba" geri bildirimi, TextSpan.backgroundColor köşeli
     // dikdörtgen çiziyor, yuvarlatılamıyor). Artık tek soru: "anlaşıldı mı,
     // anlaşılmadı mı" — kalın + altın metin, kutu yok.
-    const highlight = TextStyle(
+    final highlight = TextStyle(
       color: AppColors.primary,
       fontWeight: FontWeight.w700,
     );

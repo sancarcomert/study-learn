@@ -36,21 +36,16 @@ class RankLadderScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
         children: [
           // --- Hero: mevcut rütbe ---
+          // 2026-09-16: gradyan zemin kaldırıldı, düz surface + ince renkli
+          // kenarlığa indirildi — bu "wow" anı Home'a ayrıldı, burada emblem
+          // + XP çubuğu zaten kendi başına yeterince öne çıkıyor.
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.alphaBlend(
-                      color.withValues(alpha: 0.16), AppColors.surface),
-                  AppColors.surface,
-                ],
-              ),
-              border: Border.all(color: color.withValues(alpha: 0.35)),
-              boxShadow: AppColors.cardShadow,
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+              boxShadow: AppColors.softShadow,
             ),
             child: Column(
               children: [
@@ -141,7 +136,7 @@ class RankLadderScreen extends ConsumerWidget {
                         color: AppColors.vibrantAmber.withValues(alpha: 0.18),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.bolt_outlined,
+                      child: Icon(Icons.bolt_outlined,
                           size: 17, color: AppColors.vibrantAmber),
                     ),
                     const SizedBox(width: 12),
@@ -282,10 +277,10 @@ class _LadderRow extends StatelessWidget {
             if (current)
               Icon(Icons.my_location_outlined, size: 18, color: color)
             else if (reached)
-              const Icon(Icons.check_rounded,
+              Icon(Icons.check_rounded,
                   size: 18, color: AppColors.textMuted)
             else
-              const Icon(Icons.lock_outline,
+              Icon(Icons.lock_outline,
                   size: 18, color: AppColors.textMuted),
           ],
         ),

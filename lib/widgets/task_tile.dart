@@ -168,11 +168,11 @@ class TaskSwipeActions extends ConsumerWidget {
                   // 30 örneği tek tek silmek zorunda kalır.
                   if (task.recurringGroupId != null)
                     ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.delete_sweep_outlined,
                         color: AppColors.danger,
                       ),
-                      title: const Text(
+                      title: Text(
                         "Seriyi Sil (Tüm Tekrarlar)",
                         style: TextStyle(color: AppColors.danger),
                       ),
@@ -296,7 +296,7 @@ class TaskTile extends ConsumerWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: task.isCompleted
-                                  ? AppColors.tonal(AppColors.vibrantMint)
+                                  ? AppColors.tonal(AppColors.success)
                                   : Colors.transparent,
                               border: task.isCompleted
                                   ? null
@@ -317,10 +317,10 @@ class TaskTile extends ConsumerWidget {
                                 child: child,
                               ),
                               child: task.isCompleted
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.check_rounded,
-                                      key: ValueKey(true),
-                                      color: AppColors.vibrantMint,
+                                      key: const ValueKey(true),
+                                      color: AppColors.success,
                                       size: 20,
                                     )
                                   : const SizedBox(
@@ -445,6 +445,7 @@ class TaskTile extends ConsumerWidget {
                                     initialTargetMin: task.estimatedMinutes,
                                     initialSubjectId: task.subjectId,
                                     initialTopicId: task.topicId,
+                                    initialTaskId: task.id,
                                   ),
                                 ),
                               );
@@ -453,11 +454,11 @@ class TaskTile extends ConsumerWidget {
                               width: 34,
                               height: 34,
                               alignment: Alignment.center,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors.surfaceVariant,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.play_arrow,
                                 size: 18,
                                 color: AppColors.primary,
@@ -530,7 +531,7 @@ class _SubjectChip extends StatelessWidget {
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
-  final Color color;
+  final Color? color;
 
   // CTA hiyerarşisi: altın yalnız birincil aksiyon için — bu rozet süre/
   // tekrar gibi bilgi etiketlerinde varsayılan olarak her görev kartında
@@ -538,18 +539,19 @@ class _InfoChip extends StatelessWidget {
   const _InfoChip({
     required this.icon,
     required this.text,
-    this.color = AppColors.secondary,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = color ?? AppColors.secondary;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: effectiveColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -558,7 +560,7 @@ class _InfoChip extends StatelessWidget {
           Icon(
             icon,
             size: 14,
-            color: color,
+            color: effectiveColor,
           ),
           const SizedBox(width: 5),
           Text(

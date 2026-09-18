@@ -41,48 +41,48 @@ class AboutScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const _InfoRow(
+                _InfoRow(
                   icon: Icons.wifi_off_outlined,
-                  tint: AppColors.vibrantSky,
+                  tint: AppColors.secondary,
                   title: 'İnternete hiç bağlanmaz',
                   subtitle:
                       'İnternet izni bile yok. Sunucumuz olmadığı için '
                       'verini sızdıramayız — çünkü hiçbir yere gitmiyor.',
                 ),
                 _divider(),
-                const _InfoRow(
+                _InfoRow(
                   icon: Icons.no_accounts_outlined,
-                  tint: AppColors.vibrantViolet,
+                  tint: AppColors.secondary,
                   title: 'Hesap yok',
                   subtitle: 'E-posta, şifre ya da telefon numarası '
                       'istemeyiz. Açar açmaz kullanmaya başlarsın.',
                 ),
                 _divider(),
-                const _InfoRow(
+                _InfoRow(
                   icon: Icons.smartphone_outlined,
-                  tint: AppColors.vibrantMint,
+                  tint: AppColors.secondary,
                   title: 'Verin yalnızca bu cihazda',
                   subtitle: 'Dersler, görevler, konular, denemeler — '
                       'hepsi telefonunda saklanır. Biz de göremeyiz.',
                 ),
                 _divider(),
-                const _InfoRow(
+                _InfoRow(
                   icon: Icons.upload_file_outlined,
-                  tint: AppColors.vibrantAmber,
+                  tint: AppColors.secondary,
                   title: 'Yedek her zaman elinde',
                   subtitle: 'İstediğin an tüm verini tek dosyaya '
                       'aktarabilir, istediğin yere taşıyabilirsin.',
                 ),
                 _divider(),
-                const _InfoRow(
+                _InfoRow(
                   icon: Icons.delete_outline,
-                  tint: AppColors.vibrantCoral,
+                  tint: AppColors.secondary,
                   title: 'Sildiğin gerçekten gider',
                   subtitle: 'Kısa süreli "geri al" dışında, sildiğin bir '
                       'dersin ya da konunun gizli bir kopyası tutulmaz.',
                 ),
                 _divider(),
-                const _InfoRow(
+                _InfoRow(
                   icon: Icons.money_off_outlined,
                   tint: AppColors.primary,
                   title: 'Reklamsız, taahhütsüz',

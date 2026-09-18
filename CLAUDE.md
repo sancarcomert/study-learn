@@ -214,3 +214,99 @@ yürütülmedi, Faz 2 ile de paralel yürütülmeyecek.
 tekrar test edilmedi): P0-5 bildirimi gerçekten arka planda/kapalıyken
 düşüyor mu, P0-11'de bir dersin konu listesi sınıfa göre gerçekten
 daralıyor mu.
+
+## 2026-09-18 dev oturumu — rebrand "Dodom", açık/koyu tema, çoklu bug turu
+
+**⚠️ HİÇBİR ŞEY COMMIT EDİLMEDİ.** Bu oturumun tamamı (40+ dosya) hâlâ
+working tree'de. Bir sonraki oturum önce `git status`/`git diff` ile neyin
+değiştiğini görmeli, kullanıcı onaylamadan commit atılmadı (talimat
+gereği — yalnız açıkça istenince commit edilir).
+
+**Marka:** "Pusula" → "Dodom" (Android label, app_constants.dart).
+
+**Renk sistemi — üç kez tersine döndü, son hâli:**
+- Ana kimlik: Midnight Dark zemin + Champagne Gold (`primary`) vurgu.
+  Turuncuya çekilip ("adam akıllı renk değil" geri bildirimiyle) geri
+  döndü. `docs/rakip_gorsel_renk_analizi_2026-09-15.md` + ek tur
+  `docs/rakip_renk_analizi_ek_2026-09-18.md`: 9 rakip (Türkiye YKS +
+  küresel üretkenlik uygulamaları) tarandı, hiçbiri koyu+altın kombinasyonu
+  kullanmıyor — hâlâ boş bir konum. Krem+adaçayı yeşili denendi, AYNI
+  araştırmada 2026 tasarım söyleminde "bitmiş klişe" olduğu görülüp
+  terk edildi.
+- **Açık tema eklendi** (P0-5 sonrası yeni özellik) — artık zorunlu koyu
+  tema değil: hiçbir rakip koyu tema kullanmıyor + uzun metin okuma işi
+  için koyu-zorunlu risk taşıyordu. Yeni kullanıcı varsayılanı **açık**,
+  Profil → Ayarlar → Görünüm'den değiştirilebilir
+  (`UserStatsModel.themeMode`, `AppColors.setMode`).
+- `AppColors.secondary` (genel dekoratif nötr) eskiden soğuk indigo-mavi,
+  şimdi sıcak mor-gül kurusu — kullanıcı "bazı sayfalarda mavi tonlar var,
+  amatörce" dedi. **Not: bu karar rakip araştırmasıyla değil tasarım
+  sezgisiyle verildi, doğrulanmadı.** Risk: `vibrantViolet` (Koç'a özel)
+  ile aynı mor ailesinde — ayrım gözle net ama kavramsal olarak temiz
+  değil. Kullanıcıya açıkça söylendi, isterse tamamen mor-dışı bir nötre
+  çekilebilir.
+- Renk kuralı sabitlendi: gold=yalnız CTA, `vibrantViolet`=yalnız Çalışma
+  Koçu, `secondary`=nötr dekoratif, `subjectPalette`=yalnız ders verisi.
+  "Rainbow" sorunu (about_screen, coach_screen, profile_screen, plan_screen,
+  main_shell nav) bu kurala göre tek tek temizlendi.
+- Metinlerden "yapay zeka hissi" temizlendi: coach_screen/home_screen/
+  onboarding'deki dekoratif emoji tikleri (👋😊✨ vb.) kaldırıldı, yalnız
+  2 yerde (Home günlük hedef konfetisi, paylaşım kartı) BÜYÜK GÖRSEL
+  eleman olarak kaldı.
+
+**Gerçek buglar bulundu ve düzeltildi (kod incelemesi + cihaz testiyle):**
+1. `app_text_styles.dart` — stiller `static TextStyle x = ...` (düz atama)
+   iken tema eklendi; Dart bunu yalnız İLK erişimde hesaplayıp SONSUZA
+   KADAR önbelleğe alıyordu → tema değişince başlıklar eski renkte donup
+   yeni zeminde neredeyse görünmez oluyordu. Hepsi `get`'e çevrildi.
+2. `stats_provider.dart`'taki `_emit()` yeni bir `UserStatsModel` kopyası
+   kurarken `themeMode`'u kopyalamıyordu — Koyu/Açık'a basmak Hive'a doğru
+   yazıyordu ama `_emit()` hemen ardından görünen state'i varsayılana
+   sıfırlıyordu. Buton hiç çalışmıyor gibi görünüyordu.
+3. `AndroidManifest.xml`'de `android:enableOnBackInvokedCallback` eksikti
+   — telefonun SİSTEM geri tuşu (uygulama içi ok değil) PopScope'u native
+   seviyede atlayıp anında sıfırlıyordu. Uygulama içi ok her zaman
+   çalışıyordu, bu yüzden ilk turda kaçırıldı.
+4. `focus_screen.dart` — geri gitmek (herhangi bir yoldan) seansı
+   `_saveIfNeeded()` ile BİTİRİYORDU (çapayı silip dakika < 1 ise hiçbir
+   iz bırakmadan) — kullanıcı "Focus'tan çıkınca sıfırlanıyor" diyordu.
+   Artık geri gitmek uygulamanın arka plana alınmasıyla AYNI yol
+   (checkpoint + çapa yaz, BİTİRME) — yalnız "Bitir" butonu gerçekten
+   bitiriyor.
+5. `task_provider.dart`'taki `addRecurringTask`'ın imzasında `topicId`
+   parametresi hiç yoktu — tekrarlı görev + konu seçimi birlikte
+   kullanılınca konu bağı sessizce kayboluyordu (3 çağrı yeri: add_task_
+   screen, coach_screen x1 düzeltildi).
+6. Ders silinince bağlı görevler "öksüz" (var olmayan subjectId'ye işaret
+   eden) kalıyordu — konular için zaten yapılan temizlik görevler için
+   HİÇ yoktu, oysa silme onay diyaloğu zaten "görevler silinmez, boş
+   kalır" diye söz veriyordu. `TaskNotifier.clearSubjectFromTasks` eklendi.
+7. Uygulama ikonu hâlâ varsayılan Flutter logosuydu — Python/Pillow ile
+   gold kıvılcım motifi + adaptive icon XML'leri üretildi, cihazda
+   doğrulandı. 512×512 Play Store ikonu `docs/store_assets/`'e kondu.
+
+**Yeni özellikler:**
+- Home'da canlı "Odak devam ediyor · X — MM:SS geçti/kaldı" şeridi
+  (`HiveBoxes.focusAnchor` dinliyor, 1 sn ticker) — kullanıcı Odak'a
+  girmeden ilerlemeyi görebiliyor. Sistem bildirimi/foreground service
+  YOK (bilinçli — Play Store specialUse FGS riski, P0-5 notuyla tutarlı).
+- Odak hedefi (Serbest) / çalışma bloğu (Pomodoro) bitince gerçek bir
+  kutlama diyaloğu (önceden yalnız renk değişimi/küçük snackbar'dı) —
+  Serbest'te görevden başlatıldıysa "Görevi Tamamla" CTA'sı da çıkıyor
+  (`FocusScreen.initialTaskId`, Home + task_tile play butonundan geçiyor).
+- Rütbe atlayınca (önceden tamamen sessiz bir sayıydı) günlük-hedef
+  kutlamasıyla aynı dilde konfetili bir kart + "Merdiveni Gör" CTA'sı.
+- Add Task ekranının başlık alanı artık DERS/TEKRAR kartıyla aynı yüzey
+  dilinde (önceden çıplak sistem input'uydu, "ayrı bir not uygulaması"
+  hissi veriyordu).
+
+**Doğrulanmadı / kalan işler:**
+- Onboarding ekranı bu oturumda hiç açık temada canlı test edilmedi.
+- `secondary`'nin mor-aile rengi nihai değil, kullanıcıya açıkça
+  söylendi — isterse değişebilir.
+- Play Store'daki 4 ekran görüntüsü hâlâ bu oturumdan (ve ondan önceki
+  büyük redesign'dan) önceki eski tasarımı gösteriyor, yayın öncesi
+  yenilenmeli.
+- Rütbe sisteminin "amaç hissi" konusu yalnız rank-up kutlamasıyla
+  kısmen çözüldü — kullanıcı daha fazlasını isteyebilir (ör. rütbeye
+  özel somut bir ödül/unlock — offline+ücretsiz uygulamada sınırlı).

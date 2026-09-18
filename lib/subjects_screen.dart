@@ -5,9 +5,11 @@ import 'app_text_styles.dart';
 import 'subject_provider.dart';
 import 'subject_model.dart';
 import 'topic_provider.dart';
+import 'task_provider.dart';
 import 'add_subject_sheet.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/eyebrow.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
 
@@ -33,11 +35,21 @@ class SubjectsScreen extends ConsumerWidget {
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: subjects.length,
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              itemCount: subjects.length + 1,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final subject = subjects[index];
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    child: Eyebrow(
+                      text: subjects.length == 1
+                          ? '1 DERS'
+                          : '${subjects.length} DERS',
+                    ),
+                  );
+                }
+                final subject = subjects[index - 1];
                 return _SubjectCard(subject: subject, ref: ref);
               },
             ),
@@ -125,6 +137,10 @@ class _SubjectCard extends StatelessWidget {
           // subjectId'si artık var olmayan bir derse işaret eden konular
           // Hive'da öksüz kalıp kapsama hesaplarını sessizce bozardı.
           ref.read(topicProvider.notifier).deleteForSubject(subject.id);
+          // Aynı gerekçe görevler için de geçerli: bu derse bağlı görevler
+          // silinmez (kullanıcının yapılacak işi kaybolmasın), ama artık var
+          // olmayan bir derse/konuya işaret etmesinler diye bağları temizlenir.
+          ref.read(taskProvider.notifier).clearSubjectFromTasks(subject.id);
           AppSnackBar.undo(
             context,
             '"${deleted.name}" silindi',
@@ -163,7 +179,7 @@ class _SubjectCard extends StatelessWidget {
                     style: AppTextStyles.body
                         .copyWith(fontWeight: FontWeight.w700)),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right,
                 color: AppColors.textSecondary,
               ),

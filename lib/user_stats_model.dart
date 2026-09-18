@@ -112,6 +112,25 @@ class UserStatsModel extends HiveObject {
   @HiveField(18)
   DateTime? lastCarryOverPromptDate;
 
+  // Görünüm tercihi — 'light' | 'dark'. defaultValue: 'light' — hem yeni
+  // hem bu alan eklenmeden önce oluşturulmuş kayıtlar için. Gerekçe:
+  // rakip taraması + okunabilirlik araştırması (bkz. app_colors.dart)
+  // sonucu, kullanıcı açıkça koyu temayı seçmediği sürece güvenli/standart
+  // varsayılan açık tema olmalı — koyu tema hâlâ mevcut ama artık zorunlu
+  // değil, tercih.
+  //
+  // NOT: build_runner'ın ürettiği `fields[19] as String` cast'i cihazdaki
+  // gerçek (bu alandan önce yazılmış) bir kayıtta "DateTime is not a
+  // subtype of String" hatasıyla patlıyordu — eski Hive box'ta bu index'te
+  // beklenmeyen bir değer okunuyor. Kalıcı çözüm: user_stats_model.g.dart
+  // İÇİNDE bu satır elle `fields[19] is String ? ... : 'light'` şeklinde
+  // defensif hale getirildi (üretilen dosya normalde elle düzenlenmez,
+  // ama hive_generator annotation üzerinden defensif cast üretmeyi
+  // desteklemiyor). build_runner tekrar çalıştırılırsa bu satırın yeniden
+  // yamanması gerekir.
+  @HiveField(19, defaultValue: 'light')
+  String themeMode;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -134,6 +153,7 @@ class UserStatsModel extends HiveObject {
     this.targetNetTYT,
     this.targetNetAYT,
     this.lastCarryOverPromptDate,
+    this.themeMode = 'light',
   });
 
   /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.

@@ -369,6 +369,7 @@ class BackupService {
         'targetNetTYT': s.targetNetTYT,
         'targetNetAYT': s.targetNetAYT,
         'lastCarryOverPromptDate': s.lastCarryOverPromptDate?.toIso8601String(),
+        'themeMode': s.themeMode,
       };
 
   static UserStatsModel _statsFromMap(Map<String, dynamic> m) => UserStatsModel(
@@ -397,6 +398,7 @@ class BackupService {
         targetNetTYT: (m['targetNetTYT'] as num?)?.toDouble(),
         targetNetAYT: (m['targetNetAYT'] as num?)?.toDouble(),
         lastCarryOverPromptDate: _date(m['lastCarryOverPromptDate']),
+        themeMode: (m['themeMode'] as String?) ?? 'light',
       );
 
   // ------------------------------------------------------------------ UTIL

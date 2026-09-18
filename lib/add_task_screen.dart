@@ -349,11 +349,12 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             priority: _selectedPriority,
             scheduledTimeOfDay: _selectedTime,
             estimatedMinutes: _selectedDuration,
+            topicId: _selectedTopicId,
           );
 
       if (isFirstTask) {
         ref.read(statsProvider.notifier).markFirstTaskAdded();
-        AppSnackBar.success(context, 'İlk görevini ekledin 🎉');
+        AppSnackBar.success(context, 'İlk görevini ekledin.');
       }
 
     } else {
@@ -387,7 +388,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
       if (isFirstTask) {
         ref.read(statsProvider.notifier).markFirstTaskAdded();
-        AppSnackBar.success(context, 'İlk görevini ekledin 🎉');
+        AppSnackBar.success(context, 'İlk görevini ekledin.');
       }
 
     }
@@ -428,20 +429,39 @@ Widget build(BuildContext context) {
             child: ListView(
               children: [
 
-                TextField(
-
-                  controller:
-                      _titleController,
-
-                  decoration:
-                      const InputDecoration(
-
-                    hintText:
-                        "Örn: Türev konusu çöz",
-
+                // Önceden çıplak bir TextField'dı — global input teması
+                // (surfaceVariant dolgu, gölgesiz) aşağıdaki DERS/TEKRAR
+                // kartından (surface + kenarlık + gölge) FARKLI bir yüzey
+                // diliydi. Sayfanın en önemli, en üstteki alanı en az
+                // "tasarlanmış" görüneni oluyordu — sanki ayrı bir not
+                // uygulamasından kopyalanmış gibi. Artık aynı kart dili.
+                const Eyebrow(text: "GÖREV"),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.surfaceVariant),
+                    boxShadow: AppColors.softShadow,
                   ),
-
+                  child: TextField(
+                    controller: _titleController,
+                    style: AppTextStyles.body,
+                    decoration: const InputDecoration(
+                      hintText: "Örn: Türev konusu çöz",
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 16),
 
 
 
@@ -472,7 +492,7 @@ Widget build(BuildContext context) {
 
                       children: [
 
-                        const Icon(
+                        Icon(
                           Icons.auto_awesome,
                           color: AppColors.primary,
                         ),
@@ -561,7 +581,7 @@ Widget build(BuildContext context) {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 20),
-                              const Divider(
+                              Divider(
                                 height: 1,
                                 color: AppColors.surfaceVariant,
                               ),
@@ -608,7 +628,7 @@ Widget build(BuildContext context) {
                       // kaçmaması gerekiyor.
                       if (!_isEditing) ...[
                         const SizedBox(height: 20),
-                        const Divider(
+                        Divider(
                           height: 1,
                           color: AppColors.surfaceVariant,
                         ),
@@ -665,7 +685,7 @@ Widget build(BuildContext context) {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.info_outline,
                                   size: 16,
                                   color: AppColors.warning,
@@ -724,7 +744,7 @@ Widget build(BuildContext context) {
                           turns: _detailsExpanded ? 0.5 : 0,
                           duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOut,
-                          child: const Icon(
+                          child: Icon(
                             Icons.keyboard_arrow_down,
                             color: AppColors.primary,
                             size: 20,
@@ -807,7 +827,7 @@ Widget build(BuildContext context) {
                                   ),
 
                                   const SizedBox(height: 20),
-                                  const Divider(
+                                  Divider(
                                     height: 1,
                                     color: AppColors.surfaceVariant,
                                   ),
@@ -853,7 +873,7 @@ Widget build(BuildContext context) {
                                   ),
 
                                   const SizedBox(height: 20),
-                                  const Divider(
+                                  Divider(
                                     height: 1,
                                     color: AppColors.surfaceVariant,
                                   ),
@@ -893,7 +913,7 @@ Widget build(BuildContext context) {
                                   ),
 
                                   const SizedBox(height: 20),
-                                  const Divider(
+                                  Divider(
                                     height: 1,
                                     color: AppColors.surfaceVariant,
                                   ),

@@ -61,7 +61,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
 
     ref.read(taskProvider.notifier).addTask(
-          title: '📌 Örnek: Konu tekrarı yap',
+          title: 'Örnek: Konu tekrarı yap',
           subjectId: createdSubject.id,
           dueDate: DateTime.now(),
           estimatedMinutes: 30,
@@ -155,7 +155,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const Eyebrow(text: 'BAŞLANGIÇ'),
                 const SizedBox(height: 6),
-                Text('Hoş geldin 👋', style: AppTextStyles.heading1),
+                Text('Hoş geldin', style: AppTextStyles.heading1),
                 const SizedBox(height: 8),
                 Text(
                   'Kısaca tanışalım, hemen başlıyoruz.',
@@ -389,11 +389,7 @@ class _ChunkyButton extends StatelessWidget {
           gradient: enabled ? AppColors.primaryGradient : null,
           color: enabled ? null : AppColors.tonal(AppColors.textSecondary),
           borderRadius: BorderRadius.circular(30),
-          boxShadow: enabled
-              ? const [
-                  BoxShadow(color: Color(0xFFA9803F), offset: Offset(0, 6)),
-                ]
-              : null,
+          boxShadow: enabled ? [AppColors.glow(AppColors.primary)] : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

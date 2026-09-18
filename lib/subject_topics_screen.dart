@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'focus_screen.dart';
 import 'stats_provider.dart';
 import 'topic_catalog.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'user_stats_model.dart';
 import 'tap_scale.dart';
-import 'widgets/eyebrow.dart';
+import 'widgets/section_header.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
 
@@ -141,7 +142,7 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                     children: [
-                      const Eyebrow(text: 'KONULAR'),
+                      const SectionHeader(title: 'Konular'),
                       const SizedBox(height: 10),
                       ...topics.map((t) => Dismissible(
                             key: ValueKey(t.id),
@@ -154,7 +155,7 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                                 color: AppColors.tonal(AppColors.danger),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.delete_outline,
+                              child: Icon(Icons.delete_outline,
                                   color: AppColors.danger),
                             ),
                             confirmDismiss: (_) async {
@@ -211,6 +212,15 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                               onTap: () => ref
                                   .read(topicProvider.notifier)
                                   .cycleStatus(t.id),
+                              onFocusTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => FocusScreen(
+                                    initialNote: t.name,
+                                    initialSubjectId: widget.subjectId,
+                                    initialTopicId: t.id,
+                                  ),
+                                ),
+                              ),
                             ),
                           )),
                       if (showCatalogButton) ...[
@@ -276,6 +286,7 @@ class _TopicRow extends StatelessWidget {
   final Color color;
   final IconData icon;
   final VoidCallback onTap;
+  final VoidCallback onFocusTap;
 
   const _TopicRow({
     required this.name,
@@ -284,49 +295,81 @@ class _TopicRow extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.onTap,
+    required this.onFocusTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TapScale(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: status == TopicStatus.notStarted
+            ? AppColors.surface
+            : AppColors.tonal(color),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
           color: status == TopicStatus.notStarted
-              ? AppColors.surface
-              : AppColors.tonal(color),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: status == TopicStatus.notStarted
-                ? AppColors.surfaceVariant
-                : Colors.transparent,
-            width: 1,
-          ),
+              ? AppColors.surfaceVariant
+              : Colors.transparent,
+          width: 1,
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                name,
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textPrimary,
-                  decoration: status == TopicStatus.reviewed
-                      ? TextDecoration.none
-                      : null,
-                ),
+      ),
+      child: Row(
+        children: [
+          // Durum döngüsü (başlanmadı→çalışıldı→tekrar) — satırın adı/ikonu
+          // kadarlık kısmı. Odak butonuyla aynı Row'da ama AYRI bir TapScale
+          // (task_tile.dart'taki desen) — iç içe GestureDetector yerine
+          // kardeş dokunma alanları, aksi halde ikisi de aynı anda tetiklenir.
+          Expanded(
+            child: TapScale(
+              onTap: onTap,
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textPrimary,
+                        decoration: status == TopicStatus.reviewed
+                            ? TextDecoration.none
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            Text(
-              label,
-              style: AppTextStyles.caption
-                  .copyWith(color: color, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTextStyles.caption
+                .copyWith(color: color, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: 10),
+          // Bu konu için doğrudan odak seansı başlat (Plan → Odak Seansı'na
+          // çıkıp dersi elle seçmek yerine) — TaskTile'daki ▶ ile aynı dil.
+          TapScale(
+            onTap: onFocusTap,
+            child: Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.play_arrow,
+                size: 16,
+                color: AppColors.primary,
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -350,7 +393,7 @@ class _CatalogButton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.playlist_add_outlined,
+            Icon(Icons.playlist_add_outlined,
                 size: 18, color: AppColors.vibrantViolet),
             const SizedBox(width: 10),
             Text(

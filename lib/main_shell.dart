@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
@@ -8,15 +9,25 @@ import 'profile_screen.dart';
 import 'widget_service.dart';
 import 'widgets/app_bottom_nav.dart';
 
-class MainShell extends StatefulWidget {
+// Riverpod'da tutuluyor, MainShell'in local State'inde değil — görünüm
+// (açık/koyu tema) değişince StudyPlannerApp tüm ağacı yeniden kuruyor
+// (bkz. app.dart'taki ValueKey açıklaması). ProviderScope MaterialApp'in
+// DIŞINDA olduğu için bu provider o yeniden kurulumdan etkilenmiyor —
+// local `int _currentIndex` olsaydı, Profil'deyken temayı değiştirmek
+// sekmeyi sessizce Ana'ya sıfırlardı (kullanıcı "basılmıyor" sanırdı,
+// aslında ekran değişiyordu).
+final currentTabIndexProvider = StateProvider<int>((ref) => 0);
+
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
-  int _currentIndex = 0;
+class _MainShellState extends ConsumerState<MainShell>
+    with WidgetsBindingObserver {
+  int get _currentIndex => ref.watch(currentTabIndexProvider);
 
   // const değil — HomeScreen'e hangi sekmenin görünür olduğunu iletebilmek
   // için her build'de yeniden kuruluyor (bkz. home_screen.dart isActive).
@@ -64,12 +75,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
+        onTap: (index) =>
+            ref.read(currentTabIndexProvider.notifier).state = index,
+        items: [
           AppBottomNavItem(
             icon: Icons.home_outlined,
             selectedIcon: Icons.home,
@@ -80,25 +88,25 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             icon: Icons.check_circle_outline,
             selectedIcon: Icons.check_circle,
             label: "Görevler",
-            color: AppColors.vibrantMint,
+            color: AppColors.secondary,
           ),
           AppBottomNavItem(
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome,
             label: "Plan",
-            color: AppColors.vibrantViolet,
+            color: AppColors.secondary,
           ),
           AppBottomNavItem(
             icon: Icons.bar_chart_outlined,
             selectedIcon: Icons.bar_chart,
             label: "İstatistik",
-            color: AppColors.vibrantSky,
+            color: AppColors.secondary,
           ),
           AppBottomNavItem(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             label: "Profil",
-            color: AppColors.vibrantCoral,
+            color: AppColors.secondary,
           ),
         ],
       ),

@@ -3,11 +3,12 @@ import '../app_colors.dart';
 import '../app_text_styles.dart';
 import '../tap_scale.dart';
 
-/// Uygulama genelinde tek bir alt nav tanımı. Her sekme kendi vurgu rengini
-/// taşır (2026-09 canlı/çok renkli tasarım geçişi) — seçili sekme, o rengin
-/// tonunda dolu bir "hap" (pill) rozetinde belirir; Anadolu Mobil/LearnUp
-/// referans görsellerindeki dolu-hap seçim deseniyle aynı dil, tek altın
-/// nokta göstergesi yerine.
+/// Uygulama genelinde tek bir alt nav tanımı. `color` her sekmede hâlâ ayrı
+/// bir alan (MainShell istese tek tek özelleştirebilir) ama 2026-09-16'dan
+/// beri MainShell'de Ana hariç hepsi aynı (secondary) — beş sekmenin beş
+/// farklı canlı rengi ("gökkuşağı nav") kullanıcı geri bildirimiyle
+/// kaldırıldı, çok dağınık/rastgele duruyordu. Seçili sekme, rengin
+/// tonunda dolu bir "hap" (pill) rozetinde belirir.
 class AppBottomNavItem {
   final IconData icon;
   final IconData selectedIcon;
@@ -45,7 +46,12 @@ class AppBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 82,
+          // 82 → 88: içerik (ikon+etiket+alt çizgi) bazı cihazlarda birkaç
+          // piksel taşıyordu (bkz. cihazda gözlemlenen "BOTTOM OVERFLOWED
+          // BY 2-4 PIXELS" — her ekranda tekrarlanıyordu, MainShell'in
+          // paylaşılan alt navı olduğu için). Tasarım oranlarına dokunmadan
+          // nefes payı eklendi.
+          height: 88,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Row(

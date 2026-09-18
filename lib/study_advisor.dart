@@ -16,6 +16,12 @@ class StudyAdvisor {
   /// [weakestDenemeSubjectId] verilirse (Deneme Takip'teki en düşük ortalama
   /// nete sahip bölümle eşleşen ders) o ders öne çıkar — Deneme Takip'i salt
   /// bir grafik olmaktan çıkarıp plana etki ettirir.
+  /// [focusMinutesBySubject] (subjectId → toplam odak dakikası, tüm zamanlar)
+  /// verilirse: kullanıcı Odak Seansı'nı en az bir kez kullanmışsa (herhangi
+  /// bir derste dakika birikmişse), hiç odaklanılmamış ama görevi/konusu olan
+  /// dersler hafif bir "gerçekten çalışmadın" sinyali alır. Odak hiç
+  /// kullanılmadıysa (harita tamamen boşsa) kimse cezalandırılmaz — sinyal
+  /// yalnız kullanıcının kendi alışkanlığına göre görecelidir.
   static List<StudySuggestion> suggest({
     required List<SubjectModel> subjects,
     required List<TaskModel> tasks,
@@ -24,8 +30,12 @@ class StudyAdvisor {
     int limit = 3,
     Map<String, double> coveragePercent = const {},
     String? weakestDenemeSubjectId,
+    Map<String, int> focusMinutesBySubject = const {},
   }) {
     if (subjects.isEmpty) return const [];
+
+    final focusInUse =
+        focusMinutesBySubject.values.any((minutes) => minutes > 0);
 
     final reference = now ?? DateTime.now();
     final today = DateTime(reference.year, reference.month, reference.day);
@@ -71,6 +81,9 @@ class StudyAdvisor {
 
       final coverage = coveragePercent[s.id];
       final isWeakestDeneme = weakestDenemeSubjectId == s.id;
+      final neverFocused = focusInUse &&
+          (focusMinutesBySubject[s.id] ?? 0) == 0 &&
+          (total > 0 || coverage != null);
 
       // --- Puan (0..~1.6) ---
       var score = 0.0;
@@ -80,6 +93,7 @@ class StudyAdvisor {
       if (hasPendingPriority) score += 0.20 + examPressure * 0.15;
       if (coverage != null) score += (1 - coverage) * 0.35; // konu boşluğu
       if (isWeakestDeneme) score += 0.20; // deneme netinde en zayıf
+      if (neverFocused) score += 0.15; // hiç gerçek odak seansı yok
 
       if (score <= 0.05) continue;
 
@@ -95,6 +109,7 @@ class StudyAdvisor {
           examDays: examDays,
           coverage: coverage,
           isWeakestDeneme: isWeakestDeneme,
+          neverFocused: neverFocused,
         ),
       ));
     }
@@ -116,6 +131,7 @@ class StudyAdvisor {
     required int? examDays,
     double? coverage,
     bool isWeakestDeneme = false,
+    bool neverFocused = false,
   }) {
     if (coverage != null && coverage < 0.6) {
       return 'Konuların %${(coverage * 100).round()}\'i işaretli — geride';
@@ -128,6 +144,9 @@ class StudyAdvisor {
     }
     if (isWeakestDeneme) {
       return 'Deneme netlerinde en zayıf olduğun ders';
+    }
+    if (neverFocused) {
+      return 'Bu derse hiç odak seansı ayırmadın';
     }
     if (daysSinceTouch >= 7) {
       return '$daysSinceTouch gündür dokunmadın';

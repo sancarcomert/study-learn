@@ -16,7 +16,7 @@ import 'task_provider.dart';
 import 'tap_scale.dart';
 import 'user_stats_model.dart';
 import 'widgets/data_backup_section.dart';
-import 'widgets/eyebrow.dart';
+import 'widgets/section_header.dart';
 import 'widgets/rank_bar.dart';
 import 'widgets/rank_emblem.dart';
 
@@ -166,7 +166,7 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.edit_outlined,
                     color: AppColors.textSecondary,
                     size: 18,
@@ -180,18 +180,18 @@ class ProfileScreen extends ConsumerWidget {
 
           // SINIF + DERSLERİM — önceden iki ayrı eyebrow/kart bloğuydu,
           // dikey yığılmayı azaltmak için tek "HESAP" grubuna toplandı.
-          const Eyebrow(text: 'HESAP'),
+          const SectionHeader(title: 'Hesap'),
           const SizedBox(height: 10),
           _ProfileRow(
             icon: Icons.school_outlined,
-            tint: AppColors.vibrantAmber,
+            tint: AppColors.secondary,
             label: UserStatsModel.gradeLabel(stats.gradeLevel),
             onTap: () => _showGradePicker(context, ref, stats.gradeLevel),
           ),
           const SizedBox(height: 10),
           _ProfileRow(
             icon: Icons.menu_book_outlined,
-            tint: AppColors.vibrantMint,
+            tint: AppColors.secondary,
             label: subjects.isEmpty
                 ? 'Ders ekle ve düzenle'
                 : '${subjects.length} ders — düzenle / sil',
@@ -202,7 +202,7 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'RÜTBE'),
+          const SectionHeader(title: 'Rütbe'),
           const SizedBox(height: 10),
           TapScale(
             onTap: () => Navigator.of(context).push(
@@ -215,14 +215,14 @@ class ProfileScreen extends ConsumerWidget {
 
           // SERİ + dondurma + HEDEF — üçü de "günlük tempo" hakkında,
           // tek grupta toplandı (önceden ayrı ayrı 3 eyebrow'du).
-          const Eyebrow(text: 'SERİ & HEDEF'),
+          const SectionHeader(title: 'Seri & Hedef'),
           const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: _ProfileStatCard(
                   icon: Icons.local_fire_department_outlined,
-                  iconColor: AppColors.vibrantCoral,
+                  iconColor: AppColors.secondary,
                   value: '${stats.currentStreak}',
                   label: 'Mevcut Seri',
                 ),
@@ -244,13 +244,13 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.vibrantSky.withValues(alpha: 0.14),
+              color: AppColors.secondary.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                const Icon(Icons.ac_unit,
-                    color: AppColors.vibrantSky, size: 18),
+                Icon(Icons.ac_unit,
+                    color: AppColors.secondary, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -283,7 +283,7 @@ class ProfileScreen extends ConsumerWidget {
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: AppColors.vibrantAmber.withValues(alpha: 0.22)),
+                  color: AppColors.secondary.withValues(alpha: 0.22)),
               boxShadow: AppColors.softShadow,
             ),
             child: Row(
@@ -293,11 +293,11 @@ class ProfileScreen extends ConsumerWidget {
                   height: 36,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.vibrantAmber.withValues(alpha: 0.18),
+                    color: AppColors.secondary.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.flag_outlined,
-                      size: 18, color: AppColors.vibrantAmber),
+                  child: Icon(Icons.flag_outlined,
+                      size: 18, color: AppColors.secondary),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -306,7 +306,7 @@ class ProfileScreen extends ConsumerWidget {
                 Text(
                   '${stats.dailyGoal} görev',
                   style: AppTextStyles.heading3
-                      .copyWith(color: AppColors.vibrantAmber),
+                      .copyWith(color: AppColors.secondary),
                 ),
               ],
             ),
@@ -314,7 +314,7 @@ class ProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 28),
 
-          const Eyebrow(text: 'ÇALIŞMA SÜRESİ'),
+          const SectionHeader(title: 'Çalışma Süresi'),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -327,7 +327,7 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 _StudyTimeRow(
                   icon: Icons.timer_outlined,
-                  iconColor: AppColors.vibrantSky,
+                  iconColor: AppColors.secondary,
                   label: 'Odak seansı',
                   minutes: stats.focusMinutes,
                 ),
@@ -336,7 +336,7 @@ class ProfileScreen extends ConsumerWidget {
                     color: AppColors.textSecondary.withValues(alpha: 0.12)),
                 _StudyTimeRow(
                   icon: Icons.check_circle_outline,
-                  iconColor: AppColors.vibrantMint,
+                  iconColor: AppColors.secondary,
                   label: 'Tamamlanan görevler (tahmini)',
                   minutes: stats.totalStudyMinutes,
                 ),
@@ -349,13 +349,19 @@ class ProfileScreen extends ConsumerWidget {
           // BİLDİRİMLER + HAKKINDA — ikisi de "AYARLAR" başlığı altında;
           // Veri yedekleme kendi başlığını taşıdığı için (VERİLER) ayrı
           // bırakıldı, üst üste iki eyebrow görünmesin diye.
-          const Eyebrow(text: 'AYARLAR'),
+          const SectionHeader(title: 'Ayarlar'),
+          const SizedBox(height: 10),
+          _ThemeModeRow(
+            mode: stats.themeMode,
+            onChanged: (mode) =>
+                ref.read(statsProvider.notifier).updateThemeMode(mode),
+          ),
           const SizedBox(height: 10),
           const _NotificationStatusCard(),
           const SizedBox(height: 10),
           _ProfileRow(
             icon: Icons.shield_outlined,
-            tint: AppColors.vibrantSky,
+            tint: AppColors.secondary,
             label: 'Verin sende — gizlilik ve şeffaflık',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AboutScreen()),
@@ -416,8 +422,105 @@ class _ProfileRow extends StatelessWidget {
             Expanded(
               child: Text(label, style: AppTextStyles.body),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ayarlar'daki görünüm (açık/koyu tema) satırı — ikon rozeti + etiket +
+/// sağda iki küçük seçim hapı, _ProfileRow ile aynı kart dilinde ama
+/// gezinti yerine yerinde (inline) bir tercih.
+class _ThemeModeRow extends StatelessWidget {
+  final String mode;
+  final ValueChanged<String> onChanged;
+
+  const _ThemeModeRow({required this.mode, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = mode == 'light';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.22)),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isLight ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              size: 18,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text('Görünüm', style: AppTextStyles.body),
+          ),
+          _ThemeChip(
+            label: 'Açık',
+            selected: isLight,
+            onTap: () => onChanged('light'),
+          ),
+          const SizedBox(width: 6),
+          _ThemeChip(
+            label: 'Koyu',
+            selected: !isLight,
+            onTap: () => onChanged('dark'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ThemeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary.withValues(alpha: 0.5)
+                : AppColors.textMuted.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: selected ? AppColors.primary : AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -647,7 +750,7 @@ class _NotificationStatusCardState extends State<_NotificationStatusCard>
               ),
             ),
             if (!loading && !allOn)
-              const Icon(Icons.chevron_right,
+              Icon(Icons.chevron_right,
                   size: 20, color: AppColors.textMuted),
           ],
         ),

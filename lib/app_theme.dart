@@ -5,10 +5,10 @@ import 'app_text_styles.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get lightTheme {
+  static ThemeData get theme {
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
-      brightness: Brightness.dark,
+      brightness: AppColors.isDark ? Brightness.dark : Brightness.light,
     );
 
     return ThemeData(
@@ -23,7 +23,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         titleTextStyle: AppTextStyles.heading2,
-        iconTheme: const IconThemeData(
+        iconTheme: IconThemeData(
           color: AppColors.textPrimary,
         ),
       ),
@@ -45,7 +45,7 @@ class AppTheme {
 
       // Altın zemin üzerinde beyaz değil koyu (ink) metin/ikon — referans
       // görseldeki "Resume lesson" butonuyla aynı kontrast mantığı.
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.ink,
         elevation: 0,
@@ -81,7 +81,7 @@ class AppTheme {
 
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppColors.primary,
             width: 1.5,
           ),
@@ -97,7 +97,7 @@ class AppTheme {
         ),
       ),
 
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         thickness: .8,
         color: AppColors.surfaceVariant,
       ),

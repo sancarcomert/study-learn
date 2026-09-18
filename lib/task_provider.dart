@@ -103,6 +103,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     TopicDifficulty difficulty = TopicDifficulty.medium,
     TimeOfDay? scheduledTimeOfDay,
     int? estimatedMinutes,
+    String? topicId,
   }) {
     final groupId = _uuidTask.v4();
 
@@ -146,6 +147,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
           estimatedMinutes: estimatedMinutes,
           recurringGroupId: groupId,
           recurrenceRule: recurrenceRule,
+          topicId: topicId,
         ),
       );
     }
@@ -376,6 +378,23 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
     _cancelReminder(task.id);
     _scheduleReminder(task);
+  }
+
+  // Bir ders silinince, o derse bağlı görevler "öksüz" (var olmayan bir
+  // subjectId'ye işaret eden) kalmasın diye çağrılır — konular için zaten
+  // yapılan deleteForSubject ile aynı gerekçe (bkz. subjects_screen.dart).
+  // Görevin kendisi SİLİNMEZ (kullanıcının yapılacak işi bu yüzden
+  // kaybolmamalı) — yalnızca ders/konu bağı temizlenip "Derssiz" olur.
+  void clearSubjectFromTasks(String subjectId) {
+    final affected =
+        state.where((t) => t.subjectId == subjectId).toList();
+    if (affected.isEmpty) return;
+    for (final task in affected) {
+      task.subjectId = null;
+      task.topicId = null;
+      _repository.updateTask(task);
+    }
+    state = [..._repository.getAllTasks()];
   }
 }
 

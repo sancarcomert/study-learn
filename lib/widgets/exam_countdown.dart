@@ -38,7 +38,7 @@ class ExamCountdownChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.event_outlined, size: 14, color: AppColors.primary),
+          Icon(Icons.event_outlined, size: 14, color: AppColors.primary),
           const SizedBox(width: 6),
           Text(
             examCountdownLabel(days),

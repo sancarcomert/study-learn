@@ -101,7 +101,7 @@ class WidgetService {
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
+              child: Text(
                 'Ekle',
                 style: TextStyle(
                   color: AppColors.primary,

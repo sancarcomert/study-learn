@@ -82,7 +82,7 @@ class _Segment extends StatelessWidget {
           borderRadius: _radius,
           child: Stack(
             children: [
-              const Positioned.fill(
+              Positioned.fill(
                 child: ColoredBox(color: AppColors.surfaceVariant),
               ),
               TweenAnimationBuilder<double>(

@@ -106,6 +106,47 @@ void main() {
     expect(out.first.reason, contains('zayıf'));
   });
 
+  test('hiç odak yapılmamış ders (odak kullanılıyorsa) öne çıkar + gerekçe',
+      () {
+    final subjects = [_sub('Matematik'), _sub('Fizik')];
+    // İkisi de aynı gün dokunulmuş; fark yalnız odak dakikası.
+    final tasks = [
+      _task('id-Matematik', due: today.subtract(const Duration(days: 2))),
+      _task('id-Fizik', due: today.subtract(const Duration(days: 2))),
+    ];
+    final out = StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: tasks,
+      now: now,
+      focusMinutesBySubject: {'id-Matematik': 120, 'id-Fizik': 0},
+    );
+    expect(out.first.subjectName, 'Fizik');
+    expect(out.first.reason, 'Bu derse hiç odak seansı ayırmadın');
+  });
+
+  test('kullanıcı hiç odak seansı kullanmamışsa kimse cezalandırılmaz', () {
+    final subjects = [_sub('Matematik'), _sub('Fizik')];
+    final tasks = [
+      _task('id-Matematik', due: today.subtract(const Duration(days: 2))),
+      _task('id-Fizik', due: today.subtract(const Duration(days: 2))),
+    ];
+    final withoutFocusMap = StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: tasks,
+      now: now,
+    );
+    final withEmptyFocusMap = StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: tasks,
+      now: now,
+      focusMinutesBySubject: {'id-Matematik': 0, 'id-Fizik': 0},
+    );
+    expect(
+      withEmptyFocusMap.map((s) => s.score),
+      withoutFocusMap.map((s) => s.score),
+    );
+  });
+
   test('limit uygulanır', () {
     final subjects = List.generate(
       6,

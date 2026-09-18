@@ -12,7 +12,8 @@ import 'tap_scale.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/empty_state_card.dart';
-import 'widgets/eyebrow.dart';
+import 'widgets/section_header.dart';
+import 'widgets/metric_tile.dart';
 
 /// Deneme / net takibi (P0-9). Soru bankası YOK — yalnızca TYT/AYT
 /// doğru-yanlış-boş girişinden hesaplanan net ve zaman içindeki trendi.
@@ -49,7 +50,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
           if (current != null)
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, -1.0),
-              child: const Text('Hedefi Kaldır',
+              child: Text('Hedefi Kaldır',
                   style: TextStyle(color: AppColors.danger)),
             ),
           TextButton(
@@ -129,26 +130,26 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _StatTile(
+                          child: MetricTile(
+                            icon: Icons.show_chart_outlined,
                             value: summary.average.toStringAsFixed(1),
-                            label: 'ortalama net',
-                            tint: AppColors.vibrantSky,
+                            label: 'ORTALAMA NET',
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _StatTile(
+                          child: MetricTile(
+                            icon: Icons.emoji_events_outlined,
                             value: summary.best.toStringAsFixed(1),
-                            label: 'en iyi net',
-                            tint: AppColors.vibrantMint,
+                            label: 'EN İYİ NET',
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _StatTile(
+                          child: MetricTile(
+                            icon: Icons.description_outlined,
                             value: '${summary.count}',
-                            label: summary.count == 1 ? 'deneme' : 'deneme',
-                            tint: AppColors.vibrantViolet,
+                            label: 'DENEME',
                           ),
                         ),
                       ],
@@ -168,7 +169,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.flag_outlined,
+                          Icon(Icons.flag_outlined,
                               size: 18, color: AppColors.primary),
                           const SizedBox(width: 10),
                           Expanded(
@@ -178,7 +179,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                                   : (latestNet == null
                                       ? 'Hedef: ${target.toStringAsFixed(0)} net'
                                       : latestNet >= target
-                                          ? 'Hedefini ${(latestNet - target).toStringAsFixed(1)} net geçtin 🎉'
+                                          ? 'Hedefini ${(latestNet - target).toStringAsFixed(1)} net geçtin'
                                           : 'Hedefine ${(target - latestNet).toStringAsFixed(1)} net kaldı'),
                               style: AppTextStyles.body.copyWith(
                                 fontWeight: FontWeight.w600,
@@ -202,12 +203,10 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Eyebrow(text: 'NET TRENDİ'),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Son ${chartEntries.length} $_type denemen — soldan '
-                    'sağa kronolojik.',
-                    style: AppTextStyles.caption,
+                  SectionHeader(
+                    title: 'Net Trendi',
+                    subtitle: 'Son ${chartEntries.length} $_type denemen — '
+                        'soldan sağa kronolojik.',
                   ),
                   const SizedBox(height: 14),
                   Container(
@@ -221,11 +220,10 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                   ),
                   if (subjectAverages.isNotEmpty) ...[
                     const SizedBox(height: 26),
-                    const Eyebrow(text: 'BÖLÜM ORTALAMASI'),
-                    const SizedBox(height: 4),
-                    Text(
-                      'En düşükten en yükseğe — zayıf olduğun bölüm en üstte.',
-                      style: AppTextStyles.caption,
+                    const SectionHeader(
+                      title: 'Bölüm Ortalaması',
+                      subtitle:
+                          'En düşükten en yükseğe — zayıf olduğun bölüm en üstte.',
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -250,7 +248,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                   ],
                 ],
                 const SizedBox(height: 26),
-                const Eyebrow(text: 'GEÇMİŞ'),
+                const SectionHeader(title: 'Geçmiş'),
                 const SizedBox(height: 10),
                 ...descending.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -264,7 +262,7 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                             color: AppColors.tonal(AppColors.danger),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(Icons.delete_outline,
+                          child: Icon(Icons.delete_outline,
                               color: AppColors.danger),
                         ),
                         onDismissed: (_) {
@@ -351,38 +349,6 @@ class ExamTypeToggle extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color tint;
-
-  const _StatTile({
-    required this.value,
-    required this.label,
-    this.tint = AppColors.vibrantSky,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tint.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
-      ),
-      child: Column(
-        children: [
-          Text(value, style: AppTextStyles.heading2.copyWith(color: tint)),
-          const SizedBox(height: 2),
-          Text(label, style: AppTextStyles.caption, textAlign: TextAlign.center),
-        ],
       ),
     );
   }
