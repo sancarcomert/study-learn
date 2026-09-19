@@ -155,11 +155,18 @@ class AppTitleBlock extends StatelessWidget {
   final String title;
   final String subtitle;
 
+  /// Başlığın sağında, aynı satırda opsiyonel bir aksiyon (ör. Görevler'in
+  /// "Bugün" atlama butonu) — Figma'nın 3 referansında yok ama bazı
+  /// ekranların kendi işlevini korumak için gerekli; verilmezse satır
+  /// yalnız başlığı gösterir (Figma'daki üç ekranla birebir aynı).
+  final Widget? trailing;
+
   const AppTitleBlock({
     super.key,
     required this.eyebrow,
     required this.title,
     required this.subtitle,
+    this.trailing,
   });
 
   @override
@@ -172,7 +179,17 @@ class AppTitleBlock extends StatelessWidget {
           style: AppTextStyles.eyebrow.copyWith(color: AppColors.eyebrowRose),
         ),
         const SizedBox(height: 6),
-        Text(title, style: AppTextStyles.heading1),
+        if (trailing == null)
+          Text(title, style: AppTextStyles.heading1)
+        else
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(title, style: AppTextStyles.heading1),
+              trailing!,
+            ],
+          ),
         const SizedBox(height: 4),
         Text(subtitle, style: AppTextStyles.bodySecondary),
       ],

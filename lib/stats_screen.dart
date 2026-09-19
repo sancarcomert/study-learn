@@ -20,6 +20,10 @@ import 'topic_provider.dart';
 import 'widget_service.dart';
 import 'widgets/animated_progress_bar.dart';
 import 'widgets/empty_state_card.dart';
+import 'widgets/app_header.dart';
+import 'rank_provider.dart';
+import 'profile_screen.dart';
+import 'rank_ladder_screen.dart';
 
 /// Görevin "çalışıldığı gün" — tamamlanma tarihi (yoksa vade tarihi), saat sıfır.
 DateTime _taskDay(TaskModel t) {
@@ -84,11 +88,32 @@ class StatsScreen extends ConsumerWidget {
     final denemeCount = ref.watch(denemeProvider).length;
     final latestDeneme = ref.watch(latestDenemeProvider);
     return Scaffold(
-      appBar:
-          AppBar(title: Text('İstatistikler', style: AppTextStyles.heading2)),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      // Diğer sekmelerle (Ana Sayfa/Dersler/Koç) aynı üst şerit — tasarım
+      // sisteminin her sekmede aynı görünmesi için paylaşılan AppHeader/
+      // AppTitleBlock burada da kullanılıyor (eski sade AppBar yerine).
+      body: SafeArea(
+        child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         children: [
+          AppHeader(
+            initial: (stats.userName?.trim().isNotEmpty ?? false)
+                ? stats.userName!.trim()[0].toUpperCase()
+                : null,
+            rank: ref.watch(rankProvider).rank,
+            onProfileTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            onRankTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RankLadderScreen()),
+            ),
+          ),
+          const SizedBox(height: 34),
+          const AppTitleBlock(
+            eyebrow: 'İLERLEMEN',
+            title: 'İstatistikler',
+            subtitle: 'Çalışma alışkanlıklarını tek yerden takip et.',
+          ),
+          const SizedBox(height: 20),
           const SectionHeader(
             title: 'Bu Hafta',
             subtitle: 'Pazartesiden bugüne kadar olan durumun.',
@@ -353,6 +378,7 @@ class StatsScreen extends ConsumerWidget {
               );
             }),
         ],
+        ),
       ),
     );
   }

@@ -15,6 +15,11 @@ import 'widgets/section_header.dart';
 import 'widgets/task_tile.dart';
 import 'task_time_status.dart';
 import 'tap_scale.dart';
+import 'stats_provider.dart';
+import 'rank_provider.dart';
+import 'profile_screen.dart';
+import 'rank_ladder_screen.dart';
+import 'widgets/app_header.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
@@ -73,25 +78,49 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     final now = DateTime.now();
     final isTodaySelected = _isSameDay(_selectedDate, now);
+    final stats = ref.watch(statsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Görevler', style: AppTextStyles.heading2),
-        actions: [
-          if (!isTodaySelected)
-            TextButton(
-              onPressed: _jumpToToday,
-              child: Text('Bugün',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  )),
-            ),
-        ],
-      ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
-          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: AppHeader(
+              initial: (stats.userName?.trim().isNotEmpty ?? false)
+                  ? stats.userName!.trim()[0].toUpperCase()
+                  : null,
+              rank: ref.watch(rankProvider).rank,
+              onProfileTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              ),
+              onRankTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const RankLadderScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 34),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: AppTitleBlock(
+              eyebrow: 'PLANIN',
+              title: 'Görevler',
+              subtitle: 'Günlük görevlerini takip et, sıraya diz.',
+              trailing: isTodaySelected
+                  ? null
+                  : TapScale(
+                      onTap: _jumpToToday,
+                      child: Text(
+                        'Bugün',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 20),
           _WeekNavRow(weekAnchor: _weekAnchor, onShift: _shiftWeek),
           const SizedBox(height: 4),
           _DaySelectorStrip(
@@ -142,6 +171,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   ),
           ),
         ],
+        ),
       ),
       floatingActionButton: GradientFab(
         tooltip: 'Görev ekle',

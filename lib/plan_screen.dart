@@ -10,8 +10,13 @@ import 'focus_session_provider.dart';
 import 'konu_takip_screen.dart';
 import 'topic_provider.dart';
 import 'tap_scale.dart';
+import 'stats_provider.dart';
+import 'rank_provider.dart';
+import 'profile_screen.dart';
+import 'rank_ladder_screen.dart';
 import 'widgets/eyebrow.dart';
 import 'widgets/section_header.dart';
+import 'widgets/app_header.dart';
 
 /// Plan sekmesi — Koç/Konu Takip/Odak/Deneme'ye giriş noktası. Önceden dört
 /// özdeş satırdı (aynı boyut, hiçbir canlı veri); Home'daki bento diliyle
@@ -38,14 +43,32 @@ class PlanScreen extends ConsumerWidget {
 
     final focusThisWeek = ref.watch(focusThisWeekMinutesProvider);
     final latestDeneme = ref.watch(latestDenemeProvider);
+    final stats = ref.watch(statsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Plan", style: AppTextStyles.heading2),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+      body: SafeArea(
+        child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
         children: [
+          AppHeader(
+            initial: (stats.userName?.trim().isNotEmpty ?? false)
+                ? stats.userName!.trim()[0].toUpperCase()
+                : null,
+            rank: ref.watch(rankProvider).rank,
+            onProfileTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            onRankTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RankLadderScreen()),
+            ),
+          ),
+          const SizedBox(height: 34),
+          const AppTitleBlock(
+            eyebrow: 'PLANLAMA',
+            title: 'Plan',
+            subtitle: 'Çalışma koçu, konu takibi ve denemelerin tek yerde.',
+          ),
+          const SizedBox(height: 20),
           const SectionHeader(title: 'Bugünü Kur'),
           const SizedBox(height: 12),
           _CoachHero(
@@ -98,7 +121,7 @@ class PlanScreen extends ConsumerWidget {
           _PlanBentoCard(
             icon: Icons.insights_outlined,
             title: 'Deneme Takip',
-            tint: AppColors.secondary,
+            tint: AppColors.eyebrowRose,
             fullWidth: true,
             value: latestDeneme == null
                 ? '—'
@@ -112,6 +135,7 @@ class PlanScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
