@@ -306,7 +306,11 @@ class _CharStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        // Eskiden sabit "beyaz %4 alfa" — koyu kart zemininde ince bir
+        // vurgu veriyordu, ama kart artık açık temada beyaz surface
+        // kullanıyor: aynı ton üstte görünmez kalıyordu. Zemine göre
+        // değişen background tonuna çekildi.
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(

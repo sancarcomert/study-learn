@@ -221,7 +221,12 @@ class ProfileScreen extends ConsumerWidget {
               Expanded(
                 child: _ProfileStatCard(
                   icon: Icons.local_fire_department_outlined,
-                  iconColor: AppColors.secondary,
+                  // Eskiden secondary (donuk mauve) — yanındaki "En Uzun
+                  // Seri" kartının canlı violetiyle yan yana durunca gözle
+                  // görülür şekilde soluk/tutarsız kalıyordu. Ateş ikonuyla
+                  // da eşleşen sıcak vurgu rengine (Home'un seri/puan
+                  // rengiyle aynı aile) çekildi.
+                  iconColor: AppColors.progressOrange,
                   value: '${stats.currentStreak}',
                   label: 'Mevcut Seri',
                 ),

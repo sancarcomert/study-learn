@@ -714,7 +714,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         ),
         body: Stack(
           children: [
-            const Positioned.fill(child: _FocusAuroraBackground()),
+            // Home'daki aynı karar (2026-09-19): Mentora referansı düz,
+            // renkli bulanık leke efekti olmayan bir açık zemin kullanıyor
+            // — bu atmosfer yalnız koyu temada kalıyor, tutarlılık için.
+            if (AppColors.isDark) const Positioned.fill(child: _FocusAuroraBackground()),
             SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),

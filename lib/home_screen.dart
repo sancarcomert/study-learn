@@ -34,6 +34,7 @@ import 'widgets/task_tile.dart' show TaskSwipeActions;
 import 'widgets/section_header.dart';
 import 'widgets/metric_tile.dart';
 import 'widgets/app_header.dart';
+import 'widgets/exam_countdown.dart';
 import 'notification_service.dart';
 import 'hive_boxes.dart';
 import 'dart:async';
@@ -772,6 +773,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ? 'Bugün hedeflerine bir adım daha yaklaşalım.'
                       : 'Bugün $todayCompleted/$todayTotal görevi tamamladın.',
                 ),
+                if (stats.examDate != null) ...[
+                  const SizedBox(height: 12),
+                  ExamCountdownChip(examDate: stats.examDate!),
+                ],
                 const SizedBox(height: 20),
                 const _ActiveFocusBanner(),
                 _PointsStreakCard(

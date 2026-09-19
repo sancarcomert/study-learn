@@ -28,14 +28,20 @@ class EmptyStateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Container(
       padding: const EdgeInsets.all(24),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
         boxShadow: AppColors.softShadow,
       ),
+      // `mainAxisSize: min` + Container'da `alignment` YOK — aksi halde
+      // (alignment varken) Container, bounded olan her ebeveynde (Center
+      // dahil, Center yalnız gevşek üst sınır verir, sınırsız yapmaz)
+      // kendini o üst sınıra kadar GERİYORDU: sonuç Deneme Takip/Odak
+      // Geçmişi gibi tek başlarına body olan ekranlarda kartın tüm ekranı
+      // kaplaması, "kart" hissi bütünüyle kaybolmasıydı.
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 56,

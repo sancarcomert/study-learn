@@ -96,12 +96,14 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
         title: Text('Deneme Takip', style: AppTextStyles.heading2),
       ),
       body: all.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(20),
-              child: EmptyStateCard(
-                icon: Icons.insights_outlined,
-                message: 'Henüz deneme eklemedin.\n'
-                    'Sağ alttaki + ile ilk deneme netini gir.',
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: EmptyStateCard(
+                  icon: Icons.insights_outlined,
+                  message: 'Henüz deneme eklemedin.\n'
+                      'Sağ alttaki + ile ilk deneme netini gir.',
+                ),
               ),
             )
           : ListView(

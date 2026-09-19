@@ -48,12 +48,14 @@ class FocusHistoryScreen extends ConsumerWidget {
         title: Text('Odak Geçmişi', style: AppTextStyles.heading2),
       ),
       body: sessions.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(20),
-              child: EmptyStateCard(
-                icon: Icons.history_outlined,
-                message: 'Henüz odak seansı kaydın yok.\n'
-                    'Bir seansı bitirince burada görünür.',
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: EmptyStateCard(
+                  icon: Icons.history_outlined,
+                  message: 'Henüz odak seansı kaydın yok.\n'
+                      'Bir seansı bitirince burada görünür.',
+                ),
               ),
             )
           : ListView(
