@@ -22,19 +22,23 @@ import 'app_colors.dart';
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle get heading1 => GoogleFonts.lora(
-        fontSize: 28,
-        fontWeight: FontWeight.w600,
+  // 2026-09-19: Mentora referansı ("Günaydın, Eda", "Dersler") düz, kalın
+  // bir sans kullanıyor — serif (Lora) "sessiz lüks" kimliği bu pivotla
+  // terk edildi. Plus Jakarta Sans zaten gömülü/offline olduğu için yeni
+  // font eklenmedi, yalnızca ağırlık arttı.
+  static TextStyle get heading1 => GoogleFonts.plusJakartaSans(
+        fontSize: 26,
+        fontWeight: FontWeight.w800,
         color: AppColors.textPrimary,
-        letterSpacing: -0.4,
-        height: 1.16,
+        letterSpacing: -0.5,
+        height: 1.18,
       );
 
-  static TextStyle get heading2 => GoogleFonts.lora(
-        fontSize: 21,
-        fontWeight: FontWeight.w600,
+  static TextStyle get heading2 => GoogleFonts.plusJakartaSans(
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
         color: AppColors.textPrimary,
-        letterSpacing: -0.2,
+        letterSpacing: -0.3,
         height: 1.2,
       );
 
@@ -75,9 +79,11 @@ class AppTextStyles {
       );
 
   // "BUGÜNÜN ODAĞI" / "BU HAFTA" gibi üst etiketler için tek stil
-  // kaynağı. Varsayılan renk artık altın vurgu — referans görselde
-  // eyebrow etiketleri ("CRITICAL THINKING") hep vurgu renginde.
-  // Ekranlar hâlâ .copyWith(color: ...) ile override edebilir.
+  // kaynağı. Varsayılan renk marka vurgusu (violet) — bu stil onlarca
+  // ekranda paylaşıldığı için varsayılanı rose'a çekmek (Figma'daki
+  // eyebrow rengi) her yerde istenmeyen kırmızıya yol açtı (bkz.
+  // app_colors.dart secondary notu). Ekranlar .copyWith(color: ...) ile
+  // override edebilir — Mentora ekranlarında rose yerel olarak uygulanıyor.
   static TextStyle get eyebrow => GoogleFonts.plusJakartaSans(
         fontSize: 12,
         fontWeight: FontWeight.w800,

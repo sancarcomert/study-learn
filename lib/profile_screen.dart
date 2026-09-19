@@ -141,9 +141,9 @@ class ProfileScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                       boxShadow: [AppColors.glow(AppColors.primary)],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person_outline,
-                      color: AppColors.ink,
+                      color: AppColors.onColor(AppColors.primary),
                       size: 32,
                     ),
                   ),

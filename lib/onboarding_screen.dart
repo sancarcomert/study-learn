@@ -146,8 +146,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ...AppColors.cardShadow,
                       ],
                     ),
-                    child: const Icon(Icons.auto_awesome,
-                        color: AppColors.ink, size: 32),
+                    child: Icon(Icons.auto_awesome,
+                        color: AppColors.onColor(AppColors.primary), size: 32),
                   ),
                 ),
 
@@ -379,6 +379,7 @@ class _ChunkyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
+    final onPrimary = AppColors.onColor(AppColors.primary);
     return TapScale(
       onTap: onPressed,
       child: AnimatedContainer(
@@ -395,12 +396,12 @@ class _ChunkyButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                size: 20, color: enabled ? AppColors.ink : AppColors.textMuted),
+                size: 20, color: enabled ? onPrimary : AppColors.textMuted),
             const SizedBox(width: 10),
             Text(
               label,
               style: AppTextStyles.button.copyWith(
-                color: enabled ? AppColors.ink : AppColors.textMuted,
+                color: enabled ? onPrimary : AppColors.textMuted,
               ),
             ),
           ],

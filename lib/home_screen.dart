@@ -20,6 +20,7 @@ import 'focus_screen.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'profile_screen.dart';
+import 'subject_topics_screen.dart';
 import 'rank_provider.dart';
 import 'rank_system.dart';
 import 'rank_ladder_screen.dart';
@@ -360,6 +361,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return who == null ? base : '$base $who';
   }
 
+  static const _weekdays = [
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi',
+    'Pazar',
+  ];
+  static const _months = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ];
+
+  static String _todayLabel() {
+    final now = DateTime.now();
+    return '${now.day} ${_months[now.month - 1]} ${_weekdays[now.weekday - 1]}';
+  }
+
   List<TaskModel> _sortedBySchedule(List<TaskModel> tasks) {
     final withTime = tasks.where((t) => t.scheduledTime != null).toList()
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
@@ -668,9 +698,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    final completedCount = todayTasks.where((t) => t.isCompleted).length;
-    final totalCount = todayTasks.length;
-    final todayProgress = totalCount == 0 ? 0.0 : completedCount / totalCount;
+    final todayCompleted = todayTasks.where((t) => t.isCompleted).length;
+    final todayTotal = todayTasks.length;
 
     final focusThisWeekMin = ref.watch(focusThisWeekMinutesProvider);
     final thisWeekCompleted = ref.watch(tasksCompletedThisWeekProvider);
@@ -713,13 +742,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: _AuroraBackground()),
+          // 2026-09-19: Mentora referansı düz #F8FAFC zemin — renkli
+          // bulanık "aurora" leke efekti "premium beyaz kart" diliyle
+          // çelişiyor, açık temada kapatıldı. Koyu temada (referans
+          // verilmedi) önceki atmosfer korundu.
+          if (AppColors.isDark) const Positioned.fill(child: _AuroraBackground()),
           SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
               children: [
-                _HomeHeader(
-                  greeting: _greeting(stats.userName),
+                _MentoraHeader(
                   initial: (stats.userName?.trim().isNotEmpty ?? false)
                       ? stats.userName!.trim()[0].toUpperCase()
                       : null,
@@ -731,15 +763,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     MaterialPageRoute(builder: (_) => const RankLadderScreen()),
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
+                _GreetingBlock(
+                  greeting: _greeting(stats.userName),
+                  completedToday: todayCompleted,
+                  totalToday: todayTotal,
+                ),
+                const SizedBox(height: 18),
                 const _ActiveFocusBanner(),
-                _ActiveTopicHero(
+                _PointsStreakCard(
+                  totalXp: ref.watch(rankProvider).xp,
+                  streak: stats.currentStreak,
+                  weeklyCompleted: thisWeekCompleted,
+                  weeklyGoal: stats.dailyGoal * 7,
+                ),
+                const SizedBox(height: 26),
+                const SectionHeader(title: 'Bugünün Odağı'),
+                const SizedBox(height: 12),
+                _FocusRowCard(
                   task: activeTask,
                   subject: activeSubject,
                   suggestion: topSuggestion,
                   hasAnySubject: subjects.isNotEmpty,
-                  todayProgress: todayProgress,
-                  streak: stats.currentStreak,
                   onStart: () => _startWorking(
                     task: activeTask,
                     suggestion: topSuggestion,
@@ -748,6 +793,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     MaterialPageRoute(builder: (_) => const CoachScreen()),
                   ),
                 ),
+                if (subjects.isNotEmpty) ...[
+                  const SizedBox(height: 26),
+                  const SectionHeader(title: 'Ders Kısayolları'),
+                  const SizedBox(height: 12),
+                  _SubjectShortcuts(
+                    subjects: subjects,
+                    onTap: (s) => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SubjectTopicsScreen(
+                          subjectId: s.id,
+                          subjectName: s.name,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 26),
                 const SectionHeader(
                     title: 'Haftalık İlerleme', trailing: 'Bu Hafta'),
@@ -835,17 +896,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-/// Üst bilgi satırı — selam + isim solda, sağda profil rozeti (isim
-/// baş harfi, altın/turuncu halka + nabız parıltısı).
-class _HomeHeader extends StatefulWidget {
-  final String greeting;
+/// Üst marka satırı — Figma'daki "Mentora" wordmark + sağda profil rozeti
+/// deseni. Uygulama adı burada "Dodom" (bkz. CLAUDE.md marka kimliği).
+class _MentoraHeader extends StatefulWidget {
   final String? initial;
   final int rank;
   final VoidCallback onProfileTap;
   final VoidCallback onRankTap;
 
-  const _HomeHeader({
-    required this.greeting,
+  const _MentoraHeader({
     required this.initial,
     required this.rank,
     required this.onProfileTap,
@@ -853,10 +912,10 @@ class _HomeHeader extends StatefulWidget {
   });
 
   @override
-  State<_HomeHeader> createState() => _HomeHeaderState();
+  State<_MentoraHeader> createState() => _MentoraHeaderState();
 }
 
-class _HomeHeaderState extends State<_HomeHeader>
+class _MentoraHeaderState extends State<_MentoraHeader>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -883,7 +942,13 @@ class _HomeHeaderState extends State<_HomeHeader>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(widget.greeting, style: AppTextStyles.heading2),
+        Text(
+          'Dodom',
+          style: AppTextStyles.heading3.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         SizedBox(
           width: 52,
           height: 52,
@@ -902,36 +967,31 @@ class _HomeHeaderState extends State<_HomeHeader>
                       return Container(
                         width: 44,
                         height: 44,
-                        padding: const EdgeInsets.all(2),
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: AppColors.primaryGradient,
+                          color: AppColors.surface,
+                          border: Border.all(
+                              color: AppColors.avatarRing, width: 1.5),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary
-                                  .withValues(alpha: 0.35 - t * 0.15),
-                              blurRadius: 10 + t * 8,
-                              spreadRadius: t * 2,
+                              color: AppColors.avatarRing
+                                  .withValues(alpha: 0.25 - t * 0.1),
+                              blurRadius: 8 + t * 6,
+                              spreadRadius: t * 1.5,
                             ),
                           ],
                         ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.surfaceVariant,
-                          ),
-                          alignment: Alignment.center,
-                          child: widget.initial == null
-                              ? Icon(Icons.person_outline,
-                                  size: 19, color: AppColors.textPrimary)
-                              : Text(
-                                  widget.initial!,
-                                  style: AppTextStyles.body.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
-                                  ),
+                        child: widget.initial == null
+                            ? const Icon(Icons.person_outline,
+                                size: 19, color: AppColors.avatarRing)
+                            : Text(
+                                widget.initial!,
+                                style: AppTextStyles.body.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.avatarRing,
                                 ),
-                        ),
+                              ),
                       );
                     },
                   ),
@@ -967,6 +1027,40 @@ class _HomeHeaderState extends State<_HomeHeader>
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Tarih eyebrow'u + selam başlığı + alt motivasyon cümlesi — Figma'daki
+/// "19 Eylül Cumartesi / Günaydın, Eda / Bugün hedeflerine..." üçlüsü.
+class _GreetingBlock extends StatelessWidget {
+  final String greeting;
+  final int completedToday;
+  final int totalToday;
+
+  const _GreetingBlock({
+    required this.greeting,
+    required this.completedToday,
+    required this.totalToday,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = totalToday == 0
+        ? 'Bugün hedeflerine bir adım daha yaklaşalım.'
+        : 'Bugün $completedToday/$totalToday görevi tamamladın.';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _HomeScreenState._todayLabel(),
+          style: AppTextStyles.eyebrow.copyWith(color: AppColors.eyebrowRose),
+        ),
+        const SizedBox(height: 6),
+        Text('$greeting 👋', style: AppTextStyles.heading1),
+        const SizedBox(height: 4),
+        Text(subtitle, style: AppTextStyles.bodySecondary),
       ],
     );
   }
@@ -1106,31 +1200,160 @@ class _ActiveFocusBannerState extends ConsumerState<_ActiveFocusBanner> {
   }
 }
 
-/// Home'un hero'su — "şu an ne çalışmalıyım" tek cevap. Öncelik: bugüne
-/// zamanlanmış aktif/sıradaki görev > StudyAdvisor önerisi > boş durum.
-/// CTA her zaman aynı yerde: görev/öneri varsa doğrudan o ders/konu için
-/// Odak Seansı başlatır, hiçbiri yoksa Çalışma Koçu'nu açar. Koç ayrıca
-/// hasTarget=true iken de (görev/öneri varken) küçük bir ikincil butonla
-/// HER ZAMAN bir dokunuşla erişilebilir kalır — "bizim AI" (yerel Çalışma
-/// Koçu) rakiplerin çoğunun sahte iddia ettiği bir şey, Home'dan hiç
-/// kaybolmamalı (kullanıcı kararı, 2026-09-16).
-class _ActiveTopicHero extends StatelessWidget {
+/// Figma'daki koyu "TOPLAM PUAN" kartı — rütbe XP'sini toplam puan olarak,
+/// seriyi bir rozet pili, haftalık tamamlanan görev sayısını ince bir
+/// ilerleme çubuğuyla gösterir. Sabit koyu — sayfa açık/koyu temada olsun
+/// bu kart hep aynı (bilinçli tema-bağımsız vurgu, Apple Fitness/Duolingo
+/// tarzı "hep koyu" özet kartlarıyla aynı fikir).
+class _PointsStreakCard extends StatelessWidget {
+  final int totalXp;
+  final int streak;
+  final int weeklyCompleted;
+  final int weeklyGoal;
+
+  const _PointsStreakCard({
+    required this.totalXp,
+    required this.streak,
+    required this.weeklyCompleted,
+    required this.weeklyGoal,
+  });
+
+  static String _thousands(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio =
+        weeklyGoal <= 0 ? 0.0 : (weeklyCompleted / weeklyGoal).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        color: AppColors.heroDark,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TOPLAM PUAN',
+                      style: AppTextStyles.eyebrow.copyWith(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _thousands(totalXp),
+                      style: AppTextStyles.heading1
+                          .copyWith(color: Colors.white, fontSize: 32),
+                    ),
+                  ],
+                ),
+              ),
+              if (streak > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.heroDarkChip,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 13)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$streak günlük seri',
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Haftalık görev',
+                style: AppTextStyles.caption
+                    .copyWith(color: Colors.white.withValues(alpha: 0.55)),
+              ),
+              Text(
+                '$weeklyCompleted / $weeklyGoal görev',
+                style: AppTextStyles.caption.copyWith(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: SizedBox(
+              height: 8,
+              child: Stack(
+                children: [
+                  Container(color: Colors.white.withValues(alpha: 0.12)),
+                  FractionallySizedBox(
+                    widthFactor: ratio,
+                    child: Container(
+                      decoration:
+                          BoxDecoration(gradient: AppColors.progressOrange),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Figma'nın "Bekleyen testler" satır kartıyla aynı dil — Home'un özü olan
+/// "şu an ne çalışmalıyım" cevabı burada. Öncelik: bugüne zamanlanmış
+/// aktif/sıradaki görev > StudyAdvisor önerisi > boş durum. Satırın tamamı
+/// CTA'dır (Odak Seansı başlatır, hiçbir hedef yoksa doğrudan Çalışma
+/// Koçu'nu açar); hasTarget=true iken küçük bir "Koç'a danış" bağlantısı da
+/// her zaman erişilebilir kalır — "bizim AI" Home'dan hiç kaybolmasın
+/// (kullanıcı kararı, 2026-09-16).
+class _FocusRowCard extends StatelessWidget {
   final TaskModel? task;
   final SubjectModel? subject;
   final StudySuggestion? suggestion;
   final bool hasAnySubject;
-  final double todayProgress;
-  final int streak;
   final VoidCallback onStart;
   final VoidCallback onAskCoach;
 
-  const _ActiveTopicHero({
+  const _FocusRowCard({
     required this.task,
     required this.subject,
     required this.suggestion,
     required this.hasAnySubject,
-    required this.todayProgress,
-    required this.streak,
     required this.onStart,
     required this.onAskCoach,
   });
@@ -1138,206 +1361,198 @@ class _ActiveTopicHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasTarget = task != null || suggestion != null;
-    final tint = subject != null ? Color(subject!.colorValue) : AppColors.primary;
+    final tint =
+        subject != null ? Color(subject!.colorValue) : AppColors.eyebrowRose;
 
-    final String badgeLabel;
-    final IconData badgeIcon;
-    if (task != null) {
-      badgeLabel = 'AKTİF GÖREV';
-      badgeIcon = Icons.bolt_outlined;
-    } else if (suggestion != null) {
-      badgeLabel = 'ÖNERİLEN';
-      badgeIcon = Icons.auto_awesome_outlined;
-    } else {
-      badgeLabel = 'BUGÜN';
-      badgeIcon = Icons.wb_sunny_outlined;
-    }
-
-    final title = task?.title ?? suggestion?.subjectName ?? 'Bugün için plan yok';
+    final title =
+        task?.title ?? suggestion?.subjectName ?? 'Bugün için plan yok';
     final subtitle = task != null
         ? (subject?.name ?? 'Derssiz')
         : suggestion?.reason ??
             (hasAnySubject
                 ? 'Bir görev planlamadın — hadi başlayalım.'
                 : 'Önce bir ders ekle, sonra plan kur.');
+    final minutesLabel =
+        task?.estimatedMinutes != null ? '${task!.estimatedMinutes} dk' : null;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.alphaBlend(tint.withValues(alpha: 0.16), AppColors.surface),
-            AppColors.surface,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: tint.withValues(alpha: 0.3)),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TapScale(
+          onTap: onStart,
+          child: Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(999),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+              boxShadow: AppColors.softShadow,
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(badgeIcon, size: 13, color: tint),
-                const SizedBox(width: 6),
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.tonal(tint),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    hasTarget
+                        ? Icons.check_circle_outline
+                        : Icons.auto_awesome_outlined,
+                    color: tint,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.body
+                            .copyWith(fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (minutesLabel != null) ...[
+                  Text(
+                    minutesLabel,
+                    style: AppTextStyles.caption
+                        .copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Icon(Icons.chevron_right, color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        ),
+        if (hasTarget) ...[
+          const SizedBox(height: 10),
+          TapScale(
+            onTap: onAskCoach,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome_outlined,
+                      size: 14, color: AppColors.vibrantViolet),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Koç\'a danış',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.vibrantViolet,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Figma'daki "Ders kısayolları" — derse dokununca doğrudan o dersin konu
+/// listesine gider. SubjectModel'de ayrı bir ikon alanı yok, ders adından
+/// yaygın YKS derslerine göre bir Material ikonu türetiliyor.
+class _SubjectShortcuts extends StatelessWidget {
+  final List<SubjectModel> subjects;
+  final ValueChanged<SubjectModel> onTap;
+
+  const _SubjectShortcuts({required this.subjects, required this.onTap});
+
+  static IconData _iconFor(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('mat') || n.contains('geometri')) {
+      return Icons.calculate_outlined;
+    }
+    if (n.contains('fizik')) return Icons.bolt_outlined;
+    if (n.contains('kimya')) return Icons.science_outlined;
+    if (n.contains('biyoloji')) return Icons.eco_outlined;
+    if (n.contains('tarih')) return Icons.account_balance_outlined;
+    if (n.contains('coğrafya')) return Icons.public_outlined;
+    if (n.contains('felsefe') || n.contains('mantık')) {
+      return Icons.psychology_outlined;
+    }
+    if (n.contains('din')) return Icons.mosque_outlined;
+    if (n.contains('türkçe') || n.contains('edebiyat')) {
+      return Icons.menu_book_outlined;
+    }
+    if (n.contains('ingilizce') || n.contains('yabancı')) {
+      return Icons.language_outlined;
+    }
+    return Icons.school_outlined;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = subjects.take(6).toList();
+    final tileWidth = (MediaQuery.of(context).size.width - 40 - 20) / 3;
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: shown.map((s) {
+        final color = Color(s.colorValue);
+        return TapScale(
+          onTap: () => onTap(s),
+          child: Container(
+            width: tileWidth,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppColors.tonal(color),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(_iconFor(s.name), color: color, size: 20),
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  badgeLabel,
-                  style: AppTextStyles.eyebrow.copyWith(color: tint, fontSize: 11),
+                  s.name,
+                  style:
+                      AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            style: AppTextStyles.heading1.copyWith(fontSize: 28),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: AppTextStyles.bodySecondary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroMetric(
-                  icon: Icons.schedule_outlined,
-                  value: task?.estimatedMinutes != null
-                      ? '${task!.estimatedMinutes} Dakika'
-                      : '—',
-                  label: 'Hedef Süre',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _HeroMetric(
-                  icon: Icons.track_changes_outlined,
-                  value: '%${(todayProgress * 100).round()}',
-                  label: 'Bugün',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _HeroMetric(
-                  icon: Icons.local_fire_department_outlined,
-                  value: '$streak Gün',
-                  label: 'Seri',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: PrimaryButton(
-                  label: hasTarget ? 'Çalışmaya Başla' : 'Bugünü Planla',
-                  icon: hasTarget
-                      ? Icons.play_arrow_rounded
-                      : Icons.auto_awesome_outlined,
-                  onPressed: onStart,
-                ),
-              ),
-              // Boş durumda CTA zaten Koç'a gidiyor — burada tekrarlamaya
-              // gerek yok, yalnız hasTarget=true iken (Koç Home'dan tek
-              // yol olan ana CTA tarafından kapatılmışken) gösteriliyor.
-              if (hasTarget) ...[
-                const SizedBox(width: 10),
-                _AskCoachButton(onTap: onAskCoach),
-              ],
-            ],
-          ),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 }
 
-/// Hero'daki ikincil "Koç'a Sor" butonu — ana CTA'nın (Çalışmaya Başla)
-/// yanında, her zaman görünür, sabit boyutlu (64x64, PrimaryButton'la aynı
-/// yükseklik) dairesel ikon buton. Violet — Plan sekmesindeki Koç hero'suyla
-/// aynı renk kimliği, altın/turuncu ana CTA'yla karışmasın diye.
-class _AskCoachButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _AskCoachButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final tint = AppColors.vibrantViolet;
-    return Semantics(
-      button: true,
-      label: 'Çalışma Koçu\'na sor',
-      child: TapScale(
-        onTap: onTap,
-        child: Container(
-          width: 64,
-          height: 64,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.tonal(tint),
-            shape: BoxShape.circle,
-            border: Border.all(color: tint.withValues(alpha: 0.4)),
-          ),
-          child: Icon(Icons.auto_awesome_outlined, color: tint, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroMetric extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-
-  const _HeroMetric({required this.icon, required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 1),
-          Text(label,
-              style: AppTextStyles.caption.copyWith(fontSize: 10.5),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-        ],
-      ),
-    );
-  }
-}
-
-/// "İstikrar" kartı — seri gün sayısı + son 14 günün odak dakikası
+/// "Odak Trendi" kartı — seri gün sayısı + son 14 günün odak dakikası
 /// trendini gösteren parıltılı çizgi grafiği (fl_chart yok — özel
 /// CustomPainter, uygulamanın "hiçbir grafik kütüphanesi yok" kuralına
 /// uyuyor, bkz. activity_heatmap.dart / _FocusWeekBar).
@@ -1354,6 +1569,7 @@ class _StreakCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(
@@ -1368,7 +1584,7 @@ class _StreakCard extends StatelessWidget {
                       size: 14, color: AppColors.textSecondary),
                   const SizedBox(width: 6),
                   Text(
-                    'İSTİKRAR',
+                    'ODAK TRENDİ',
                     style: AppTextStyles.caption.copyWith(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -1510,6 +1726,7 @@ class _UpcomingSessionRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
           boxShadow: AppColors.softShadow,
         ),
         child: Row(

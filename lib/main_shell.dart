@@ -77,6 +77,10 @@ class _MainShellState extends ConsumerState<MainShell>
         currentIndex: _currentIndex,
         onTap: (index) =>
             ref.read(currentTabIndexProvider.notifier).state = index,
+        // 2026-09-19: Mentora referansında aktif sekme (hangisi olursa
+        // olsun) hep aynı tek violet vurguyu kullanıyor — "gökkuşağı nav"
+        // döneminden kalan sekme-başı renk ayrımı (Ana=primary, gerisi
+        // secondary) bu pivotla tamamen kaldırıldı.
         items: [
           AppBottomNavItem(
             icon: Icons.home_outlined,
@@ -88,25 +92,25 @@ class _MainShellState extends ConsumerState<MainShell>
             icon: Icons.check_circle_outline,
             selectedIcon: Icons.check_circle,
             label: "Görevler",
-            color: AppColors.secondary,
+            color: AppColors.primary,
           ),
           AppBottomNavItem(
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome,
             label: "Plan",
-            color: AppColors.secondary,
+            color: AppColors.primary,
           ),
           AppBottomNavItem(
             icon: Icons.bar_chart_outlined,
             selectedIcon: Icons.bar_chart,
             label: "İstatistik",
-            color: AppColors.secondary,
+            color: AppColors.primary,
           ),
           AppBottomNavItem(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             label: "Profil",
-            color: AppColors.secondary,
+            color: AppColors.primary,
           ),
         ],
       ),

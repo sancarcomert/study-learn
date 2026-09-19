@@ -30,6 +30,7 @@ class MetricTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(

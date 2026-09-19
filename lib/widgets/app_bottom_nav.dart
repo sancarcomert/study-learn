@@ -41,6 +41,9 @@ class AppBottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        // Mentora referansı: beyaz nav, gölgeden çok üstteki ince gri
+        // çizgiyle ayrışıyor.
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         boxShadow: AppColors.softShadow,
       ),
       child: SafeArea(

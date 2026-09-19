@@ -265,7 +265,7 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                     icon: const Icon(Icons.add, size: 20),
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.ink,
+                      foregroundColor: AppColors.onColor(AppColors.primary),
                       minimumSize: const Size(44, 44),
                     ),
                   ),

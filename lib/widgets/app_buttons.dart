@@ -23,6 +23,11 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
+    // 2026-09-19: gold→violet pivotuyla artık zemin KOYU bir renk —
+    // sabit ink metin gold'da doğruydu (açık zemin), violet'te neredeyse
+    // okunmaz oluyordu. onColor() zeminin parlaklığına göre beyaz/ink
+    // seçiyor (violet için beyaz).
+    final onPrimary = AppColors.onColor(AppColors.primary);
 
     return TapScale(
       onTap: onPressed,
@@ -47,14 +52,14 @@ class PrimaryButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: enabled ? AppColors.ink : AppColors.textMuted,
+                color: enabled ? onPrimary : AppColors.textMuted,
               ),
               const SizedBox(width: 10),
             ],
             Text(
               label,
               style: AppTextStyles.button.copyWith(
-                color: enabled ? AppColors.ink : AppColors.textMuted,
+                color: enabled ? onPrimary : AppColors.textMuted,
               ),
             ),
           ],
@@ -96,7 +101,7 @@ class GradientFab extends StatelessWidget {
             AppColors.glow(AppColors.primary),
           ],
         ),
-        child: Icon(icon, color: AppColors.ink),
+        child: Icon(icon, color: AppColors.onColor(AppColors.primary)),
       ),
     );
 

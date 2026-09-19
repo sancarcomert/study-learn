@@ -1778,37 +1778,51 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _onSend();
   }
 
+  static const _faqPrompts = [
+    'Bu soruyu adım adım açıklar mısın?',
+    'Sınava nasıl hazırlanmalıyım?',
+  ];
+
   @override
   Widget build(BuildContext context) {
     // Koç'un yazarken tarih/saat/süre/dersi canlı renklendirebilmesi için
     // güncel ders listesini denetleyiciye taşı (bkz. _HighlightingController).
-    _input.subjects = ref.watch(subjectProvider);
+    final subjects = ref.watch(subjectProvider);
+    _input.subjects = subjects;
+
+    // Bug: _intro() her zaman TAM 2 mesaj gönderiyor (selam + yönlendirme),
+    // <= 1 koşulu bu yüzden hiçbir zaman doğru olmuyor, karşılama bloğu hiç
+    // görünmüyordu. Doğru eşik 2 — sohbet gerçekten başlayınca (ilk
+    // kullanıcı mesajıyla en az 3'e çıkınca) kaybolur.
+    final isFresh = _turns.length <= 2;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: Text('Çalışma Koçu', style: AppTextStyles.heading2),
+        title: isFresh
+            ? null
+            : Text('Çalışma Koçu', style: AppTextStyles.heading3),
       ),
       body: Column(
         children: [
-          // Bug: _intro() her zaman TAM 2 mesaj gönderiyor (selam + yönlendirme),
-          // <= 1 koşulu bu yüzden hiçbir zaman doğru olmuyor, pil satırı hiç
-          // görünmüyordu. Doğru eşik 2 — sohbet gerçekten başlayınca (ilk
-          // kullanıcı mesajıyla en az 3'e çıkınca) kaybolur.
-          if (_turns.length <= 2)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _QuickActionPill(
-                    icon: Icons.timer_outlined,
-                    label: '25 dk Pomodoro Başlat',
-                    tint: AppColors.vibrantViolet,
-                    onTap: () => Navigator.push(
+          // Figma'daki "Birlikte çözelim" başlığı + hızlı aksiyonlar +
+          // Konu seç + Sık sorulanlar bloğu, sohbetin geri kalanıyla AYNI
+          // ListView'a ilk öğe olarak konuyor (küçük ekranlarda ayrı sabit
+          // bir Column'un taşma riskini önlemek için — hepsi tek bir kaydırma
+          // ekseninde).
+          Expanded(
+            child: ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              itemCount: _turns.length + (isFresh ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (isFresh && i == 0) {
+                  return _CoachIntroHeader(
+                    subjects: subjects,
+                    faqPrompts: _faqPrompts,
+                    onQuickPomodoro: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const FocusScreen(
@@ -1817,32 +1831,20 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                         ),
                       ),
                     ),
-                  ),
-                  _QuickActionPill(
-                    icon: Icons.auto_awesome_outlined,
-                    label: 'Eksik konularımı sen planla',
-                    tint: AppColors.vibrantViolet,
-                    onTap: () => _sendQuick(
+                    onQuickAutoPlan: () => _sendQuick(
                         'sen ayarla, bugün için eksik konularımdan planla'),
-                  ),
-                  _QuickActionPill(
-                    icon: Icons.add_task_outlined,
-                    label: 'Hızlı görev ekle',
-                    tint: AppColors.vibrantViolet,
-                    onTap: () => Navigator.push(
+                    onQuickAddTask: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const AddTaskScreen()),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              itemCount: _turns.length,
-              itemBuilder: (_, i) => _Bubble(turn: _turns[i]),
+                    onSubjectTap: (s) =>
+                        _sendQuick('${s.name} konusunda yardımcı olur musun?'),
+                    onFaqTap: _sendQuick,
+                  );
+                }
+                final turnIndex = isFresh ? i - 1 : i;
+                return _Bubble(turn: _turns[turnIndex]);
+              },
             ),
           ),
           SafeArea(
@@ -1864,12 +1866,13 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                     children: [
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 18),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: AppColors.surfaceVariant, width: 1),
+                            borderRadius: BorderRadius.circular(999),
+                            border:
+                                Border.all(color: AppColors.border, width: 1),
                           ),
                           child: TextField(
                             controller: _input,
@@ -1882,7 +1885,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                             decoration: const InputDecoration(
                               isDense: true,
                               border: InputBorder.none,
-                              hintText: 'Yaz…',
+                              hintText: 'Sorunu buraya yaz…',
                             ),
                           ),
                         ),
@@ -1907,8 +1910,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                           child: Icon(
                             Icons.arrow_upward_rounded,
                             size: 18,
-                            color:
-                                _hasInput ? AppColors.ink : AppColors.textMuted,
+                            color: _hasInput
+                                ? AppColors.onColor(AppColors.primary)
+                                : AppColors.textMuted,
                           ),
                         ),
                       ),
@@ -2018,6 +2022,163 @@ class _Turn {
   const _Turn({required this.coach, required this.text});
 }
 
+/// Figma'daki "Birlikte çözelim" karşılama bloğu — başlık + hızlı
+/// aksiyonlar + Konu seç + Sık sorulanlar. Sohbet henüz başlamamışken
+/// (yalnız karşılama mesajı varken) sohbet listesinin İLK öğesi olarak
+/// gösterilir, ilk kullanıcı mesajından sonra kaybolur.
+class _CoachIntroHeader extends StatelessWidget {
+  final List<SubjectModel> subjects;
+  final List<String> faqPrompts;
+  final VoidCallback onQuickPomodoro;
+  final VoidCallback onQuickAutoPlan;
+  final VoidCallback onQuickAddTask;
+  final ValueChanged<SubjectModel> onSubjectTap;
+  final ValueChanged<String> onFaqTap;
+
+  const _CoachIntroHeader({
+    required this.subjects,
+    required this.faqPrompts,
+    required this.onQuickPomodoro,
+    required this.onQuickAutoPlan,
+    required this.onQuickAddTask,
+    required this.onSubjectTap,
+    required this.onFaqTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'YAPAY ZEKA ÖĞRETMENİN',
+            style: AppTextStyles.eyebrow.copyWith(color: AppColors.eyebrowRose),
+          ),
+          const SizedBox(height: 6),
+          Text('Birlikte çözelim', style: AppTextStyles.heading1),
+          const SizedBox(height: 4),
+          Text(
+            'Sorunu yaz veya bir konu seç. Adım adım açıklayarak yardımcı olayım.',
+            style: AppTextStyles.bodySecondary,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _QuickActionPill(
+                icon: Icons.timer_outlined,
+                label: '25 dk Pomodoro Başlat',
+                tint: AppColors.vibrantViolet,
+                onTap: onQuickPomodoro,
+              ),
+              _QuickActionPill(
+                icon: Icons.auto_awesome_outlined,
+                label: 'Eksik konularımı sen planla',
+                tint: AppColors.vibrantViolet,
+                onTap: onQuickAutoPlan,
+              ),
+              _QuickActionPill(
+                icon: Icons.add_task_outlined,
+                label: 'Hızlı görev ekle',
+                tint: AppColors.vibrantViolet,
+                onTap: onQuickAddTask,
+              ),
+            ],
+          ),
+          if (subjects.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text('Konu seç', style: AppTextStyles.heading3),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: subjects.map((s) {
+                final tint = Color(s.colorValue);
+                return TapScale(
+                  onTap: () => onSubjectTap(s),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.tonal(tint),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      s.name,
+                      style: AppTextStyles.caption.copyWith(
+                        color: tint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Text('Sık sorulanlar', style: AppTextStyles.heading3),
+          const SizedBox(height: 10),
+          ...faqPrompts.map((q) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _FaqRow(question: q, onTap: () => onFaqTap(q)),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Sık sorulanlar" satırı — soru işareti rozeti + soru metni + chevron.
+/// Dokununca soruyu doğrudan Koç'a gönderir (statik metin değil, gerçek
+/// bir hızlı-gönder aksiyonu).
+class _FaqRow extends StatelessWidget {
+  final String question;
+  final VoidCallback onTap;
+
+  const _FaqRow({required this.question, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.tonal(AppColors.eyebrowRose),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.help_outline,
+                  size: 14, color: AppColors.eyebrowRose),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                question,
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Bubble extends StatelessWidget {
   final _Turn turn;
   const _Bubble({required this.turn});
@@ -2036,11 +2197,12 @@ class _Bubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: coach ? AppColors.surface : AppColors.tonal(AppColors.primary),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(coach ? 4 : 18),
-            bottomRight: Radius.circular(coach ? 18 : 4),
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(coach ? 4 : 20),
+            bottomRight: Radius.circular(coach ? 20 : 4),
           ),
+          border: coach ? Border.all(color: AppColors.border) : null,
           boxShadow: coach ? AppColors.softShadow : null,
         ),
         child: Text(

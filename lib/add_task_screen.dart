@@ -195,7 +195,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       data: base.copyWith(
         colorScheme: base.colorScheme.copyWith(
           primary: AppColors.primary,
-          onPrimary: AppColors.ink,
+          onPrimary: AppColors.onColor(AppColors.primary),
         ),
       ),
       child: child!,

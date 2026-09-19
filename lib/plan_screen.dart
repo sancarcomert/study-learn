@@ -63,7 +63,7 @@ class PlanScreen extends ConsumerWidget {
                 child: _PlanBentoCard(
                   icon: Icons.checklist_rtl_outlined,
                   title: 'Konu Takip',
-                  tint: AppColors.secondary,
+                  tint: AppColors.primary,
                   value: totalTopics == 0
                       ? '—'
                       : '%${(totalCovered / totalTopics * 100).round()}',
@@ -81,7 +81,7 @@ class PlanScreen extends ConsumerWidget {
                 child: _PlanBentoCard(
                   icon: Icons.timer_outlined,
                   title: 'Odak Seansı',
-                  tint: AppColors.secondary,
+                  tint: AppColors.primary,
                   value: focusThisWeek == 0
                       ? '—'
                       : _fmtDuration(focusThisWeek),

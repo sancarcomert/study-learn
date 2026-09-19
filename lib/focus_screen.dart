@@ -515,7 +515,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.ink,
+                foregroundColor: AppColors.onColor(AppColors.primary),
                 shape:
                     RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
               ),

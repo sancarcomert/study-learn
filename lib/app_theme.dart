@@ -35,6 +35,9 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
+          // Mentora referansı: kartlar gölgeden çok ince bir kenarlıkla
+          // (border-slate-100) zeminden ayrışıyor.
+          side: BorderSide(color: AppColors.border, width: 1),
         ),
       ),
 
@@ -43,18 +46,20 @@ class AppTheme {
       // nokta göstergesi) doğrudan stilliyor, referans görseldeki
       // Material "pill indicator" değil bu desen (bkz. main_shell.dart).
 
-      // Altın zemin üzerinde beyaz değil koyu (ink) metin/ikon — referans
-      // görseldeki "Resume lesson" butonuyla aynı kontrast mantığı.
+      // 2026-09-19: gold→violet pivotuyla primary artık KOYU bir renk —
+      // sabit ink metin/ikon (gold'un açık zemininde doğruydu) burada
+      // neredeyse okunmaz olurdu. onColor() zeminin parlaklığına göre
+      // beyaz/ink seçiyor.
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.ink,
+        foregroundColor: AppColors.onColor(AppColors.primary),
         elevation: 0,
       ),
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.ink,
+          foregroundColor: AppColors.onColor(AppColors.primary),
           minimumSize: const Size(double.infinity, 56),
           elevation: 0,
           shape: RoundedRectangleBorder(

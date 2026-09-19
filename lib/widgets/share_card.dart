@@ -120,8 +120,8 @@ Future<void> showShareCardSheet(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.ios_share_outlined,
-                          size: 18, color: AppColors.ink),
+                      Icon(Icons.ios_share_outlined,
+                          size: 18, color: AppColors.onColor(AppColors.primary)),
                       const SizedBox(width: 8),
                       Text(
                         'Paylaş',
