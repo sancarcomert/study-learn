@@ -806,11 +806,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                                     vertical: 8,
                                   ),
                                   decoration: BoxDecoration(
-                                    // CTA hiyerarşisi: altın yalnız Başlat/Duraklat
-                                    // butonu için.
                                     color: selected
-                                        ? AppColors.secondary
-                                        : AppColors.tonal(AppColors.secondary),
+                                        ? AppColors.primary
+                                        : AppColors.tonal(AppColors.primary),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -818,8 +816,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                                     style: AppTextStyles.body.copyWith(
                                       color: selected
                                           ? AppColors.onColor(
-                                              AppColors.secondary)
-                                          : AppColors.secondary,
+                                              AppColors.primary)
+                                          : AppColors.primary,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -1249,7 +1247,7 @@ class _SubjectTopicPicker extends ConsumerWidget {
                     _chip(
                       label: t.name,
                       selected: selectedTopicId == t.id,
-                      color: AppColors.secondary,
+                      color: AppColors.primary,
                       onTap: () =>
                           onTopicChanged(selectedTopicId == t.id ? null : t.id),
                     ),
@@ -1328,15 +1326,14 @@ class _ModeToggle extends StatelessWidget {
           height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            // CTA hiyerarşisi: altın yalnız Başlat/Duraklat butonu için.
-            color: selected ? AppColors.secondary : Colors.transparent,
+            color: selected ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             label,
             style: AppTextStyles.body.copyWith(
               color: selected
-                  ? AppColors.onColor(AppColors.secondary)
+                  ? AppColors.onColor(AppColors.primary)
                   : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: 14,

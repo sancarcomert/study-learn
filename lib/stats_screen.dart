@@ -552,19 +552,17 @@ class _PeriodChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-          // CTA hiyerarşisi: altın yalnız birincil aksiyon için — bu bir
-          // dönem seçici, secondary (indigo) daha doğru.
           color: selected
-              ? AppColors.secondary
-              : AppColors.tonal(AppColors.secondary),
+              ? AppColors.primary
+              : AppColors.tonal(AppColors.primary),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
             color: selected
-                ? AppColors.onColor(AppColors.secondary)
-                : AppColors.secondary,
+                ? AppColors.onColor(AppColors.primary)
+                : AppColors.primary,
             fontWeight: FontWeight.w700,
           ),
         ),

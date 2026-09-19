@@ -205,19 +205,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            // CTA hiyerarşisi: altın yalnız "Başlayalım"
-                            // butonu için.
+                            // Seçili pil = marka violeti (uygulama genelinde
+                            // "seçili/aktif" için tek renk).
                             color: selected
-                                ? AppColors.secondary
-                                : AppColors.tonal(AppColors.secondary),
+                                ? AppColors.primary
+                                : AppColors.tonal(AppColors.primary),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             g.$2,
                             style: AppTextStyles.body.copyWith(
                               color: selected
-                                  ? AppColors.onColor(AppColors.secondary)
-                                  : AppColors.secondary,
+                                  ? AppColors.onColor(AppColors.primary)
+                                  : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -267,16 +267,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.secondary
-                                : AppColors.tonal(AppColors.secondary),
+                                ? AppColors.primary
+                                : AppColors.tonal(AppColors.primary),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             subject,
                             style: AppTextStyles.body.copyWith(
                               color: isSelected
-                                  ? AppColors.onColor(AppColors.secondary)
-                                  : AppColors.secondary,
+                                  ? AppColors.onColor(AppColors.primary)
+                                  : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

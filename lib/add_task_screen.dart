@@ -653,7 +653,7 @@ Widget build(BuildContext context) {
                             ),
                             _SubjectChip(
                               label: "Her gün",
-                              color: AppColors.secondary,
+                              color: AppColors.primary,
                               isSelected: _recurrence == 'daily',
                               onTap: () {
                                 setState(() {
@@ -663,7 +663,7 @@ Widget build(BuildContext context) {
                             ),
                             _SubjectChip(
                               label: "Her ${_weekdayName(_selectedDate)}",
-                              color: AppColors.secondary,
+                              color: AppColors.primary,
                               isSelected: _recurrence == 'weekly',
                               onTap: () {
                                 setState(() {
@@ -797,7 +797,7 @@ Widget build(BuildContext context) {
                                     children: [
                                       _SubjectChip(
                                         label: "Bugün",
-                                        color: AppColors.secondary,
+                                        color: AppColors.primary,
                                         icon: Icons.calendar_today_outlined,
                                         isSelected: _isDateToday,
                                         onTap: () => setState(() {
@@ -806,7 +806,7 @@ Widget build(BuildContext context) {
                                       ),
                                       _SubjectChip(
                                         label: "Yarın",
-                                        color: AppColors.secondary,
+                                        color: AppColors.primary,
                                         icon: Icons.calendar_today_outlined,
                                         isSelected: _isDateTomorrow,
                                         onTap: () => setState(() {
@@ -818,7 +818,7 @@ Widget build(BuildContext context) {
                                         label: _isCustomDate
                                             ? _formatDate(_selectedDate)
                                             : "Özel",
-                                        color: AppColors.secondary,
+                                        color: AppColors.primary,
                                         icon: Icons.calendar_today_outlined,
                                         isSelected: _isCustomDate,
                                         onTap: _pickDate,
@@ -853,7 +853,7 @@ Widget build(BuildContext context) {
                                       for (final t in _quickTimes)
                                         _SubjectChip(
                                           label: t.format(context),
-                                          color: AppColors.secondary,
+                                          color: AppColors.primary,
                                           icon: Icons.schedule_outlined,
                                           isSelected: _selectedTime == t,
                                           onTap: () => setState(() {
@@ -864,7 +864,7 @@ Widget build(BuildContext context) {
                                         label: _isCustomTime
                                             ? _selectedTime!.format(context)
                                             : "Özel",
-                                        color: AppColors.secondary,
+                                        color: AppColors.primary,
                                         icon: Icons.schedule_outlined,
                                         isSelected: _isCustomTime,
                                         onTap: _pickTime,
@@ -891,12 +891,7 @@ Widget build(BuildContext context) {
 
                                       return _SubjectChip(
                                         label: "$minutes dk",
-                                        // CTA hiyerarşisi (CLAUDE.md): altın
-                                        // yalnız birincil pozitif aksiyon
-                                        // (Görevi Ekle) için — burada da
-                                        // kullanılması "her yer altın"
-                                        // izlenimi veriyordu.
-                                        color: AppColors.secondary,
+                                        color: AppColors.primary,
                                         icon: Icons.timer_outlined,
                                         isSelected: isSelected,
                                         // Seçili çipe tekrar dokun → süreyi

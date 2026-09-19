@@ -262,34 +262,24 @@ class _DaySelectorStrip extends StatelessWidget {
                     height: 36,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      // CTA hiyerarşisi: altın yalnız "bugün" işareti için
-                      // (CLAUDE.md'nin kendi belirttiği istisna) — sadece
-                      // görüntülemek için seçilen gün bir aksiyon değil,
-                      // secondary (indigo) kullanılır.
-                      gradient: isSelected
-                          ? LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppColors.secondary,
-                                Color.lerp(AppColors.secondary, Colors.white,
-                                    0.3)!,
-                              ],
-                            )
-                          : null,
+                      // Seçili gün = marka violeti (uygulama genelinde
+                      // "seçili/aktif" için tek renk — filtre pilleri, nav,
+                      // rütbe rozeti ile aynı dil); "bugün ama seçili değil"
+                      // durumu ince bir violet kenarlıkla ayrı işaretlenir.
+                      color: isSelected ? AppColors.primary : null,
                       shape: BoxShape.circle,
                       border: (!isSelected && isToday)
                           ? Border.all(color: AppColors.primary, width: 1.4)
                           : null,
                       boxShadow: isSelected
-                          ? [AppColors.glow(AppColors.secondary)]
+                          ? [AppColors.glow(AppColors.primary)]
                           : null,
                     ),
                     child: Text(
                       '${day.day}',
                       style: AppTextStyles.body.copyWith(
                         color: isSelected
-                            ? AppColors.onColor(AppColors.secondary)
+                            ? AppColors.onColor(AppColors.primary)
                             : AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
