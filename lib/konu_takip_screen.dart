@@ -7,11 +7,15 @@ import 'subject_provider.dart';
 import 'topic_provider.dart';
 import 'topic_model.dart';
 import 'subject_topics_screen.dart';
+import 'stats_provider.dart';
+import 'rank_provider.dart';
+import 'profile_screen.dart';
+import 'rank_ladder_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/eyebrow.dart';
-import 'widgets/section_header.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/animated_progress_bar.dart';
+import 'widgets/app_header.dart';
 
 /// Konu Takip özeti — dersler ve kapsama yüzdeleri. Bir derse dokununca o
 /// dersin konu listesine ([SubjectTopicsScreen]) gider.
@@ -35,6 +39,7 @@ class _KonuTakipScreenState extends ConsumerState<KonuTakipScreen> {
     final subjects = ref.watch(subjectProvider);
     final coverage = ref.watch(coverageBySubjectProvider);
     final topics = ref.watch(topicProvider);
+    final stats = ref.watch(statsProvider);
 
     final totalTopics =
         coverage.values.fold<int>(0, (s, c) => s + c.total);
@@ -52,120 +57,139 @@ class _KonuTakipScreenState extends ConsumerState<KonuTakipScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // Figma'daki "Dersler" ekranı bağımsız bir sekme değil — bu ekran
+      // Plan sekmesinden push ediliyor, bu yüzden geri oku gerekli. Home ve
+      // Koç'la aynı büyük başlık deseni korunuyor, yalnız AppBar şeffaf ve
+      // başlıksız (geri oku dışında).
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: Text('Konu Takip', style: AppTextStyles.heading2),
       ),
-      body: subjects.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(20),
-              child: EmptyStateCard(
-                icon: Icons.checklist_rtl_outlined,
-                message:
-                    'Önce ders eklemelisin.\nProfil → Derslerim\'den ekleyebilirsin.',
-              ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+        children: [
+          AppHeader(
+            initial: (stats.userName?.trim().isNotEmpty ?? false)
+                ? stats.userName!.trim()[0].toUpperCase()
+                : null,
+            rank: ref.watch(rankProvider).rank,
+            onProfileTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            onRankTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RankLadderScreen()),
+            ),
+          ),
+          const SizedBox(height: 34),
+          const AppTitleBlock(
+            eyebrow: 'ÖĞRENME ALANIN',
+            title: 'Dersler',
+            subtitle: 'Kaldığın yerden devam et, ilerlemeni tek bakışta gör.',
+          ),
+          const SizedBox(height: 20),
+          if (subjects.isEmpty)
+            const EmptyStateCard(
+              icon: Icons.checklist_rtl_outlined,
+              message:
+                  'Önce ders eklemelisin.\nProfil → Derslerim\'den ekleyebilirsin.',
             )
-          : ListView(
-              padding: const EdgeInsets.all(20),
+          else ...[
+            // Figma sırası: alt açıklama → filtre pilleri → ders kartları.
+            // "Genel Kapsama" özet kartı Figma'da yok (kendi eklediğimiz bir
+            // değer) — pillerin ALTINA, kart listesinin üstüne alınarak
+            // Figma'nın kendi akışı bozulmadan ek bir bonus olarak duruyor.
+            Row(
               children: [
-                if (totalTopics > 0) ...[
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.vibrantMint.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                          color: AppColors.vibrantMint.withValues(alpha: 0.4)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Eyebrow(
-                            text: 'GENEL KAPSAMA',
-                            color: AppColors.vibrantMint),
-                        const SizedBox(height: 8),
-                        Text('%${(overall * 100).round()}',
-                            style: AppTextStyles.heading1),
-                        const SizedBox(height: 4),
-                        Text('$totalCovered / $totalTopics konu işaretlendi',
-                            style: AppTextStyles.bodySecondary),
-                        const SizedBox(height: 14),
-                        AnimatedProgressBar(
-                          value: overall,
-                          color: AppColors.vibrantMint,
-                          backgroundColor: AppColors.surfaceVariant,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                const SectionHeader(title: 'Dersler'),
-                const SizedBox(height: 12),
-                Row(
+                _FilterPill(
+                  label: 'Tümü',
+                  selected: _filter == _CoverageFilter.all,
+                  onTap: () => setState(() => _filter = _CoverageFilter.all),
+                ),
+                const SizedBox(width: 8),
+                _FilterPill(
+                  label: 'Devam eden',
+                  selected: _filter == _CoverageFilter.inProgress,
+                  onTap: () => setState(
+                      () => _filter = _CoverageFilter.inProgress),
+                ),
+                const SizedBox(width: 8),
+                _FilterPill(
+                  label: 'Tamamlanan',
+                  selected: _filter == _CoverageFilter.done,
+                  onTap: () => setState(() => _filter = _CoverageFilter.done),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (totalTopics > 0) ...[
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.vibrantMint.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: AppColors.vibrantMint.withValues(alpha: 0.4)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _FilterPill(
-                      label: 'Tümü',
-                      selected: _filter == _CoverageFilter.all,
-                      onTap: () =>
-                          setState(() => _filter = _CoverageFilter.all),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterPill(
-                      label: 'Devam eden',
-                      selected: _filter == _CoverageFilter.inProgress,
-                      onTap: () => setState(
-                          () => _filter = _CoverageFilter.inProgress),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterPill(
-                      label: 'Tamamlanan',
-                      selected: _filter == _CoverageFilter.done,
-                      onTap: () =>
-                          setState(() => _filter = _CoverageFilter.done),
+                    Eyebrow(text: 'GENEL KAPSAMA', color: AppColors.vibrantMint),
+                    const SizedBox(height: 8),
+                    Text('%${(overall * 100).round()}',
+                        style: AppTextStyles.heading1),
+                    const SizedBox(height: 4),
+                    Text('$totalCovered / $totalTopics konu işaretlendi',
+                        style: AppTextStyles.bodySecondary),
+                    const SizedBox(height: 14),
+                    AnimatedProgressBar(
+                      value: overall,
+                      color: AppColors.vibrantMint,
+                      backgroundColor: AppColors.surfaceVariant,
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                if (visibleSubjects.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text(
-                      'Bu filtreye uyan ders yok.',
-                      style: AppTextStyles.bodySecondary,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ...visibleSubjects.map((s) {
-                  final c = coverage[s.id] ?? const TopicCoverage(0, 0);
-                  TopicModel? next;
-                  for (final t in topics) {
-                    if (t.subjectId == s.id && t.status == TopicStatus.notStarted) {
-                      next = t;
-                      break;
-                    }
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _SubjectRow(
-                      name: s.name,
-                      color: Color(s.colorValue),
-                      coverage: c,
-                      nextTopicName: next?.name,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => SubjectTopicsScreen(
-                            subjectId: s.id,
-                            subjectName: s.name,
-                          ),
-                        ),
+              ),
+              const SizedBox(height: 20),
+            ],
+            if (visibleSubjects.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'Bu filtreye uyan ders yok.',
+                  style: AppTextStyles.bodySecondary,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ...visibleSubjects.map((s) {
+              final c = coverage[s.id] ?? const TopicCoverage(0, 0);
+              TopicModel? next;
+              for (final t in topics) {
+                if (t.subjectId == s.id && t.status == TopicStatus.notStarted) {
+                  next = t;
+                  break;
+                }
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _SubjectRow(
+                  name: s.name,
+                  color: Color(s.colorValue),
+                  coverage: c,
+                  nextTopicName: next?.name,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SubjectTopicsScreen(
+                        subjectId: s.id,
+                        subjectName: s.name,
                       ),
                     ),
-                  );
-                }),
-              ],
-            ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
     );
   }
 }

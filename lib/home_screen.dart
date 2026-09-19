@@ -21,10 +21,10 @@ import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'profile_screen.dart';
 import 'subject_topics_screen.dart';
+import 'tasks_screen.dart';
 import 'rank_provider.dart';
 import 'rank_system.dart';
 import 'rank_ladder_screen.dart';
-import 'widgets/rank_emblem.dart';
 import 'tap_scale.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/app_buttons.dart';
@@ -33,6 +33,7 @@ import 'widgets/share_card.dart';
 import 'widgets/task_tile.dart' show TaskSwipeActions;
 import 'widgets/section_header.dart';
 import 'widgets/metric_tile.dart';
+import 'widgets/app_header.dart';
 import 'notification_service.dart';
 import 'hive_boxes.dart';
 import 'dart:async';
@@ -751,7 +752,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
               children: [
-                _MentoraHeader(
+                AppHeader(
                   initial: (stats.userName?.trim().isNotEmpty ?? false)
                       ? stats.userName!.trim()[0].toUpperCase()
                       : null,
@@ -763,13 +764,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     MaterialPageRoute(builder: (_) => const RankLadderScreen()),
                   ),
                 ),
-                const SizedBox(height: 20),
-                _GreetingBlock(
-                  greeting: _greeting(stats.userName),
-                  completedToday: todayCompleted,
-                  totalToday: todayTotal,
+                const SizedBox(height: 34),
+                AppTitleBlock(
+                  eyebrow: _HomeScreenState._todayLabel(),
+                  title: '${_greeting(stats.userName)} 👋',
+                  subtitle: todayTotal == 0
+                      ? 'Bugün hedeflerine bir adım daha yaklaşalım.'
+                      : 'Bugün $todayCompleted/$todayTotal görevi tamamladın.',
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
                 const _ActiveFocusBanner(),
                 _PointsStreakCard(
                   totalXp: ref.watch(rankProvider).xp,
@@ -778,8 +781,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   weeklyGoal: stats.dailyGoal * 7,
                 ),
                 const SizedBox(height: 26),
-                const SectionHeader(title: 'Bugünün Odağı'),
-                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text('Bugünün Odağı', style: AppTextStyles.heading3),
+                    TapScale(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const TasksScreen()),
+                      ),
+                      child: Text(
+                        'Tümünü gör',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 _FocusRowCard(
                   task: activeTask,
                   subject: activeSubject,
@@ -892,176 +914,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-/// Üst marka satırı — Figma'daki "Mentora" wordmark + sağda profil rozeti
-/// deseni. Uygulama adı burada "Dodom" (bkz. CLAUDE.md marka kimliği).
-class _MentoraHeader extends StatefulWidget {
-  final String? initial;
-  final int rank;
-  final VoidCallback onProfileTap;
-  final VoidCallback onRankTap;
-
-  const _MentoraHeader({
-    required this.initial,
-    required this.rank,
-    required this.onProfileTap,
-    required this.onRankTap,
-  });
-
-  @override
-  State<_MentoraHeader> createState() => _MentoraHeaderState();
-}
-
-class _MentoraHeaderState extends State<_MentoraHeader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    final reduceMotion = WidgetsBinding
-        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
-    if (!reduceMotion) _controller.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          'Dodom',
-          style: AppTextStyles.heading3.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        SizedBox(
-          width: 52,
-          height: 52,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Semantics(
-                button: true,
-                label: 'Profil',
-                child: TapScale(
-                  onTap: widget.onProfileTap,
-                  child: AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, _) {
-                      final t = _controller.value;
-                      return Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.surface,
-                          border: Border.all(
-                              color: AppColors.avatarRing, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.avatarRing
-                                  .withValues(alpha: 0.25 - t * 0.1),
-                              blurRadius: 8 + t * 6,
-                              spreadRadius: t * 1.5,
-                            ),
-                          ],
-                        ),
-                        child: widget.initial == null
-                            ? const Icon(Icons.person_outline,
-                                size: 19, color: AppColors.avatarRing)
-                            : Text(
-                                widget.initial!,
-                                style: AppTextStyles.body.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.avatarRing,
-                                ),
-                              ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              // Rütbe rozeti — avatarın köşesinde, Profil'e girmeden
-              // rütbenin var olduğunu ve seviyesini gösterir (kullanıcı
-              // isteği: Home'a tam rütbe şeridi konmayacak ama bir yerde
-              // görünür olsun). Dokununca doğrudan Rütbeler ekranına gider.
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Semantics(
-                  button: true,
-                  label: 'Rütbeler',
-                  child: TapScale(
-                    onTap: widget.onRankTap,
-                    child: Container(
-                      width: 22,
-                      height: 22,
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.background,
-                        border: Border.all(color: AppColors.background, width: 2),
-                        boxShadow: AppColors.softShadow,
-                      ),
-                      child: RankEmblem(rank: widget.rank, size: 18),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Tarih eyebrow'u + selam başlığı + alt motivasyon cümlesi — Figma'daki
-/// "19 Eylül Cumartesi / Günaydın, Eda / Bugün hedeflerine..." üçlüsü.
-class _GreetingBlock extends StatelessWidget {
-  final String greeting;
-  final int completedToday;
-  final int totalToday;
-
-  const _GreetingBlock({
-    required this.greeting,
-    required this.completedToday,
-    required this.totalToday,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = totalToday == 0
-        ? 'Bugün hedeflerine bir adım daha yaklaşalım.'
-        : 'Bugün $completedToday/$totalToday görevi tamamladın.';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _HomeScreenState._todayLabel(),
-          style: AppTextStyles.eyebrow.copyWith(color: AppColors.eyebrowRose),
-        ),
-        const SizedBox(height: 6),
-        Text('$greeting 👋', style: AppTextStyles.heading1),
-        const SizedBox(height: 4),
-        Text(subtitle, style: AppTextStyles.bodySecondary),
-      ],
     );
   }
 }
@@ -1234,7 +1086,7 @@ class _PointsStreakCard extends StatelessWidget {
         weeklyGoal <= 0 ? 0.0 : (weeklyCompleted / weeklyGoal).clamp(0.0, 1.0);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.heroDark,
         borderRadius: BorderRadius.circular(28),
@@ -1313,16 +1165,15 @@ class _PointsStreakCard extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: SizedBox(
-              height: 8,
+              height: 7,
               child: Stack(
                 children: [
-                  Container(color: Colors.white.withValues(alpha: 0.12)),
+                  // Figma'da bu iz koyu kartın üstünde yarı saydam değil,
+                  // açık/dolgun bir gri — piksel örneklemesiyle düzeltildi.
+                  Container(color: Colors.white.withValues(alpha: 0.85)),
                   FractionallySizedBox(
                     widthFactor: ratio,
-                    child: Container(
-                      decoration:
-                          BoxDecoration(gradient: AppColors.progressOrange),
-                    ),
+                    child: Container(color: AppColors.progressOrange),
                   ),
                 ],
               ),
@@ -1518,27 +1369,22 @@ class _SubjectShortcuts extends StatelessWidget {
             width: tileWidth,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
             decoration: BoxDecoration(
+              // Figma'da ikon holder (beyaz daire) YOK — ikon doğrudan
+              // pastel zeminin üstünde duruyor, piksel karşılaştırmasıyla
+              // düzeltildi.
               color: AppColors.tonal(color),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withValues(alpha: 0.25)),
             ),
             child: Column(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(_iconFor(s.name), color: color, size: 20),
-                ),
-                const SizedBox(height: 8),
+                Icon(_iconFor(s.name), color: color, size: 26),
+                const SizedBox(height: 10),
                 Text(
                   s.name,
-                  style:
-                      AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,

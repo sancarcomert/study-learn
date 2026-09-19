@@ -18,8 +18,12 @@ import 'stats_provider.dart';
 import 'deneme_provider.dart';
 import 'focus_session_provider.dart';
 import 'subject_ai.dart';
+import 'rank_provider.dart';
+import 'profile_screen.dart';
+import 'rank_ladder_screen.dart';
 import 'tap_scale.dart';
 import 'widgets/app_buttons.dart';
+import 'widgets/app_header.dart';
 import 'widgets/exam_countdown.dart';
 
 /// Çalışma Koçu — serbest sohbetle plan kurar. Çip / çoktan seçmeli YOK:
@@ -108,6 +112,17 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         : '';
     _say('Ne çalışmak istediğini ve ne kadar vaktin olduğunu tek cümleyle '
         'yaz.$examLine İstemiyorsan "sen ayarla" de, ben kurayım.');
+
+    // _say() her mesajda otomatik en alta kaydırıyor (normal sohbet akışı
+    // için doğru davranış) — ama İLK açılışta bu, Figma'nın "Birlikte
+    // çözelim" karşılama bloğunu (başlık + hızlı aksiyonlar + Konu seç +
+    // Sık sorulanlar) ekran açılır açılmaz görünmez kılıyordu. Yalnız bu
+    // ilk yükleme anında, iki karşılama mesajı gönderildikten SONRA en üste
+    // geri sarılıyor — sonraki gerçek mesajlarda _say()'in en-alta-kaydırma
+    // davranışı hiç değişmiyor.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    });
   }
 
   // --- Girdi işleme ----------------------------------------------
@@ -1796,17 +1811,36 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     // kullanıcı mesajıyla en az 3'e çıkınca) kaybolur.
     final isFresh = _turns.length <= 2;
 
+    final stats = ref.watch(statsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
+      // Figma'nın Dodom+avatar üst şeridi Home/Dersler'le aynı — piksel
+      // karşılaştırmasında bu ekranda hiç yoktu, eklendi. Koç bir sekme
+      // değil push edilen bir ekran olduğu için AppBar geri oku için
+      // korunuyor (şeffaf, başlıksız).
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: isFresh
-            ? null
-            : Text('Çalışma Koçu', style: AppTextStyles.heading3),
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: AppHeader(
+              initial: (stats.userName?.trim().isNotEmpty ?? false)
+                  ? stats.userName!.trim()[0].toUpperCase()
+                  : null,
+              rank: ref.watch(rankProvider).rank,
+              onProfileTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              ),
+              onRankTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const RankLadderScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           // Figma'daki "Birlikte çözelim" başlığı + hızlı aksiyonlar +
           // Konu seç + Sık sorulanlar bloğu, sohbetin geri kalanıyla AYNI
           // ListView'a ilk öğe olarak konuyor (küçük ekranlarda ayrı sabit
@@ -2052,16 +2086,11 @@ class _CoachIntroHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'YAPAY ZEKA ÖĞRETMENİN',
-            style: AppTextStyles.eyebrow.copyWith(color: AppColors.eyebrowRose),
-          ),
-          const SizedBox(height: 6),
-          Text('Birlikte çözelim', style: AppTextStyles.heading1),
-          const SizedBox(height: 4),
-          Text(
-            'Sorunu yaz veya bir konu seç. Adım adım açıklayarak yardımcı olayım.',
-            style: AppTextStyles.bodySecondary,
+          const AppTitleBlock(
+            eyebrow: 'YAPAY ZEKA ÖĞRETMENİN',
+            title: 'Birlikte çözelim',
+            subtitle:
+                'Sorunu yaz veya bir konu seç. Adım adım açıklayarak yardımcı olayım.',
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -2186,31 +2215,51 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final coach = turn.coach;
-    return Align(
-      alignment: coach ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82,
-        ),
-        decoration: BoxDecoration(
-          color: coach ? AppColors.surface : AppColors.tonal(AppColors.primary),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(coach ? 4 : 20),
-            bottomRight: Radius.circular(coach ? 20 : 4),
-          ),
-          border: coach ? Border.all(color: AppColors.border) : null,
-          boxShadow: coach ? AppColors.softShadow : null,
-        ),
-        child: Text(
-          turn.text,
-          style: AppTextStyles.body
-              .copyWith(color: AppColors.textPrimary, height: 1.35),
-        ),
+    final bubble = Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.7,
       ),
+      decoration: BoxDecoration(
+        color: coach ? AppColors.surface : AppColors.tonal(AppColors.primary),
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(20),
+          topRight: const Radius.circular(20),
+          bottomLeft: Radius.circular(coach ? 4 : 20),
+          bottomRight: Radius.circular(coach ? 20 : 4),
+        ),
+        border: coach ? Border.all(color: AppColors.border) : null,
+        boxShadow: coach ? AppColors.softShadow : null,
+      ),
+      child: Text(
+        turn.text,
+        style: AppTextStyles.body
+            .copyWith(color: AppColors.textPrimary, height: 1.35),
+      ),
+    );
+
+    // Figma'da Koç mesajlarının solunda mor daire + sparkle ikonlu bir AI
+    // avatarı var — piksel karşılaştırmasında bu tamamen eksikti, eklendi.
+    if (!coach) {
+      return Align(alignment: Alignment.centerRight, child: bubble);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Flexible(child: bubble),
+      ],
     );
   }
 }

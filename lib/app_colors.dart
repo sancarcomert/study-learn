@@ -45,10 +45,14 @@ class AppColors {
   static bool get isDark => _mode == AppThemeMode.dark;
 
   // Asil violet — CTA'lar, aktif sekme, odak halkası/border, chat gönder
-  // butonu. Tailwind violet-600 (#7C3AED) esas alındı; koyu temada okunurluk
-  // için bir ton açık (violet-400).
+  // butonu. 2026-09-19: piksel-piksel Figma karşılaştırması sonrası düzeltme
+  // — üç referans görselin hepsinde (Mentora wordmark, aktif nav, aktif
+  // filtre pili, AI avatar) tek tip örneklenen gerçek renk #5B35B5 idi,
+  // önceki Tailwind violet-600 (#7C3AED) tahmininden belirgin şekilde daha
+  // koyu/mat. Koyu temada okunurluk için bir ton açık tutuldu (referans
+  // verilmedi).
   static Color get primary =>
-      isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED);
+      isDark ? const Color(0xFFA78BFA) : const Color(0xFF5B35B5);
   static Color get accent => primary;
 
   // 2026-09-19 düzeltme: rose-600'e çekilmişti (Figma eyebrow/tarih rengini
@@ -61,8 +65,10 @@ class AppColors {
   static Color get secondary =>
       isDark ? const Color(0xFF9B7A94) : const Color(0xFF7D5A76);
 
+  // 2026-09-19: piksel örneklemesiyle düzeltildi — Figma zemini #F7F7FB
+  // (önceki #F8FAFC'ten çok az farklı ama artık tam eşleşiyor).
   static Color get background =>
-      isDark ? const Color(0xFF0F1115) : const Color(0xFFF8FAFC);
+      isDark ? const Color(0xFF0F1115) : const Color(0xFFF7F7FB);
   static Color get surface =>
       isDark ? const Color(0xFF1A1C22) : const Color(0xFFFFFFFF);
   static Color get surfaceVariant =>
@@ -77,10 +83,12 @@ class AppColors {
   // olduğu için sayfa zeminine göre değişmiyor.
   static const Color ink = Color(0xFF0B0C10);
 
+  // 2026-09-19: piksel örneklemesiyle düzeltildi — Figma'nın koyu metni
+  // saf slate değil, hafif mor tonlu bir near-black (#211A2D).
   static Color get textPrimary =>
-      isDark ? const Color(0xFFF0ECE1) : const Color(0xFF0F172A);
+      isDark ? const Color(0xFFF0ECE1) : const Color(0xFF211A2D);
   static Color get textSecondary =>
-      isDark ? const Color(0xFFAFABA3) : const Color(0xFF64748B);
+      isDark ? const Color(0xFFAFABA3) : const Color(0xFF6F687A);
   static Color get textMuted =>
       isDark ? const Color(0xFF7C7871) : const Color(0xFF94A3B8);
 
@@ -123,6 +131,11 @@ class AppColors {
   // (soft yeşil) + palet 6 rengi korumak için mavi/turkuaz eklendi. Yumuşak
   // "pastel kutu" arka planı bu renklerden AppColors.tonal() ile türetiliyor
   // (mevcut desen), ayrı bir "pastel bg" tokenına gerek yok.
+  // 2026-09-19: piksel örneklemesiyle düzeltildi — Figma'nın 4 ders rengi
+  // (Matematik/Fizik/Kimya/Mantık) tam olarak #5B35B5/#C72C70/#D94F1F/
+  // #287A5A örneklendi (önceki Tailwind tahminlerinden hepsi belirgin
+  // farklıydı). Mavi/turkuaz Figma'da yok — 4'ten fazla ders için kendi
+  // kararımla eklendi, aynı doygunluk ailesine çekildi.
   static List<Color> get subjectPalette => isDark
       ? const [
           Color(0xFFA78BFA),
@@ -133,49 +146,48 @@ class AppColors {
           Color(0xFF2DD4BF),
         ]
       : const [
-          Color(0xFF7C3AED),
-          Color(0xFFDB2777),
-          Color(0xFFEA580C),
-          Color(0xFF059669),
+          Color(0xFF5B35B5),
+          Color(0xFFC72C70),
+          Color(0xFFD94F1F),
+          Color(0xFF287A5A),
           Color(0xFF2563EB),
           Color(0xFF0D9488),
         ];
 
-  // Kral buton gradyanı (2026-09-19: gold yerine asil violet) — Home'daki
-  // "Bugünü Planla" butonundan çıkıp PrimaryButton'a (uygulama genelindeki
-  // tüm birincil CTA'lar) da taşındı, tek kaynaktan. İki durak da aynı
-  // aileden (Figma'daki düz violet-600 hissini korumak için neredeyse
-  // solid — çok hafif bir üst-alt parlaklık farkı var, yassı durmasın diye).
+  // 2026-09-19: piksel örneklemesinde Figma'nın hiçbir CTA'sında gradyan
+  // yoktu (Tümü pili, nav, butonlar hep düz tek renk) — önceki gradyan
+  // düz tek tona indirildi.
   static LinearGradient get primaryGradient => LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
         colors: isDark
-            ? const [Color(0xFF8B5CF6), Color(0xFFA78BFA)]
-            : const [Color(0xFF7C3AED), Color(0xFF6D28D9)],
+            ? const [Color(0xFFA78BFA), Color(0xFFA78BFA)]
+            : const [Color(0xFF5B35B5), Color(0xFF5B35B5)],
       );
 
   // 2026-09-19: Home'un puan/seri kartı için paylaşılan tokenlar (önceden
   // home_screen.dart içinde yerel sabitlerdi) — Figma'daki sabit koyu lacivert
-  // kart her iki temada da aynı, sayfa zeminine göre değişmiyor.
-  static const Color heroDark = Color(0xFF12142A);
-  static const Color heroDarkChip = Color(0xFF1F2240);
+  // kart her iki temada da aynı, sayfa zeminine göre değişmiyor. Piksel
+  // örneklemesiyle düzeltildi: kart #160F21, seri pili #2C2636.
+  static const Color heroDark = Color(0xFF160F21);
+  static const Color heroDarkChip = Color(0xFF2C2636);
 
-  /// Haftalık görev ilerleme çubuğu — Figma'da turuncu/kırmızı-turuncu,
-  /// marka violetinden bilinçli olarak ayrı (kart zaten koyu+violet rozet
-  /// içeriyor, ikinci bir vurgu rengi çubuğu öne çıkarıyor).
-  static LinearGradient get progressOrange => const LinearGradient(
-        colors: [Color(0xFFFB923C), Color(0xFFEF4444)],
-      );
+  /// Haftalık görev ilerleme çubuğu — Figma'da DÜZ (gradyansız) kırmızı-
+  /// turuncu; aynı ton avatar halkası ve Kimya ders rengiyle birebir aynı
+  /// (#D94F1F) — tek bir "sıcak vurgu" rengi üç yerde tekrar ediyor.
+  static const Color progressOrange = Color(0xFFD94F1F);
 
-  /// Figma'daki tarih/bölüm eyebrow'u (rose-600) — yalnız Mentora
-  /// ekranlarının kendi yerel kullanımı, AppTextStyles.eyebrow'un paylaşılan
-  /// varsayılanını DEĞİŞTİRMİYOR (bkz. secondary/eyebrow notu yukarıda —
-  /// aynı hatayı ikinci kez yapmamak için bilinçli ayrım).
+  /// Figma'daki tarih/bölüm eyebrow'u — piksel örneklemesiyle düzeltildi
+  /// (#C72C70, önceki rose-600 tahmininden farklı — Fizik ders rengiyle
+  /// birebir aynı örneklendi). Yalnız Mentora ekranlarının kendi yerel
+  /// kullanımı, AppTextStyles.eyebrow'un paylaşılan varsayılanını
+  /// DEĞİŞTİRMİYOR (bkz. secondary/eyebrow notu yukarıda).
   static Color get eyebrowRose =>
-      isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48);
+      isDark ? const Color(0xFFFB7185) : const Color(0xFFC72C70);
 
-  /// Profil avatarının Figma'daki mercan/turuncu halkası.
-  static const Color avatarRing = Color(0xFFFB7A5C);
+  /// Profil avatarının Figma'daki halkası — piksel örneklemesiyle
+  /// düzeltildi: çember #D94F1F (sıcak vurgu rengiyle aynı), dolgu açık
+  /// şeftali #FFF0E8 (düz beyaz değil).
+  static const Color avatarRing = Color(0xFFD94F1F);
+  static const Color avatarFill = Color(0xFFFFF0E8);
 
   /// Bir rengin etrafına yumuşak, o renkte parıltı gölgesi — birincil
   /// CTA'ları düz kartlardan ayırmak için (cardShadow'un üstüne eklenir).
