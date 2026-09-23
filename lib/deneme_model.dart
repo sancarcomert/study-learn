@@ -19,12 +19,24 @@ class DenemeSectionScore {
   @HiveField(3)
   int blank;
 
+  // Öğrencinin bu bölümde GERÇEKTEN yanlış yaptığını kendi işaretlediği
+  // konuların id'leri — Konu Takip'teki (TopicModel) kendi konu listesinden,
+  // yeni bir taksonomi İCAT EDİLMEZ. Soru bankası/soru çözme YOK — hiçbir
+  // soru içeriği tutulmaz, yalnızca "bu konudan yanlış yaptım" işareti
+  // (zaten kağıt üstünde/başka yerde çözülmüş bir denemenin sonucu).
+  // Opsiyonel, boş liste = hiç işaretlenmedi. defaultValue: eski kayıtlarda
+  // (bu alan eklenmeden önce) boş liste — hiç yanlış-konu işaretlenmemiş
+  // sayılır, doğru.
+  @HiveField(4, defaultValue: <String>[])
+  List<String> weakTopicIds;
+
   DenemeSectionScore({
     required this.subject,
     this.correct = 0,
     this.wrong = 0,
     this.blank = 0,
-  });
+    List<String>? weakTopicIds,
+  }) : weakTopicIds = weakTopicIds ?? [];
 
   /// ÖSYM formülü: her 4 yanlış 1 doğruyu götürür.
   double get net => correct - wrong / 4.0;

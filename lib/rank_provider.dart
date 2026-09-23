@@ -26,5 +26,6 @@ final rankProvider = Provider<RankInfo>((ref) {
     completedTasks: completedTasks,
     goalDays: goalDays,
     coveredTopics: coveredTopics,
+    bonusXp: ref.watch(statsProvider).bonusXp,
   );
 });

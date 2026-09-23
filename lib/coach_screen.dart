@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,7 +16,9 @@ import 'task_provider.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'stats_provider.dart';
+import 'stats_insight_engine.dart';
 import 'deneme_provider.dart';
+import 'goal_gap_provider.dart';
 import 'focus_session_provider.dart';
 import 'subject_ai.dart';
 import 'rank_provider.dart';
@@ -83,8 +86,18 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
   // --- Konuşma ------------------------------------------------------
 
-  void _say(String text, {bool coach = true}) {
-    setState(() => _turns.add(_Turn(coach: coach, text: text)));
+  void _say(
+    String text, {
+    bool coach = true,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    setState(() => _turns.add(_Turn(
+          coach: coach,
+          text: text,
+          actionLabel: actionLabel,
+          onAction: onAction,
+        )));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(
@@ -110,6 +123,23 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final examLine = (examDate != null && daysUntilExam(examDate) >= 0)
         ? ' Sınava ${daysUntilExam(examDate)} gün var.'
         : '';
+
+    // Şablonlu "ne çalışmak istiyorsun" sorusu yerine, varsa GERÇEK bir
+    // gözlemle aç (OBSERVATION → REASON → RECOMMENDATION) — koçun her
+    // oturumda görülen İLK gerçek sorusu artık genel değil, dünkü/bugünkü
+    // davranışa bakıyor. StudyAdvisor'ın Home'da zaten kullandığı aynı
+    // motor. Önceden yalnız "ertelendi" (kaçınma) sinyali açılışı ele
+    // geçiriyordu — diğer somut sinyaller (gerileme, tekrar zamanı, konu
+    // boşluğu, zor konu, kendi-bildirim) sessizce yok sayılıp jenerik
+    // soruya düşülüyordu. Artık StudyAdvisor'ın ürettiği HERHANGİ bir somut
+    // (jenerik olmayan) gözlem açılışı belirliyor.
+    final top = _topSuggestion();
+    if (top != null && top.reason != StudyAdvisor.genericReason) {
+      _say('${top.subjectName}: ${top.reason}$examLine '
+          'İstersen başka bir şey de söyleyebilirsin.');
+      return;
+    }
+
     _say('Ne çalışmak istediğini ve ne kadar vaktin olduğunu tek cümleyle '
         'yaz.$examLine İstemiyorsan "sen ayarla" de, ben kurayım.');
 
@@ -125,10 +155,129 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     });
   }
 
+  /// StudyAdvisor'ın tüm sinyallerle (kapsama, deneme neti/trendi, odak,
+  /// tekrar zamanı, zor konu, kendi-bildirim) beslenen tek çağrısı — açılış
+  /// gözlemi (_intro) ve "nasıl gidiyorum" sorusu (_progressSummary) AYNI
+  /// motoru kullanır, ikinci bir "akıllılık" icat edilmez.
+  StudySuggestion? _topSuggestion() {
+    final subjects = ref.read(subjectProvider);
+    if (subjects.isEmpty) return null;
+    final allTasks = ref.read(taskProvider);
+    final coverage = ref.read(coverageBySubjectProvider);
+    return StudyAdvisor.suggest(
+      subjects: subjects,
+      tasks: allTasks,
+      examDate: ref.read(statsProvider).examDate,
+      limit: 1,
+      coveragePercent: {
+        for (final e in coverage.entries)
+          if (e.value.hasTopics) e.key: e.value.ratio,
+      },
+      weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
+      focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
+      staleReviewSubjectIds: ref.read(staleReviewSubjectIdsProvider),
+      worseningDenemeSubjectIds: ref.read(worseningDenemeSubjectIdsProvider),
+      difficultTopicsBySubject: ref.read(difficultTopicNamesBySubjectProvider),
+      selfReportedWeakSubjectId: ref.read(selfReportedWeakSubjectIdProvider),
+      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
+      goalGapAmplifier: ref.read(goalGapAmplifierProvider),
+    ).firstOrNull;
+  }
+
+  /// "Nasıl gidiyorum" tarzı sorulara GERÇEK veriyle cevap — istatistik
+  /// ekranındaki aynı iki motoru (StatsInsightEngine + StudyAdvisor) sohbete
+  /// taşır. Önceden bu tür sorular yanlışlıkla `_wellbeingCheckPhrases`e
+  /// düşüp ("nasıl gidiyorum" ⊃ "nasıl gidiyor" alt dizesi) koçun KENDİ
+  /// haline dair jenerik bir cevap veriyordu — kullanıcının asıl sorduğu
+  /// (kendi ilerlemesi) hiç yanıtlanmıyordu.
+  String _progressSummary() {
+    final stats = ref.read(statsProvider);
+    final subjects = ref.read(subjectProvider);
+    final allTasks = ref.read(taskProvider);
+
+    final insights = StatsInsightEngine.build(
+      tasksThisWeek: ref.read(tasksCompletedThisWeekProvider),
+      tasksLastWeek: ref.read(tasksCompletedLastWeekProvider),
+      focusMinutesThisWeek: ref.read(focusThisWeekMinutesProvider),
+      focusMinutesLastWeek: ref.read(focusLastWeekMinutesProvider),
+      completionRateBySubject: StudyAdvisor.completionRateBySubject(
+        subjects: subjects,
+        tasks: allTasks,
+      ),
+      subjectNamesById: {for (final s in subjects) s.id: s.name},
+      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
+      // GOAL → GAP → RE-EVALUATION (Faz 6/7/9) — Stats'ın "Neden" katmanıyla
+      // AYNI motor, ikinci bir hesap icat edilmiyor.
+      goalGap: ref.read(primaryGoalGapProvider),
+      weakestSubjectName: ref.read(weakestDenemeSubjectNameProvider),
+      resolvedWeakTopicsBySubject: ref.read(resolvedWeakTopicsBySubjectProvider),
+    );
+
+    final parts = <String>[];
+    if (stats.currentStreak > 0) {
+      parts.add('${stats.currentStreak} günlük serin var.');
+    }
+    if (insights.isNotEmpty) {
+      parts.add(insights.first.body);
+    } else {
+      parts.add('Bu hafta geçen haftayla kıyaslayacak yeterli verin yok '
+          'henüz — birkaç gün daha kullan, o zaman gerçek bir kıyas '
+          'çıkarabilirim.');
+    }
+
+    final top = _topSuggestion();
+    if (top != null && top.reason != StudyAdvisor.genericReason) {
+      parts.add('Sırada: ${top.subjectName} — ${top.reason}');
+    }
+
+    return parts.join(' ');
+  }
+
+  /// "Hedefime ne kadar kaldı" / "neden bunu çalışıyorum" gibi sorular için
+  /// GOAL → GAP cümlesi — [StatsInsightEngine._goalGapInsight] ile AYNI
+  /// hesabın (primaryGoalGapProvider) konuşma diline çevrilmiş hâli. İKİNCİ
+  /// bir hedef/gap mantığı İCAT EDİLMEZ (bkz. PHASE 7 notu).
+  String? _goalGapSentence() {
+    final gap = ref.read(primaryGoalGapProvider);
+    if (gap == null || !gap.hasTarget) return null;
+    final type = gap.examType;
+    final target = gap.target!;
+
+    if (!gap.hasResult) {
+      return '$type hedefin ${_fmtNet(target)} net — henüz deneme '
+          'eklemedin, ilk sonucunu girince mesafeni söyleyebilirim.';
+    }
+
+    final current = gap.currentNet!;
+    final diff = gap.gap!;
+    if (diff <= 0) {
+      return '$type hedefin ${_fmtNet(target)} net, son sonucun '
+          '${_fmtNet(current)} net — hedefini geçtin.';
+    }
+
+    final buffer = StringBuffer('$type hedefin ${_fmtNet(target)} net, son '
+        'sonucun ${_fmtNet(current)} net — aradaki fark '
+        '${_fmtNet(diff)} net.');
+    final change = gap.gapChange;
+    if (change != null && change.abs() >= 0.5) {
+      buffer.write(change > 0
+          ? ' Geçen denemene göre fark ${_fmtNet(change)} net kapandı.'
+          : ' Geçen denemene göre fark ${_fmtNet(-change)} net açıldı.');
+    }
+    return buffer.toString();
+  }
+
+  static String _fmtNet(double value) => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
+
   // --- Girdi işleme ----------------------------------------------
 
-  static final _confirm =
-      RegExp(r'^(ekle|tamam|evet|olur|kaydet|ekleyebilirsin|onayla|kabul)\b');
+  // tmm/evt/ok/aynen/tabii(tabi) — öğrencilerin gerçek yazışmada kullandığı
+  // kısaltmalar/kısa onaylar; önceden yalnız tam kelimeler ("tamam", "evet")
+  // tanınıyordu, kısaltma yazan biri hep "anlaşılamadı" hissediyordu.
+  static final _confirm = RegExp(
+      r'^(ekle|tamam|tmm|evet|evt|olur|kaydet|ekleyebilirsin|onayla|kabul|ok|aynen|tabii|tabi)\b');
   static final _restart =
       RegExp(r'\b(baştan|bastan|iptal|vazgeç|vazgec|sıfırla|sifirla)\b');
   static final _finish = RegExp(
@@ -744,6 +893,86 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'selam kocum',
   ];
 
+  // Kullanıcının KENDİ ilerlemesini sorması ("nasıl gidiyorum") —
+  // _wellbeingCheckPhrases'teki "nasıl gidiyor" (koça yönelik "sen nasılsın")
+  // alt dizesiyle çakışabildiği için (örn. "nasıl gidiyorum" ⊃ "nasıl
+  // gidiyor") bu banka _onSend'de ONDAN ÖNCE kontrol edilir — aksi halde
+  // kullanıcının asıl sorduğu (kendi verisi) hiç yanıtlanmadan jenerik bir
+  // "İyiyim, sağ ol" cevabı alıyordu.
+  static const List<String> _progressCheckPhrases = [
+    'nasıl gidiyorum',
+    'nasil gidiyorum',
+    'ilerlemem nasıl',
+    'ilerlemem nasil',
+    'durumum ne',
+    'durumum nasıl',
+    'durumum nasil',
+    'ne durumdayım',
+    'ne durumdayim',
+    'iyi gidiyor muyum',
+    'performansım nasıl',
+    'performansim nasil',
+    'nasıl ilerliyorum',
+    'nasil ilerliyorum',
+    'başarılı mıyım',
+    'basarili miyim',
+    'iyi mi gidiyorum',
+    'gelişme kaydediyor muyum',
+    'gelisme kaydediyor muyum',
+  ];
+
+  // GOAL → GAP sorularının bankası (Faz 7) — "nasıl gidiyorum" genel bir
+  // ilerleme özeti isterken bunlar spesifik olarak hedef net farkını sorar.
+  // Alt dize çakışması yok, bu yüzden sıra _progressCheckPhrases'ten önce ya
+  // da sonra olabilir.
+  static const List<String> _goalDistancePhrases = [
+    'hedefime ne kadar kaldı',
+    'hedefime ne kadar kaldi',
+    'hedefe ne kadar kaldı',
+    'hedefe ne kadar kaldi',
+    'hedefime ne kadar var',
+    'hedefe ne kadar var',
+    'hedefimden ne kadar uzağım',
+    'hedefimden ne kadar uzagim',
+    'hedefime yetişir miyim',
+    'hedefime yetisir miyim',
+    'hedefe yetişir miyim',
+    'hedefe yetisir miyim',
+    'hedefime ulaşır mıyım',
+    'hedefime ulasir miyim',
+    'kaç net kaldı',
+    'kac net kaldi',
+    'hedef netim ne durumda',
+  ];
+
+  static const List<String> _reasonWhyPhrases = [
+    'neden bunu çalışıyorum',
+    'neden bunu calisiyorum',
+    'neden bu dersi çalışıyorum',
+    'neden bu dersi calisiyorum',
+    'neden bu konuyu çalışıyorum',
+    'neden bu konuyu calisiyorum',
+    'niye bunu çalışıyorum',
+    'niye bunu calisiyorum',
+    'bunu neden öneriyorsun',
+    'bunu neden oneriyorsun',
+  ];
+
+  static const List<String> _whatToStudyPhrases = [
+    'şu an neye çalışmalıyım',
+    'su an neye calismaliyim',
+    'ne çalışmalıyım',
+    'ne calismaliyim',
+    'neye çalışmalıyım',
+    'neye calismaliyim',
+    'bugün ne çalışsam',
+    'bugun ne calissam',
+    'ne çalışsam iyi olur',
+    'ne calissam iyi olur',
+    'hangi derse çalışmalıyım',
+    'hangi derse calismaliyim',
+  ];
+
   static const List<String> _wellbeingCheckPhrases = [
     'nasılsın',
     'nasilsin',
@@ -1131,6 +1360,52 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       return;
     }
 
+    // GOAL → GAP soruları (Faz 7) — "hedefime ne kadar kaldı" tarzı, genel
+    // ilerleme özetinden (_progressCheckPhrases) daha spesifik, bu yüzden
+    // önce kontrol edilir.
+    if (_matchesAny(low, _goalDistancePhrases)) {
+      _say(_goalGapSentence() ??
+          'Henüz bir hedef net belirlemedin — Deneme Takip ekranından '
+              'TYT/AYT için hedefini girebilirsin.');
+      return;
+    }
+
+    if (_matchesAny(low, _reasonWhyPhrases)) {
+      final top = _topSuggestion();
+      final gapSentence = _goalGapSentence();
+      if (top != null && top.reason != StudyAdvisor.genericReason) {
+        final suffix = gapSentence != null ? ' $gapSentence' : '';
+        _say('${top.subjectName}: ${top.reason}.$suffix');
+      } else if (gapSentence != null) {
+        _say(gapSentence);
+      } else {
+        _say('Şu an elimde somut bir gerekçe yok — dengeli ilerlemek için '
+            'öneriyorum. Deneme eklersen ya da bir hedef net belirlersen '
+            'daha somut bir gerekçe verebilirim.');
+      }
+      return;
+    }
+
+    if (_matchesAny(low, _whatToStudyPhrases)) {
+      final top = _topSuggestion();
+      if (top != null) {
+        final reasonText = top.reason == StudyAdvisor.genericReason
+            ? top.reason
+            : '${top.reason}.';
+        _say('${top.subjectName} — $reasonText İstersen bunu planına '
+            'ekleyeyim, ya da başka bir ders söyle.');
+      } else {
+        _say('Henüz önerecek somut bir şey yok — önce bir ders eklemen '
+            'gerekiyor.');
+      }
+      return;
+    }
+
+    if (_matchesAny(low, _progressCheckPhrases)) {
+      _say(_progressSummary());
+      return;
+    }
+
     if (_matchesAny(low, _wellbeingCheckPhrases)) {
       _say(_pick([
         'İyiyim, sağ ol. Sıra sende — bugün ne çalışıyoruz?',
@@ -1228,6 +1503,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             low.contains('gün') ||
             low.contains('gun')) {
           _wantsWeek = false;
+        } else if (_confirm.hasMatch(low)) {
+          // Düz "evet/tamam/olur" — iki seçenekli sorunun ilk (daha basit)
+          // seçeneğini onayladığı varsayılır. Bu olmadan _wantsWeek hep null
+          // kalıp aynı soru sonsuza dek tekrarlanıyordu, çünkü "evet" ne
+          // hafta ne gün kelimesini içeriyor.
+          _wantsWeek = false;
         }
       }
     }
@@ -1245,6 +1526,26 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final parsed = PlanParser.parse(raw, subjects: ref.read(subjectProvider));
     _merge(parsed, raw);
+
+    // Çıplak sayı ("2") — PlanParser bunu bilinçli olarak süre saymıyor
+    // (genel amaçlı ayrıştırıcıda "2" tek başına belirsiz: tarih mi, sayı
+    // mı?). Ama koç TAM OLARAK süre sorduğu anda (_draft.minutes hâlâ boş,
+    // delegate modunda hep önce süre sorulur / normal modda konu zaten
+    // biliniyorsa süre sorulur) kullanıcının "2 saat" yerine sadece "2"
+    // yazması çok yaygın — önceden bu hiç anlaşılmayıp aynı soru tekrar
+    // soruluyordu. Burada, YALNIZCA bu dar bağlamda, saat kabul ediyoruz.
+    if ((_delegate || _draft.hasSubject) &&
+        _draft.minutes == null &&
+        parsed.durationMinutes == null) {
+      final bareNumber = RegExp(r'^\d+([.,]\d+)?$').firstMatch(raw.trim());
+      if (bareNumber != null) {
+        final hours =
+            double.tryParse(bareNumber.group(0)!.replaceAll(',', '.'));
+        if (hours != null && hours > 0) {
+          _draft.minutes = (hours * 60).round();
+        }
+      }
+    }
 
     final ack = _ackLine(snap);
     if (ack.isNotEmpty) _say(ack);
@@ -1550,7 +1851,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
-    final advisorIds = StudyAdvisor.suggest(
+    final advisorResults = StudyAdvisor.suggest(
       subjects: subjects,
       tasks: allTasks,
       examDate: examDate,
@@ -1558,7 +1859,21 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       coveragePercent: coveragePercent,
       weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
       focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
-    ).map((s) => s.subjectId).toList();
+      staleReviewSubjectIds: ref.read(staleReviewSubjectIdsProvider),
+      worseningDenemeSubjectIds: ref.read(worseningDenemeSubjectIdsProvider),
+      difficultTopicsBySubject: ref.read(difficultTopicNamesBySubjectProvider),
+      selfReportedWeakSubjectId: ref.read(selfReportedWeakSubjectIdProvider),
+      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
+      goalGapAmplifier: ref.read(goalGapAmplifierProvider),
+    );
+    final advisorIds = advisorResults.map((s) => s.subjectId).toList();
+    // "Neden bu görev?" (Faz 6) — StudyAdvisor'ın dersi seçerkenki AYNI
+    // gerekçesi PlanBuilder'a taşınır (jenerik olanlar hariç — somut bir
+    // sinyal yoksa sahte bir gerekçe üretilmez).
+    final subjectReasons = <String, String>{
+      for (final s in advisorResults)
+        if (s.reason != StudyAdvisor.genericReason) s.subjectId: s.reason,
+    };
 
     final ordered = _rotated(<SubjectModel>[
       for (final id in advisorIds) subjects.firstWhere((s) => s.id == id),
@@ -1566,14 +1881,26 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         if (!advisorIds.contains(s.id)) s,
     ]);
 
-    final hours = (_draft.minutes! / 60).round().clamp(1, 12);
+    // Önceden saate yuvarlanıp geri çarpılıyordu ("20 dakikam var" → 60 dk
+    // plan çıkıyordu) — artık kullanıcının verdiği dakika doğrudan kullanılır.
+    final capacityMinutes = _draft.minutes!.clamp(15, 12 * 60);
     final result = PlanBuilder.build(
       orderedSubjects: ordered,
-      hoursAvailable: hours,
+      capacityMinutes: capacityMinutes,
       energy: 'orta',
       examDays: examDays,
       uncoveredTopics: uncovered,
       fillToCapacity: uncovered.isNotEmpty,
+      reducedCapacitySubjectIds: StudyAdvisor.overcommittedSubjectIds(
+        subjects: subjects,
+        tasks: allTasks,
+      ),
+      subjectCompletionRates: StudyAdvisor.completionRateBySubject(
+        subjects: subjects,
+        tasks: allTasks,
+      ),
+      examWeakTopics: ref.read(examWeakTopicsBySubjectProvider),
+      subjectReasons: subjectReasons,
     );
 
     if (result.isEmpty) {
@@ -1616,7 +1943,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
-    final advisorIds = StudyAdvisor.suggest(
+    final advisorResults = StudyAdvisor.suggest(
       subjects: subjects,
       tasks: allTasks,
       examDate: examDate,
@@ -1624,7 +1951,18 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       coveragePercent: coveragePercent,
       weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
       focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
-    ).map((s) => s.subjectId).toList();
+      staleReviewSubjectIds: ref.read(staleReviewSubjectIdsProvider),
+      worseningDenemeSubjectIds: ref.read(worseningDenemeSubjectIdsProvider),
+      difficultTopicsBySubject: ref.read(difficultTopicNamesBySubjectProvider),
+      selfReportedWeakSubjectId: ref.read(selfReportedWeakSubjectIdProvider),
+      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
+      goalGapAmplifier: ref.read(goalGapAmplifierProvider),
+    );
+    final advisorIds = advisorResults.map((s) => s.subjectId).toList();
+    final subjectReasons = <String, String>{
+      for (final s in advisorResults)
+        if (s.reason != StudyAdvisor.genericReason) s.subjectId: s.reason,
+    };
 
     final ordered = _rotated(<SubjectModel>[
       for (final id in advisorIds) subjects.firstWhere((s) => s.id == id),
@@ -1634,14 +1972,24 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final n0 = DateTime.now();
     final today = DateTime(n0.year, n0.month, n0.day);
-    final hoursPerDay = (_draft.minutes! / 60).round().clamp(1, 8);
+    final minutesPerDay = _draft.minutes!.clamp(15, 8 * 60);
 
     final week = PlanBuilder.buildWeek(
       orderedSubjects: ordered,
       uncoveredTopics: uncovered,
-      hoursPerDay: hoursPerDay,
+      minutesPerDay: minutesPerDay,
       startDate: today,
       examDays: examDays,
+      reducedCapacitySubjectIds: StudyAdvisor.overcommittedSubjectIds(
+        subjects: subjects,
+        tasks: allTasks,
+      ),
+      subjectCompletionRates: StudyAdvisor.completionRateBySubject(
+        subjects: subjects,
+        tasks: allTasks,
+      ),
+      examWeakTopics: ref.read(examWeakTopicsBySubjectProvider),
+      subjectReasons: subjectReasons,
     );
 
     if (week.isEmpty) {
@@ -1685,8 +2033,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             dueDate: day.date,
             priority: b.priority,
             estimatedMinutes: b.minutes,
-            difficulty: TopicDifficulty.medium,
+            difficulty: b.difficulty,
             topicId: b.topicId,
+            sourceReason: b.reason,
           );
           count++;
         }
@@ -1723,6 +2072,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         ? TimeOfDay(hour: _draft.hour!, minute: _draft.minute ?? 0)
         : null;
 
+    // "Şimdi Başla" eylemi (varsa) if/else dışına buradan taşınır — bkz.
+    // aşağıdaki blok, yalnız bugüne eklenen ilk görev için doldurulur.
+    VoidCallback? startAction;
+
     if (!_pendingIsDay && _pendingRecurrence != 'none') {
       final b = blocks.first;
       notifier.addRecurringTask(
@@ -1733,8 +2086,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         estimatedMinutes: b.minutes,
         scheduledTimeOfDay: timeOfDay,
         topicId: b.topicId,
+        sourceReason: b.reason,
       );
     } else {
+      TaskModel? firstTask;
+      DateTime? firstDue;
       for (final b in blocks) {
         final due = _pendingIsDay ? today : (_draft.day ?? today);
         // Gün planı: saatsiz gün-kapsamlı görevler. Tek görev: yalnız
@@ -1743,16 +2099,38 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             ? DateTime(
                 due.year, due.month, due.day, timeOfDay.hour, timeOfDay.minute)
             : null;
-        notifier.addTask(
+        final created = notifier.addTask(
           title: b.title,
           subjectId: b.subjectId.isEmpty ? null : b.subjectId,
           dueDate: due,
           priority: b.priority,
           scheduledTime: scheduled,
           estimatedMinutes: b.minutes,
-          difficulty: TopicDifficulty.medium,
+          difficulty: b.difficulty,
           topicId: b.topicId,
+          sourceReason: b.reason,
         );
+        firstTask ??= created;
+        firstDue ??= due;
+      }
+
+      // "Şimdi Başla" — yalnız BUGÜNE eklenen ilk görev için (yarına/başka
+      // güne planlanan bir görev için şimdi kronometre başlatmak anlamsız).
+      // Kilitleme/zorlama değil, tek dokunuşla Odak ekranına (ders/konu/
+      // süre önceden dolu) geçiş — istemezse hiç dokunmaz, sohbette kalır.
+      if (firstTask != null && firstDue == today) {
+        final task = firstTask;
+        startAction = () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => FocusScreen(
+                  initialSubjectId: task.subjectId,
+                  initialTopicId: task.topicId,
+                  initialTargetMin: task.estimatedMinutes,
+                  initialTaskId: task.id,
+                ),
+              ),
+            );
       }
     }
 
@@ -1765,20 +2143,28 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _regenerateOffset = 0;
     if (isFirstTaskEver) {
       ref.read(statsProvider.notifier).markFirstTaskAdded();
-      _say(n == 1
-          ? 'İlk görevini ekledin. Başka bir şey planlayalım mı?'
-          : 'İlk görevlerini ekledin. $n görev listene eklendi. '
-              'Başka bir şey var mı?');
+      _say(
+        n == 1
+            ? 'İlk görevini ekledin. Başka bir şey planlayalım mı?'
+            : 'İlk görevlerini ekledin. $n görev listene eklendi. '
+                'Başka bir şey var mı?',
+        actionLabel: startAction == null ? null : 'Şimdi Başla',
+        onAction: startAction,
+      );
     } else {
-      _say(n == 1
-          ? _pick([
-              'Eklendi. Başka bir şey planlayalım mı?',
-              'Tamamdır, listene ekledim. Devam edelim mi?',
-            ])
-          : _pick([
-              '$n görev eklendi. Başka bir şey var mı?',
-              '$n görevi listene koydum. Başka?',
-            ]));
+      _say(
+        n == 1
+            ? _pick([
+                'Eklendi. Başka bir şey planlayalım mı?',
+                'Tamamdır, listene ekledim. Devam edelim mi?',
+              ])
+            : _pick([
+                '$n görev eklendi. Başka bir şey var mı?',
+                '$n görevi listene koydum. Başka?',
+              ]),
+        actionLabel: startAction == null ? null : 'Şimdi Başla',
+        onAction: startAction,
+      );
     }
   }
 
@@ -1793,9 +2179,14 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _onSend();
   }
 
+  // Önceden "Bu soruyu adım adım açıklar mısın?" vardı — koç bunu her
+  // seferinde reddediyordu (kapsam dışı, bkz. _contentRequestPhrases).
+  // "Sınava nasıl hazırlanmalıyım?" da aslında hiç cevaplanmıyordu — konu
+  // sinyali yok diye sessizce "ne çalışmak istiyorsun" sorusuna düşüyordu.
+  // İkisi de koçun GERÇEKTEN yapabildiği şeyleri (plan kurma) örnekliyor.
   static const _faqPrompts = [
-    'Bu soruyu adım adım açıklar mısın?',
-    'Sınava nasıl hazırlanmalıyım?',
+    'Bugünümü sen ayarla',
+    'Yarın 1 saat matematik çalışacağım',
   ];
 
   @override
@@ -2053,7 +2444,17 @@ class _Draft {
 class _Turn {
   final bool coach;
   final String text;
-  const _Turn({required this.coach, required this.text});
+  // Plan onaylandıktan sonra "Şimdi Başla" gibi tek seferlik bir eylem
+  // sunmak için — kilitleme/zorlama değil, tek dokunuşla Odak ekranına
+  // (seçilen ders/konu/süre önceden dolu) geçiş kolaylığı.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  const _Turn({
+    required this.coach,
+    required this.text,
+    this.actionLabel,
+    this.onAction,
+  });
 }
 
 /// Figma'daki "Birlikte çözelim" karşılama bloğu — başlık + hızlı
@@ -2086,11 +2487,19 @@ class _CoachIntroHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ÖNEMLİ: Bu ekran konu anlatmıyor/soru çözmüyor (bkz.
+          // _contentRequestPhrases — "açıklar mısın" gibi istekleri açıkça
+          // reddediyor, CLAUDE.md kapsam sınırı). Önceki metin ("Yapay Zeka
+          // Öğretmenin" + "adım adım açıklayarak yardımcı olayım") tam
+          // olarak reddettiği şeyi vaat ediyordu — kullanıcı "Bu soruyu
+          // adım adım açıklar mısın?" hızlı sorusuna basınca "kapsamım
+          // dışında" cevabı alıyordu. Metin artık gerçekte yaptığı şeyle
+          // (plan kurma) tutarlı.
           const AppTitleBlock(
-            eyebrow: 'YAPAY ZEKA ÖĞRETMENİN',
-            title: 'Birlikte çözelim',
-            subtitle:
-                'Sorunu yaz veya bir konu seç. Adım adım açıklayarak yardımcı olayım.',
+            eyebrow: 'ÇALIŞMA KOÇUN',
+            title: 'Bugünü kuralım',
+            subtitle: 'Ne çalışmak istediğini yaz, planını birlikte '
+                'kurayım. İstersen "sen ayarla" de, ben hallederim.',
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -2148,7 +2557,7 @@ class _CoachIntroHeader extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 20),
-          Text('Sık sorulanlar', style: AppTextStyles.heading3),
+          Text('Örnek istekler', style: AppTextStyles.heading3),
           const SizedBox(height: 10),
           ...faqPrompts.map((q) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -2160,8 +2569,8 @@ class _CoachIntroHeader extends StatelessWidget {
   }
 }
 
-/// "Sık sorulanlar" satırı — soru işareti rozeti + soru metni + chevron.
-/// Dokununca soruyu doğrudan Koç'a gönderir (statik metin değil, gerçek
+/// "Örnek istekler" satırı — sohbet rozeti + örnek metin + chevron.
+/// Dokununca metni doğrudan Koç'a gönderir (statik metin değil, gerçek
 /// bir hızlı-gönder aksiyonu).
 class _FaqRow extends StatelessWidget {
   final String question;
@@ -2190,7 +2599,7 @@ class _FaqRow extends StatelessWidget {
                 color: AppColors.tonal(AppColors.eyebrowRose),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.help_outline,
+              child: Icon(Icons.chat_bubble_outline,
                   size: 14, color: AppColors.eyebrowRose),
             ),
             const SizedBox(width: 12),
@@ -2244,6 +2653,44 @@ class _Bubble extends StatelessWidget {
     if (!coach) {
       return Align(alignment: Alignment.centerRight, child: bubble);
     }
+
+    final content = turn.onAction == null
+        ? bubble
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bubble,
+              const SizedBox(height: 6),
+              TapScale(
+                onTap: turn.onAction,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [AppColors.glow(AppColors.primary)],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.timer_outlined,
+                          size: 16, color: AppColors.onColor(AppColors.primary)),
+                      const SizedBox(width: 6),
+                      Text(
+                        turn.actionLabel!,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.onColor(AppColors.primary),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2258,7 +2705,7 @@ class _Bubble extends StatelessWidget {
           child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 10),
-        Flexible(child: bubble),
+        Flexible(child: content),
       ],
     );
   }

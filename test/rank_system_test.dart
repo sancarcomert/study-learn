@@ -12,6 +12,79 @@ void main() {
     });
   });
 
+  group('bonusXp', () {
+    test('bonusXp verilmezse davranış aynı (varsayılan 0)', () {
+      expect(
+        RankSystem.xpFor(completedTasks: 5, goalDays: 3, coveredTopics: 2),
+        RankSystem.xpFor(
+          completedTasks: 5,
+          goalDays: 3,
+          coveredTopics: 2,
+          bonusXp: 0,
+        ),
+      );
+    });
+
+    test('bonusXp tabana eklenir', () {
+      expect(
+        RankSystem.xpFor(
+          completedTasks: 1,
+          goalDays: 0,
+          coveredTopics: 0,
+          bonusXp: 15,
+        ),
+        10 + 15,
+      );
+    });
+
+    test('compute de bonusXp\'yi geçirir', () {
+      final withBonus = RankSystem.compute(
+        completedTasks: 1,
+        goalDays: 0,
+        coveredTopics: 0,
+        bonusXp: RankSystem.xpBonusHighPriority + RankSystem.xpBonusRecovered,
+      );
+      final without = RankSystem.compute(
+        completedTasks: 1,
+        goalDays: 0,
+        coveredTopics: 0,
+      );
+      expect(withBonus.xp, without.xp + 15);
+    });
+
+    test('xpBonusHardTask zor görev tamamlamasını ödüllendirir', () {
+      expect(RankSystem.xpBonusHardTask, 5);
+      final withBonus = RankSystem.compute(
+        completedTasks: 1,
+        goalDays: 0,
+        coveredTopics: 0,
+        bonusXp: RankSystem.xpBonusHardTask,
+      );
+      final without = RankSystem.compute(
+        completedTasks: 1,
+        goalDays: 0,
+        coveredTopics: 0,
+      );
+      expect(withBonus.xp, without.xp + 5);
+    });
+  });
+
+  group('netImprovementBonus', () {
+    test('iyileşme yoksa/negatifse 0', () {
+      expect(RankSystem.netImprovementBonus(0), 0);
+      expect(RankSystem.netImprovementBonus(-5), 0);
+    });
+
+    test('net başına 4 XP', () {
+      expect(RankSystem.netImprovementBonus(2), 8);
+      expect(RankSystem.netImprovementBonus(5), 20);
+    });
+
+    test('40 XP\'de tavanlanır (aşırı sıçrama XP\'yi şişirmez)', () {
+      expect(RankSystem.netImprovementBonus(100), 40);
+    });
+  });
+
   group('rütbe eşikleri', () {
     test('6 rütbe: 0 / 250 / 700 / 1600 / 3200 / 6000', () {
       expect(RankSystem.thresholds, [0, 250, 700, 1600, 3200, 6000]);

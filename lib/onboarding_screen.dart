@@ -9,6 +9,7 @@ import 'task_provider.dart';
 import 'stats_provider.dart';
 import 'user_stats_model.dart';
 import 'widgets/eyebrow.dart';
+import 'widgets/app_snackbar.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -22,6 +23,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _customSubjectController = TextEditingController();
   String? _selectedSubject;
   int? _selectedGrade; // 9–12 = lise, 13 = Mezun
+
+  // Onboarding'de hesaplanmış hiçbir zayıflık sinyali (deneme, kapsama)
+  // yok — bu, StudyAdvisor'ın ilk günden itibaren kullanabileceği TEK
+  // kişiselleştirme kaynağı olabilir. Opsiyonel, atlanabilir.
+  String? _weakSubject;
 
   static const List<(int, String)> _grades = [
     (9, '9'),
@@ -50,6 +56,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final subjectName =
         _selectedSubject ?? _customSubjectController.text.trim();
     if (subjectName.isEmpty) return;
+    // add_subject_sheet.dart'taki aynı kural — aynı eylemin (ders ekleme)
+    // uygulamanın geri kalanında engellenen bir girdiyi burada sessizce
+    // kabul etmesi tutarsızdı.
+    if (subjectName.length > 30) {
+      AppSnackBar.error(context, 'Ders adı çok uzun (en fazla 30 karakter)');
+      return;
+    }
 
     final colorValue = AppColors.subjectPalette.first.toARGB32();
     ref.read(subjectProvider.notifier).addSubject(subjectName, colorValue);
@@ -88,6 +101,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       if (UserStatsModel.isExamFocused(_selectedGrade)) {
         stats.updateDailyGoal(2);
       }
+    }
+
+    if (_weakSubject != null) {
+      stats.setSelfReportedWeakSubject(_weakSubject);
     }
 
     stats.markOnboardingCompleted();
@@ -298,6 +315,56 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       if (value.isNotEmpty) _selectedSubject = null;
                     });
                   },
+                ),
+
+                const SizedBox(height: 28),
+
+                const Eyebrow(text: 'ZORLANDIĞIN DERS (OPSİYONEL)'),
+                const SizedBox(height: 10),
+                Text(
+                  'Bunu bilmek daha ilk günden sana özel öneriler çıkarmamı sağlar.',
+                  style: AppTextStyles.bodySecondary,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.surfaceVariant),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _commonSubjects.map((subject) {
+                      final isSelected = _weakSubject == subject;
+                      return TapScale(
+                        onTap: () => setState(() =>
+                            _weakSubject = isSelected ? null : subject),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.tonal(AppColors.primary),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            subject,
+                            style: AppTextStyles.body.copyWith(
+                              color: isSelected
+                                  ? AppColors.onColor(AppColors.primary)
+                                  : AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
 
                 const SizedBox(height: 32),

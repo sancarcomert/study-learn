@@ -1,12 +1,16 @@
 // lib/home_screen.dart
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'task_provider.dart';
+import 'carry_over_planner.dart';
+import 'daily_closeout_provider.dart';
+import 'daily_closeout_sheet.dart';
 import 'subject_provider.dart';
 import 'subject_model.dart';
 import 'stats_provider.dart';
@@ -15,6 +19,7 @@ import 'task_time_status.dart';
 import 'study_advisor.dart';
 import 'topic_provider.dart';
 import 'deneme_provider.dart';
+import 'goal_gap_provider.dart';
 import 'focus_session_provider.dart';
 import 'focus_screen.dart';
 import 'add_task_screen.dart';
@@ -35,6 +40,7 @@ import 'widgets/section_header.dart';
 import 'widgets/metric_tile.dart';
 import 'widgets/app_header.dart';
 import 'widgets/exam_countdown.dart';
+import 'widgets/goal_gap_chip.dart';
 import 'notification_service.dart';
 import 'hive_boxes.dart';
 import 'dart:async';
@@ -294,15 +300,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final now = DateTime.now();
     final stale = ref
         .read(taskProvider)
-        .where((t) => t.isPastDayIncompleteAt(now))
+        .where((t) =>
+            // Tekrarlayan görevler (recurringGroupId != null) her gün için
+            // zaten kendi ayrı örneğini üretir (addRecurringTask, 30/12 örneği
+            // baştan oluşturuyor) — dünkü örneği "bugüne taşırsak" bugünün
+            // kendi örneğiyle YAN YANA, aynı başlıkta iki görev oluşurdu.
+            t.recurringGroupId == null && t.isPastDayIncompleteAt(now))
         .toList();
     if (stale.isEmpty) return;
 
     _carryOverPrompted = true;
     ref.read(statsProvider.notifier).markCarryOverPromptedToday();
     final n = stale.length;
+    // Kronik erteleme — bu taşımadan sonra 3. (ya da daha fazla) kez
+    // ertelenmiş/yeniden planlanmış olacak görevler. Sessizce sonsuza dek
+    // biriktirmek yerine (cezalandırmadan) fark ettiriyoruz — "recovery,
+    // not guilt". BİLEREK postponeCount + systemRescheduleCount toplamı:
+    // bu diyalog "bu görev tekrar tekrar sıkışıyor, küçültelim mi" diyor —
+    // kaynağı (öğrenci mi taşıdı, sistem mi yaydı) burada önemli değil.
+    // StudyAdvisor'ın "kaçınma" SİNYALİ ise SADECE postponeCount'a bakar
+    // (bkz. task_model.dart'taki systemRescheduleCount notu) — o yüzden bu
+    // diyalog kronik saysa bile StudyAdvisor öğrenciyi suçlamaz.
+    final chronic = stale
+        .where((t) => (t.postponeCount + t.systemRescheduleCount) >= 2)
+        .toList();
 
-    final move = await showDialog<bool>(
+    // "Bugüne taşı" tek başına, kalan görev hacmi büyükse gerçekçi olmayan
+    // bir yığın yaratır (5 kaçırılmış görevi bugüne dayatmak, yarın için
+    // aynı kaçırma döngüsünü baştan başlatır — "recovery" değil, sadece
+    // ertelemenin yeri değişir). Saf/test edilmiş dağıtım mantığı
+    // `carry_over_planner.dart`'ta (bkz. test/carry_over_planner_test.dart).
+    final isOverloaded = CarryOverPlanner.isOverloaded(stale);
+    final staleMinutes = stale.fold<int>(
+        0, (sum, t) => sum + (t.estimatedMinutes ?? CarryOverPlanner.fallbackMinutes));
+
+    // Diyalog eskiden yalnız "kısaltmak ya da bölmek" ÖNERİYORDU ama hiçbir
+    // buton bunu gerçekten yapmıyordu — söz tutulmuyordu. Artık kronik
+    // (2+ ertelenmiş) görev varsa bir aksiyon gerçekten süreyi yarıya
+    // indiriyor (bkz. _shrinkTargetMinutes), aşırı yüklüyse de "bugüne taşı"
+    // yerine "günlere yay" aksiyonu devreye giriyor.
+    final moveLabel = isOverloaded ? 'Günlere Yay' : 'Bugüne Taşı';
+    final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         icon: Icon(Icons.history_rounded,
@@ -310,46 +348,106 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Text(n == 1
             ? 'Önceki günden kalan 1 görev var'
             : 'Önceki günlerden $n görev kaldı'),
-        content: const Text(
-          'Tamamlanmamış görevleri bugüne taşıyalım mı?',
+        content: Text(
+          isOverloaded
+              ? 'Bunları bugüne sığdırmak gerçekçi olmaz (~${_fmtHours(staleMinutes)}) '
+                  '— önümüzdeki günlere yayalım mı?'
+              : (chronic.isEmpty
+                  ? 'Tamamlanmamış görevleri bugüne taşıyalım mı?'
+                  : (chronic.length == 1
+                      ? '"${chronic.first.title}" art arda birkaç kez ertelendi — '
+                          'belki süresini kısaltmak ya da daha küçük bir '
+                          'parçaya bölmek bugün bitirmeyi kolaylaştırır.'
+                      : '${chronic.length} görev art arda birkaç kez ertelendi — '
+                          'belki süresini kısaltmak ya da bölmek bugün bitirmeyi '
+                          'kolaylaştırır.')),
         ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext, null),
             child: const Text('Şimdi Değil'),
           ),
+          if (chronic.isNotEmpty)
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              onPressed: () => Navigator.pop(dialogContext, 'shrink'),
+              child: Text(isOverloaded ? 'Küçült ve Yay' : 'Küçülterek Taşı'),
+            ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Bugüne Taşı'),
+            onPressed: () => Navigator.pop(dialogContext, 'move'),
+            child: Text(moveLabel),
           ),
         ],
       ),
     );
 
-    if (!mounted || move != true) return;
+    if (!mounted || action == null) return;
 
+    final shrink = action == 'shrink';
     final today = DateTime(now.year, now.month, now.day);
     final notifier = ref.read(taskProvider.notifier);
+
+    int? minutesFor(TaskModel t) => (shrink && chronic.contains(t))
+        ? _shrinkTargetMinutes(t.estimatedMinutes)
+        : t.estimatedMinutes;
+
+    // Aşırı yüklü DEĞİLSE eskisi gibi herkes bugüne (ofset 0) — davranış
+    // değişmez. Aşırı yüklüyse CarryOverPlanner en öncelikli görevleri
+    // bugüne, kapasite dolunca sıradaki gün(ler)e dağıtır.
+    final plan = isOverloaded
+        ? CarryOverPlanner.distribute(stale,
+            minutesFor: (t) => minutesFor(t) ?? CarryOverPlanner.fallbackMinutes)
+        : null;
+
     for (final t in stale) {
       final st = t.scheduledTime;
+      final newMinutes = minutesFor(t);
+      final offset = plan?.dayOffsetByTaskId[t.id] ?? 0;
+      final dueDate = today.add(Duration(days: offset));
+      // postponeCount DEĞİL — bu SİSTEMİN otomatik yeniden planlaması,
+      // öğrencinin kendi kaydırma jesti değil (bkz. task_model.dart'taki
+      // systemRescheduleCount notu). postponeTask'taki artış farklı bir
+      // sinyal (gerçek öğrenci jesti) içindir.
+      t.systemRescheduleCount += 1;
       notifier.updateTask(
         t,
         title: t.title,
         subjectId: t.subjectId,
-        dueDate: today,
+        dueDate: dueDate,
         priority: t.priority,
         scheduledTime: st == null
             ? null
-            : DateTime(today.year, today.month, today.day, st.hour, st.minute),
-        estimatedMinutes: t.estimatedMinutes,
+            : DateTime(dueDate.year, dueDate.month, dueDate.day, st.hour,
+                st.minute),
+        estimatedMinutes: newMinutes,
         difficulty: t.difficulty,
       );
     }
     if (mounted) {
+      final String msg;
+      if (plan != null) {
+        msg = '$n görev önümüzdeki ${plan.dayCount} güne yayıldı';
+      } else {
+        msg = n == 1 ? 'Görev bugüne taşındı' : '$n görev bugüne taşındı';
+      }
       AppSnackBar.success(
-          context, n == 1 ? 'Görev bugüne taşındı' : '$n görev bugüne taşındı');
+          context, shrink ? '$msg · süre kısaltıldı' : msg);
     }
+  }
+
+  /// Kronik ertelenen bir görevin süresini yarıya indirir (10 dk altına
+  /// inmez). Süre hiç girilmemişse (null) küçültecek bir şey yok — olduğu
+  /// gibi kalır.
+  static int? _shrinkTargetMinutes(int? current) {
+    if (current == null) return null;
+    return (current / 2).round().clamp(10, current);
+  }
+
+  static String _fmtHours(int minutes) {
+    final h = minutes / 60;
+    return '${h.toStringAsFixed(1)} saat';
   }
 
   String _greeting(String? name) {
@@ -661,13 +759,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             firstWithStatus(TaskTimeStatus.overdue);
 
     ref.listen<int>(taskCompletionEventProvider, (previous, next) {
-      if (previous != null && next > previous) {
-        AppSnackBar.success(
-          context,
-          "Görev tamamlandı!",
-          duration: const Duration(seconds: 1),
-        );
+      if (previous == null || next <= previous) return;
+      // Düz "Görev tamamlandı!" yerine gerçek bağlam — öğrenci neyi
+      // başardığını (hangi ders, bu hafta kaçıncı oturum, bugünkü ilerleme,
+      // sırada ne var) anında görsün. Büyük hedef kutlaması
+      // (goalReachedEventProvider) ayrı ve zaten var; bu, ARA adımların da
+      // bir anlamı olduğunu gösteriyor, sadece sonuncusunun değil.
+      // `ref.read` ile TAZE veri — build anındaki değil, olayın
+      // gerçekleştiği andaki durum.
+      final completed = ref.read(lastCompletedTaskProvider);
+      final freshToday = ref.read(todayTasksProvider);
+      final doneToday = freshToday.where((t) => t.isCompleted).length;
+      final totalToday = freshToday.length;
+
+      final bits = <String>[];
+
+      // Ders bazlı bağlam: bu hafta bu dersten kaçıncı oturum — "sadece
+      // görev bitti" değil, dersin kendi birikimi görünür oluyor.
+      if (completed?.subjectId != null) {
+        final subjectName = ref
+            .read(subjectProvider)
+            .where((s) => s.id == completed!.subjectId)
+            .firstOrNull
+            ?.name;
+        if (subjectName != null) {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final monday = today.subtract(Duration(days: today.weekday - 1));
+          final weekCount = ref
+              .read(taskProvider)
+              .where((t) =>
+                  t.isCompleted &&
+                  t.subjectId == completed!.subjectId &&
+                  !taskCompletionDay(t).isBefore(monday))
+              .length;
+          bits.add(weekCount > 1
+              ? 'bu hafta $weekCount. $subjectName oturumun'
+              : '$subjectName tamamlandı');
+        }
       }
+
+      if (totalToday > 0) bits.add('$doneToday/$totalToday bugünkü görev');
+
+      // Sıradaki adım: bugün kalan görevlerden (az önce bitirilen hariç)
+      // zamanı/önceliği en önde olan — döngü "ne yaptım"da bitmesin, "şimdi
+      // ne yapmalıyım"a bağlansın.
+      final remainingToday = _sortedBySchedule(
+        freshToday.where((t) => !t.isCompleted && t.id != completed?.id).toList(),
+      );
+      if (remainingToday.isNotEmpty) {
+        bits.add('sırada: ${remainingToday.first.title}');
+      }
+
+      AppSnackBar.success(
+        context,
+        bits.isEmpty ? 'Görev tamamlandı!' : bits.join(' · '),
+        duration: const Duration(seconds: 3),
+      );
     });
 
     ref.listen<int>(goalReachedEventProvider, (previous, next) {
@@ -706,6 +854,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final focusThisWeekMin = ref.watch(focusThisWeekMinutesProvider);
     final thisWeekCompleted = ref.watch(tasksCompletedThisWeekProvider);
 
+    // GOAL → GAP (Faz 10) — Home'un "nerede duruyorum" rozeti, tek kaynaktan
+    // (bkz. goal_gap_provider.dart).
+    final goalGap = ref.watch(primaryGoalGapProvider);
+
     final coverage = ref.watch(coverageBySubjectProvider);
     final suggestions = activeTask == null
         ? StudyAdvisor.suggest(
@@ -719,6 +871,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
             weakestDenemeSubjectId: ref.watch(weakestDenemeSubjectIdProvider),
             focusMinutesBySubject: ref.watch(focusMinutesBySubjectProvider),
+            staleReviewSubjectIds: ref.watch(staleReviewSubjectIdsProvider),
+            worseningDenemeSubjectIds:
+                ref.watch(worseningDenemeSubjectIdsProvider),
+            difficultTopicsBySubject:
+                ref.watch(difficultTopicNamesBySubjectProvider),
+            selfReportedWeakSubjectId:
+                ref.watch(selfReportedWeakSubjectIdProvider),
+            examWeakTopicsBySubject:
+                ref.watch(examWeakTopicNamesBySubjectProvider),
+            goalGapAmplifier: ref.watch(goalGapAmplifierProvider),
           )
         : const <StudySuggestion>[];
     final topSuggestion = suggestions.isEmpty ? null : suggestions.first;
@@ -773,9 +935,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ? 'Bugün hedeflerine bir adım daha yaklaşalım.'
                       : 'Bugün $todayCompleted/$todayTotal görevi tamamladın.',
                 ),
-                if (stats.examDate != null) ...[
+                // Dün "Bugünü kapat"ta yazılmış tek cümlelik niyet varsa —
+                // sabah nazik bir hatırlatma (yesterdayIntentProvider zaten
+                // vardı, hiç okunmuyordu). Yalnız bir metin satırı — yeni
+                // bir kart/aksiyon değil, "bunu unutmadım" hissi yeter.
+                if (ref.watch(yesterdayIntentProvider) case final intent?) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Dün dediğin: "$intent"',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (stats.examDate != null || goalGap != null) ...[
                   const SizedBox(height: 12),
-                  ExamCountdownChip(examDate: stats.examDate!),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (stats.examDate != null)
+                        ExamCountdownChip(examDate: stats.examDate!),
+                      if (goalGap != null) GoalGapChip(goalGap: goalGap),
+                    ],
+                  ),
                 ],
                 const SizedBox(height: 20),
                 const _ActiveFocusBanner(),
@@ -864,6 +1049,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 10),
                 _StreakCard(streak: stats.currentStreak, values: sparkline),
                 const SizedBox(height: 26),
+                // Tek seferlik ipucu şeridi — hasSeenTaskHints alanı zaten
+                // vardı (yedeklemede bile taşınıyordu) ama hiçbir ekran
+                // okumuyordu, şerit hiç yazılmamıştı. Görev listesinden hemen
+                // önce, ilk kullanıcı kaydırma/dokunma jestlerini keşfetmeden
+                // önce görsün diye.
+                if (!stats.hasSeenTaskHints) const _TaskHintStrip(),
                 SectionHeader(
                   title: 'Sıradaki Oturumlar',
                   trailing: scheduledIncomplete.isEmpty
@@ -906,6 +1097,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     );
                   }),
+                // "Bugünü kapat" (Faz — Ön-beta) — yalnız GERÇEK bir
+                // "bugün için bitti" sinyali varken (günlük hedefe
+                // ulaşıldı) ve bugün henüz kapatılmadıysa. Modal/popup
+                // DEĞİL — sayfanın en altında, sessizce duran tek satırlık
+                // bir sonraki-adım. Zorunlu değil, günde bir kereden fazla
+                // görünmez (kapatılınca kaybolur), hiçbir bildirim
+                // içermez. showDailyCloseoutSheet zaten var olan, test
+                // edilmiş bileşen — ikinci bir uygulama YAZILMADI.
+                if (todayCompleted > 0 &&
+                    todayCompleted >= stats.dailyGoal &&
+                    ref.watch(todayCloseoutProvider) == null) ...[
+                  const SizedBox(height: 20),
+                  _DailyCloseoutPrompt(
+                    onTap: () => showDailyCloseoutSheet(context),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1399,6 +1606,93 @@ class _SubjectShortcuts extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// Görev listesinden önce, tek seferlik gösterilen ince ipucu şeridi —
+/// kaydırma/dokunma jestlerini (TaskSwipeActions + TaskTile'daki daire)
+/// ilk kullanıcı keşfetmeden önce söylüyor. Kapatılınca (ya da bir daha
+/// hiç) görünmez — bkz. UserStatsModel.hasSeenTaskHints.
+class _TaskHintStrip extends ConsumerWidget {
+  const _TaskHintStrip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.tonal(AppColors.primary),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb_outline, size: 18, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Görevi tamamlamak için daireye dokun; ertelemek için sağa, '
+              'silmek için sola kaydır.',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          TapScale(
+            onTap: () =>
+                ref.read(statsProvider.notifier).markTaskHintsSeen(),
+            child: Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bugünkü hedefe ulaşıldığında, Home'un en altında beliren tek satırlık
+/// "bugünü kapat" daveti — zaten var olan [showDailyCloseoutSheet]'i açar
+/// (bkz. daily_closeout_sheet.dart). Modal değil, bildirim değil; sayfayı
+/// kaydırmayan biri hiç görmez, görüp dokunmayan biri hiçbir şey kaybetmez —
+/// kapatınca da (bkz. todayCloseoutProvider) kendiliğinden kaybolur.
+class _DailyCloseoutPrompt extends StatelessWidget {
+  final VoidCallback onTap;
+  const _DailyCloseoutPrompt({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.surfaceVariant),
+          boxShadow: AppColors.softShadow,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.nightlight_outlined, size: 18, color: AppColors.secondary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Bugünkü hedefine ulaştın — bugünü kapat',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
     );
   }
 }

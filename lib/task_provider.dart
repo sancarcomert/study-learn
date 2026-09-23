@@ -7,6 +7,7 @@ import 'task_model.dart';
 import 'task_repository.dart';
 import 'stats_provider.dart';
 import 'notification_service.dart';
+import 'rank_system.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
 
@@ -22,6 +23,13 @@ final taskRepositoryProvider = Provider<TaskRepository>((ref) {
 
 final taskCompletionEventProvider = StateProvider<int>((ref) => 0);
 final goalReachedEventProvider = StateProvider<int>((ref) => 0);
+
+// taskCompletionEventProvider yalnız "bir şey tamamlandı" sinyali — hangi
+// görev olduğunu taşımıyor. Tamamlanma bildirimi bunun ÖTESİNDE anlamlı
+// olsun (hangi ders, bu hafta kaçıncı oturum, sırada ne var) diye asıl
+// görevi de ayrıca tutuyoruz. Yalnız tamamlanmada set edilir, geri
+// alınmada dokunulmaz (bildirim zaten sadece tamamlanmada gösteriliyor).
+final lastCompletedTaskProvider = StateProvider<TaskModel?>((ref) => null);
 
 
 class TaskNotifier extends StateNotifier<List<TaskModel>> {
@@ -58,7 +66,11 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   }
 
 
-  void addTask({
+  // Dönüş değeri: eklenen görev — koç ekranının "Şimdi başla" gibi
+  // akışlarının, az önce hangi görevin eklendiğini (id'siyle) bilmesi
+  // gerekiyor (Odak seansını o göreve bağlamak için). Önceden void'di,
+  // çağıran taraf ismi/tarihiyle tekrar arama yapmak zorunda kalıyordu.
+  TaskModel addTask({
     required String title,
     String? subjectId,
     required DateTime dueDate,
@@ -67,6 +79,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     DateTime? scheduledTime,
     int? estimatedMinutes,
     String? topicId,
+    String? sourceReason,
   }) {
     final newTask = TaskModel(
       id: _uuidTask.v4(),
@@ -79,12 +92,14 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
       scheduledTime: scheduledTime,
       estimatedMinutes: estimatedMinutes,
       topicId: topicId,
+      sourceReason: sourceReason,
     );
 
     _repository.addTask(newTask);
     state = [..._repository.getAllTasks()];
 
     _scheduleReminder(newTask);
+    return newTask;
   }
 
 
@@ -104,6 +119,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
     TimeOfDay? scheduledTimeOfDay,
     int? estimatedMinutes,
     String? topicId,
+    String? sourceReason,
   }) {
     final groupId = _uuidTask.v4();
 
@@ -148,6 +164,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
           recurringGroupId: groupId,
           recurrenceRule: recurrenceRule,
           topicId: topicId,
+          sourceReason: sourceReason,
         ),
       );
     }
@@ -174,7 +191,7 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
 
   Future<void> toggleTaskCompletion(
-      String id, WidgetRef ref) async {
+      String id, WidgetRef ref, {int? actualMinutes}) async {
 
     final taskBefore =
         state.firstWhere((task) => task.id == id);
@@ -190,18 +207,41 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
     if (!wasCompleted && taskAfter.isCompleted) {
 
+      // Odak Seansı bu göreve bağlı başlatılıp bitmişse gerçek harcanan
+      // dakika buradan gelir — "planlanan ≠ gerçekleşen" farkının tek
+      // kaynağı (bkz. task_model.actualMinutes). Odaksız tamamlanan
+      // görevlerde null kalır.
+      if (actualMinutes != null) {
+        taskAfter.actualMinutes = actualMinutes;
+        await _repository.updateTask(taskAfter);
+      }
+
       await _cancelReminder(id);
 
+      ref.read(lastCompletedTaskProvider.notifier).state = taskAfter;
       ref.read(taskCompletionEventProvider.notifier).state++;
 
       ref
           .read(statsProvider.notifier)
           .adjustStudyMinutes(taskAfter.estimatedMinutes ?? 0);
 
-      // Göreve bağlı bir konu varsa, tamamlanınca otomatik "çalışıldı"ya
-      // geçer — Konu Takip'i elle ayrıca işaretleme zorunluluğunu kaldırır.
-      // Zaten "tekrar edildi" ise geri düşürmez; geri alma (undo) da bu
-      // ilerlemeyi bozmaz (seri/rütbe gibi tek yönlü — bkz. proje geneli).
+      // XP'nin sabit "+10" olması, önceliğin/direncin hiçbir anlam
+      // taşımaması eleştirisine karşılık: bekleyen yüksek öncelikli bir
+      // görevi ya da kronik ertelenmiş (2+) bir görevi bitirmek düz
+      // görevden daha fazla XP kazandırır — bkz. RankSystem.xpBonus*.
+      ref
+          .read(statsProvider.notifier)
+          .addBonusXp(_completionXpBonus(taskAfter));
+
+      // Göreve bağlı bir konu varsa, tamamlanınca otomatik ilerler:
+      // başlanmadı→çalışıldı, çalışıldı→tekrar. Bu ikinci adım olmadan,
+      // deneme sonucuna göre üretilen "(tekrar)" görevleri (bkz.
+      // plan_builder.dart examWeakTopics — konu genelde zaten "çalışıldı"
+      // durumdadır, sınavda yanlış çıkmıştır) tamamlansa bile konunun
+      // updatedAt/status'una hiç yansımıyordu — gerçekten yapılan bir
+      // tekrar sessizce kayboluyordu. "Tekrar edildi" zaten en son durum,
+      // geri düşürülmez; geri alma (undo) da bu ilerlemeyi bozmaz (seri/
+      // rütbe gibi tek yönlü — bkz. proje geneli).
       final linkedTopicId = taskAfter.topicId;
       if (linkedTopicId != null) {
         final topics = ref.read(topicProvider);
@@ -211,6 +251,10 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
           ref
               .read(topicProvider.notifier)
               .setStatus(linkedTopicId, TopicStatus.studied);
+        } else if (topic != null && topic.status == TopicStatus.studied) {
+          ref
+              .read(topicProvider.notifier)
+              .setStatus(linkedTopicId, TopicStatus.reviewed);
         }
       }
 
@@ -245,8 +289,39 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
           .read(statsProvider.notifier)
           .adjustStudyMinutes(-(taskAfter.estimatedMinutes ?? 0));
 
+      ref
+          .read(statsProvider.notifier)
+          .addBonusXp(-_completionXpBonus(taskAfter));
+
+      if (taskAfter.actualMinutes != null) {
+        taskAfter.actualMinutes = null;
+        await _repository.updateTask(taskAfter);
+      }
+
       await _scheduleReminder(taskAfter);
     }
+  }
+
+  // Bkz. toggleTaskCompletion — tamamlanınca eklenen, geri alınınca aynen
+  // çıkarılan "anlamlı" XP bonusu.
+  int _completionXpBonus(TaskModel task) {
+    var bonus = 0;
+    if (task.priority == TaskPriority.high) {
+      bonus += RankSystem.xpBonusHighPriority;
+    }
+    // "Recovered" ödülü BİLEREK postponeCount + systemRescheduleCount
+    // toplamına bakar — bu bir ÖDÜL (ceza değil): kaynağı ne olursa olsun
+    // (öğrenci kendi ertelemiş ya da sistem backlog'u yaymış), birkaç kez
+    // sıkışmış bir görevi bitirmek hâlâ gerçek bir "toparlama". StudyAdvisor'ın
+    // "kaçınma" SİNYALİ (avoidance) buradan AYRI — o SADECE postponeCount'a
+    // bakar (bkz. task_model.dart'taki not).
+    if ((task.postponeCount + task.systemRescheduleCount) >= 2) {
+      bonus += RankSystem.xpBonusRecovered;
+    }
+    if (task.difficulty == TopicDifficulty.hard) {
+      bonus += RankSystem.xpBonusHardTask;
+    }
+    return bonus;
   }
 
 
@@ -274,6 +349,10 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
       recurringGroupId: original.recurringGroupId,
       recurrenceRule: original.recurrenceRule,
       topicId: original.topicId,
+      postponeCount: original.postponeCount,
+      actualMinutes: original.actualMinutes,
+      systemRescheduleCount: original.systemRescheduleCount,
+      sourceReason: original.sourceReason,
     );
 
     _cancelReminder(id);
@@ -297,6 +376,10 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   // Görevi bir sonraki güne taşır — TaskTile'da sola kaydırma aksiyonu.
   void postponeTask(String id) {
     final task = state.firstWhere((t) => t.id == id);
+    // updateTask bu alana dokunmuyor, bu yüzden çağrıdan ÖNCE elle
+    // artırıyoruz — StudyAdvisor'ın "kronik erteleme" sinyali buradan
+    // besleniyor (bkz. study_advisor.dart).
+    task.postponeCount += 1;
 
     final newDueDate = DateTime(
       task.dueDate.year,
@@ -456,6 +539,53 @@ int _weekSum(Map<DateTime, int> byDay, DateTime start, DateTime end) {
   });
   return total;
 }
+
+/// Bir konuya bağlı, gerçek süresi ölçülmüş (actualMinutes — bkz.
+/// TaskModel.actualMinutes) görevler arasında, gerçek sürenin planlanandan
+/// belirgin (%40+) uzun olduğu konular — "bu konu tahmininden zor çıktı"
+/// sinyali. Deneme verisi konu granülerliğinde YOK (DenemeSectionScore
+/// yalnız ders bazında tutuluyor) — bu, mevcut veriyle ulaşılabilecek en
+/// ince zayıflık sinyali. subjectId → o dersin zor çıkan konu adları (en
+/// fazla 2, en belirgin olandan başlayarak).
+final difficultTopicNamesBySubjectProvider =
+    Provider<Map<String, List<String>>>((ref) {
+  final tasks = ref.watch(taskProvider);
+  final topics = ref.watch(topicProvider);
+  final topicById = {for (final t in topics) t.id: t};
+
+  // topicId → (oran toplamı, örnek sayısı) — aynı konuya bağlı birden
+  // fazla görev varsa ortalama oran kullanılır, tek seferlik bir yavaşlık
+  // gürültü olarak sayılmasın diye.
+  final ratioSum = <String, double>{};
+  final ratioCount = <String, int>{};
+  for (final task in tasks) {
+    final topicId = task.topicId;
+    final actual = task.actualMinutes;
+    final estimated = task.estimatedMinutes;
+    if (topicId == null ||
+        actual == null ||
+        estimated == null ||
+        estimated <= 0) {
+      continue;
+    }
+    final ratio = actual / estimated;
+    ratioSum[topicId] = (ratioSum[topicId] ?? 0) + ratio;
+    ratioCount[topicId] = (ratioCount[topicId] ?? 0) + 1;
+  }
+
+  final result = <String, List<String>>{};
+  for (final entry in ratioSum.entries) {
+    final avgRatio = entry.value / ratioCount[entry.key]!;
+    if (avgRatio < 1.4) continue; // %40+ daha uzun sürmemiş — gürültü
+    final topic = topicById[entry.key];
+    if (topic == null) continue;
+    result.putIfAbsent(topic.subjectId, () => []).add(topic.name);
+  }
+  for (final list in result.values) {
+    if (list.length > 2) list.removeRange(2, list.length);
+  }
+  return result;
+});
 
 /// Bu haftanın (Pazartesi–bugün) tamamlanan görev sayısı.
 final tasksCompletedThisWeekProvider = Provider<int>((ref) {

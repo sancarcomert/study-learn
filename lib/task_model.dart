@@ -83,6 +83,48 @@ class TaskModel extends HiveObject {
   @HiveField(13)
   String? topicId;
 
+  // Kaç kez ertelendi (TaskSwipeActions'taki sağa-kaydır). Önceden hiç
+  // tutulmuyordu — bir görev 10 kere ertelenmiş olsa bile sistem bunu
+  // "bugüne kalan sıradan bir görev"den ayırt edemiyordu. Artık kronik
+  // ertelemeyi StudyAdvisor + "bugüne taşı" diyaloğu fark edip farklı
+  // (cezalandırmayan, ama görünür) şekilde ele alabiliyor.
+  // defaultValue: eski kayıtlarda 0 — hiç ertelenmemiş sayılır, doğru.
+  @HiveField(14, defaultValue: 0)
+  int postponeCount;
+
+  // Gerçekte harcanan dakika — Odak Seansı bu göreve bağlı başlatılıp
+  // tamamlanınca (bkz. focus_screen._completeLinkedTask) doldurulur.
+  // estimatedMinutes'ın aksine ölçülmüş: "planlanan ≠ gerçekleşen"
+  // farkını görünür kılar. Nullable — eski kayıtlarda ve odaksız
+  // tamamlanan görevlerde null kalır, migration gerekmez.
+  @HiveField(15)
+  int? actualMinutes;
+
+  // Sistemin OTOMATİK olarak yeniden planladığı sayaç — "Önceki günden kalan
+  // görevleri taşı" (bkz. home_screen._maybeShowCarryOverPrompt) burayı
+  // artırır. [postponeCount]'tan BİLİNÇLİ OLARAK AYRI: postponeCount yalnız
+  // öğrencinin kendi kaydırma jestiyle (TaskSwipeActions/postponeTask)
+  // ertelediği görevleri sayar — StudyAdvisor'ın "kaçınma" sinyali VE bu
+  // sayacın ürettiği "N kez ertelendi" gerekçesi SADECE buna bakar. İkisi
+  // aynı alanda birleşseydi, öğrenci birkaç gün uzak kalıp sistem geri kalanı
+  // günlere yaydığında, hiç kaçınmamış olsa bile "kaçınıyorsun" mesajı
+  // alırdı — sistem davranışı öğrenci davranışı gibi etiketlenmiş olurdu.
+  // defaultValue: eski kayıtlarda 0.
+  @HiveField(16, defaultValue: 0)
+  int systemRescheduleCount;
+
+  // Bu görevin PlanBuilder/StudyAdvisor tarafından ÖNERİLDİĞİNDE üretilen,
+  // somut/gerçek bir sinyale dayanan kısa gerekçesi (ör. "Son denemende bu
+  // konudan yanlış yapmıştın"). Yalnız coach_screen'in otomatik plan
+  // akışından (_proposeDay/_proposeWeek → PlanBuilder) gelen görevlerde
+  // dolu — kullanıcının kendi yazdığı görevlerde (manuel ekleme, tek
+  // cümlelik "yarın 2 saat matematik" gibi) null kalır, çünkü zaten
+  // kendi kararı, açıklamaya gerek yok. Sahte/jenerik bir gerekçe ASLA
+  // üretilmez (bkz. PlanBuilder.titleFor) — somut sinyal yoksa null.
+  // AddTaskScreen düzenleme modunda salt-okunur gösterilir (bkz. Faz 6/7).
+  @HiveField(17)
+  String? sourceReason;
+
   TaskModel({
     required this.id,
     required this.title,
@@ -98,5 +140,9 @@ class TaskModel extends HiveObject {
     this.recurringGroupId,
     this.recurrenceRule,
     this.topicId,
+    this.postponeCount = 0,
+    this.actualMinutes,
+    this.systemRescheduleCount = 0,
+    this.sourceReason,
   });
 }

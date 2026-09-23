@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'hive_boxes.dart';
+import 'subject_provider.dart';
 import 'user_stats_model.dart';
 
 final statsRepositoryProvider = Provider<UserStatsModel>((ref) {
@@ -44,6 +45,8 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
       targetNetAYT: _stats.targetNetAYT,
       lastCarryOverPromptDate: _stats.lastCarryOverPromptDate,
       themeMode: _stats.themeMode,
+      bonusXp: _stats.bonusXp,
+      selfReportedWeakSubjectName: _stats.selfReportedWeakSubjectName,
     );
   }
 
@@ -113,26 +116,27 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
 
     final today = DateTime.now();
     final todayDateOnly = DateTime(today.year, today.month, today.day);
-    final yesterday = todayDateOnly.subtract(const Duration(days: 1));
+    final lastDateOnly =
+        DateTime(lastDate.year, lastDate.month, lastDate.day);
+    final gapDays = todayDateOnly.difference(lastDateOnly).inDays;
 
-    final isToday = lastDate.year == todayDateOnly.year &&
-        lastDate.month == todayDateOnly.month &&
-        lastDate.day == todayDateOnly.day;
-    final isYesterday = lastDate.year == yesterday.year &&
-        lastDate.month == yesterday.month &&
-        lastDate.day == yesterday.day;
+    if (gapDays <= 1) return; // bugün ya da dün tamamlanmış — seri sağlam
 
-    if (!isToday && !isYesterday) {
-      if (_stats.freezesAvailable > 0) {
-        // Dondurma hakkı var: seriyi koru, hakkı düş, "dün tamamlanmış" say
-        _stats.freezesAvailable -= 1;
-        _stats.lastCompletedDate = yesterday;
-      } else {
-        _stats.currentStreak = 0;
-      }
-      _stats.save();
-      _emit();
+    // Aradaki tam boş gün sayısı (ör. gapDays=2 → tam 1 gün ara verilmiş).
+    // Profil ekranı "Bir gün ara verirsen serini otomatik korur" diyor —
+    // önceden boşluk kaç gün olursa olsun (5 gün, 30 gün fark etmez) TEK
+    // dondurma yetip seriyi koruyordu; bu metinle çelişiyordu. Artık
+    // kaçırılan gün sayısı kadar dondurma gerekiyor.
+    final missedDays = gapDays - 1;
+    if (_stats.freezesAvailable >= missedDays) {
+      _stats.freezesAvailable -= missedDays;
+      _stats.lastCompletedDate =
+          todayDateOnly.subtract(const Duration(days: 1));
+    } else {
+      _stats.currentStreak = 0;
     }
+    _stats.save();
+    _emit();
   }
 
   void updateDailyGoal(int newGoal) {
@@ -225,6 +229,18 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
     _emit();
   }
 
+  // Görev tamamlamada kazanılan "anlamlı" XP bonusunu ekler/çıkarır (öncelikli
+  // görev, kronik ertelenmiş görevi bitirme vb). delta negatif verilirse
+  // tamamlama geri alındığında bonus da geri çekilir — adjustStudyMinutes ile
+  // aynı desen. Sonuç asla negatife düşmez.
+  void addBonusXp(int delta) {
+    if (delta == 0) return;
+    final updated = _stats.bonusXp + delta;
+    _stats.bonusXp = updated < 0 ? 0 : updated;
+    _stats.save();
+    _emit();
+  }
+
   // Kullanıcının sınıfını kaydeder (9–12 = lise, 13 = Mezun, null = temizle).
   // Kişiselleştirme için: ton, günlük hedef varsayılanı, sınav odağı.
   void setGradeLevel(int? level) {
@@ -242,10 +258,34 @@ class StatsNotifier extends StateNotifier<UserStatsModel> {
     _stats.save();
     _emit();
   }
+
+  // Onboarding'de (ya da sonradan) kendi kendine bildirdiği zayıf ders adı.
+  // Boş string null'a çevrilir — updateUserName ile aynı desen.
+  void setSelfReportedWeakSubject(String? name) {
+    final trimmed = name?.trim();
+    _stats.selfReportedWeakSubjectName =
+        (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+    _stats.save();
+    _emit();
+  }
 }
 
 final statsProvider =
     StateNotifierProvider<StatsNotifier, UserStatsModel>((ref) {
   final stats = ref.watch(statsRepositoryProvider);
   return StatsNotifier(stats);
+});
+
+/// [UserStatsModel.selfReportedWeakSubjectName]'ı kullanıcının GERÇEK
+/// ders listesindeki bir [SubjectModel.id]'sine eşler — deneme_provider.dart
+/// içindeki weakestDenemeSubjectIdProvider ile birebir aynı isim-eşleme
+/// deseni (büyük/küçük harf duyarsız, tam eşleşmeyen adlar eşlenmez).
+final selfReportedWeakSubjectIdProvider = Provider<String?>((ref) {
+  final name = ref.watch(statsProvider).selfReportedWeakSubjectName;
+  if (name == null) return null;
+  final subjects = ref.watch(subjectProvider);
+  for (final s in subjects) {
+    if (s.name.toLowerCase() == name.toLowerCase()) return s.id;
+  }
+  return null;
 });

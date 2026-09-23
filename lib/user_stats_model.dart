@@ -131,6 +131,21 @@ class UserStatsModel extends HiveObject {
   @HiveField(19, defaultValue: 'light')
   String themeMode;
 
+  // Görev tamamlamalarında sabit taban XP'ye eklenen "anlamlı" bonus
+  // toplamı (öncelikli görev, kronik ertelenmiş görevi bitirme vb).
+  // defaultValue: 0 — eski kayıtlarda bonus birikmemiş sayılır.
+  @HiveField(20, defaultValue: 0)
+  int bonusXp;
+
+  // Onboarding'de kendi kendine bildirdiği "en çok zorlandığım ders" —
+  // deneme/kapsama gibi HESAPLANMIŞ zayıflık sinyalleri henüz yokken (ilk
+  // gün, hiç veri birikmeden) StudyAdvisor'a düşük ağırlıklı bir kişi-
+  // selleştirme sinyali verir (bkz. study_advisor.dart). Opsiyonel/
+  // atlanabilir — null ise hiçbir etkisi olmaz. Ders ADI tutulur (subjectId
+  // değil): onboarding'de henüz o ders SubjectModel'i yaratılmış olmayabilir.
+  @HiveField(21)
+  String? selfReportedWeakSubjectName;
+
   UserStatsModel({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -154,6 +169,8 @@ class UserStatsModel extends HiveObject {
     this.targetNetAYT,
     this.lastCarryOverPromptDate,
     this.themeMode = 'light',
+    this.bonusXp = 0,
+    this.selfReportedWeakSubjectName,
   });
 
   /// 13 = Mezun, 9–12 = lise sınıfı, null = belirtilmemiş.

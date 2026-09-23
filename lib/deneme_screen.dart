@@ -175,22 +175,41 @@ class _DenemeScreenState extends ConsumerState<DenemeScreen> {
                               size: 18, color: AppColors.primary),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              target == null
-                                  ? 'Hedef net belirle'
-                                  : (latestNet == null
-                                      ? 'Hedef: ${target.toStringAsFixed(0)} net'
-                                      : latestNet >= target
-                                          ? 'Hedefini ${(latestNet - target).toStringAsFixed(1)} net geçtin'
-                                          : 'Hedefine ${(target - latestNet).toStringAsFixed(1)} net kaldı'),
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: (target != null &&
-                                        latestNet != null &&
-                                        latestNet >= target)
-                                    ? AppColors.success
-                                    : null,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  target == null
+                                      ? 'Hedef net belirle'
+                                      : (latestNet == null
+                                          ? 'Hedef: ${target.toStringAsFixed(0)} net'
+                                          : latestNet >= target
+                                              ? 'Hedefini ${(latestNet - target).toStringAsFixed(1)} net geçtin'
+                                              : 'Hedefine ${(target - latestNet).toStringAsFixed(1)} net kaldı'),
+                                  style: AppTextStyles.body.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: (target != null &&
+                                            latestNet != null &&
+                                            latestNet >= target)
+                                        ? AppColors.success
+                                        : null,
+                                  ),
+                                ),
+                                // Discovery (Ön-beta) — target hâlâ null'ken
+                                // TEK satırlık fayda cümlesi: "neden"i
+                                // açıklamadan "ne olacağını" söylüyor. Hedef
+                                // girilince bu satır tamamen kaybolur, tekrar
+                                // hatırlatılmaz.
+                                if (target == null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Girersen plan ve öneriler hedefine göre şekillenir',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           Icon(

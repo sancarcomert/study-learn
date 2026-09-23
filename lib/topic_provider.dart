@@ -62,6 +62,7 @@ class TopicNotifier extends StateNotifier<List<TopicModel>> {
   void cycleStatus(String id) {
     final topic = state.firstWhere((t) => t.id == id);
     topic.status = topic.nextStatus;
+    topic.updatedAt = DateTime.now();
     _repository.update(topic);
     _reload();
   }
@@ -69,6 +70,7 @@ class TopicNotifier extends StateNotifier<List<TopicModel>> {
   void setStatus(String id, TopicStatus status) {
     final topic = state.firstWhere((t) => t.id == id);
     topic.status = status;
+    topic.updatedAt = DateTime.now();
     _repository.update(topic);
     _reload();
   }
@@ -145,4 +147,23 @@ final coverageBySubjectProvider =
         subjectId,
         TopicCoverage(topics.where((t) => t.isCovered).length, topics.length),
       ));
+});
+
+/// "Tekrar" (reviewed) işaretli ama 14+ gündür dokunulmamış (ya da hiç
+/// `updatedAt` alanı yazılmadan reviewed'a geçmiş — eski kayıt) konusu olan
+/// dersler. `reviewed`, `studied`'ten farklı bir durum olarak var oluyordu
+/// ama hiçbir yerde `studied`'ten ayrı muamele görmüyordu (kapsamda ikisi de
+/// eşit ağırlık) — bu, StudyAdvisor'a "tekrar zamanı geldi" sinyali veren
+/// ilk gerçek kullanım alanı.
+final staleReviewSubjectIdsProvider = Provider<Set<String>>((ref) {
+  final all = ref.watch(topicProvider);
+  final now = DateTime.now();
+  final result = <String>{};
+  for (final t in all) {
+    if (t.status != TopicStatus.reviewed) continue;
+    final last = t.updatedAt;
+    final isStale = last == null || now.difference(last).inDays >= 14;
+    if (isStale) result.add(t.subjectId);
+  }
+  return result;
 });

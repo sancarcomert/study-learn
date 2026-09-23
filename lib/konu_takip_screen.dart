@@ -50,7 +50,11 @@ class _KonuTakipScreenState extends ConsumerState<KonuTakipScreen> {
     final visibleSubjects = subjects.where((s) {
       if (_filter == _CoverageFilter.all) return true;
       final c = coverage[s.id];
-      if (c == null || !c.hasTopics) return _filter == _CoverageFilter.inProgress;
+      // Hiç konu eklenmemiş bir ders ne "devam eden" ne "tamamlanan" —
+      // önceden burada "inProgress" döndürülüyordu, yani kullanıcının hiç
+      // dokunmadığı dersler yanıltıcı şekilde "Devam eden" filtresinde
+      // beliriyordu. Yalnız "Tümü"nde görünsün.
+      if (c == null || !c.hasTopics) return false;
       if (_filter == _CoverageFilter.done) return c.ratio >= 1.0;
       return c.ratio < 1.0;
     }).toList();

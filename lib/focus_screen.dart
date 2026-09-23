@@ -103,6 +103,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   int _pomoCycle = 1; // üzerinde çalışılan / son biten çalışma bloğu no'su
   int _phaseAccumSec = 0;
   DateTime? _phaseSegStart;
+  // _freeLoggedSec'in Pomodoro karşılığı: bu çalışma fazında o ana kadar
+  // geçmişe YAZILMIŞ saniye. _phaseAccumSec (fazın TOPLAM geçen süresi,
+  // hedefle karşılaştırılan) ile ayrı tutulur — checkpoint sırasında ikisi
+  // aynı olsaydı her arka plana alınışta faz hedefi sıfırdan saymaya
+  // başlardı (bkz. _checkpointProgress).
+  int _phaseLoggedSec = 0;
 
   // Serbest hedefi bir kez kutlanır — ticker her saniye çalıştığı için
   // bayrak olmadan aynı dialog defalarca açılırdı.
@@ -147,10 +153,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _flushFreeProgress();
     } else if (_phase == _Phase.work) {
       _commitCurrentWorkBlock();
-      // Yazılan bölüm bir daha sayılmasın diye blok sayacını sıfırla —
-      // dönünce "bu bloktaki" ilerleme sıfırdan başlar, ama artık hiçbir
-      // dakika kaybolmaz.
-      _phaseAccumSec = 0;
+      // DİKKAT: _phaseAccumSec'i SIFIRLAMIYORUZ — yalnızca canlı segmenti
+      // kapatıp aynı toplam üzerinden devam ediyoruz. Sıfırlarsak fazın
+      // TOPLAM süresi (hedefle karşılaştırılan _phaseElapsedSec) her arka
+      // plana alınışta sıfırdan saymaya başlar; 25 dk'lık bloğun 20.
+      // dakikasında biri bildirimlere bakarsa dönüşte tekrar 25 dk
+      // bekletilir. Dakikalar zaten _commitCurrentWorkBlock içinde
+      // _phaseLoggedSec ile tekrar sayılmadan geçmişe yazıldı.
+      _phaseAccumSec = _phaseElapsedSec;
       _phaseSegStart = DateTime.now();
     }
   }
@@ -163,7 +173,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       'blockMin': _blockMin,
       'pomoCycle': _pomoCycle,
       'committedSec': _mode == _Mode.free ? _freeCommittedSec : _phaseAccumSec,
-      'loggedSec': _freeLoggedSec,
+      'loggedSec': _mode == _Mode.free ? _freeLoggedSec : _phaseLoggedSec,
       'segStartMs': segStart?.millisecondsSinceEpoch,
       'subjectId': _selectedSubjectId,
       'topicId': _selectedTopicId,
@@ -191,19 +201,21 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         .firstWhere((p) => p.name == raw['phase'], orElse: () => _Phase.work);
     _blockMin = raw['blockMin'] as int? ?? _blockMin;
     _pomoCycle = raw['pomoCycle'] as int? ?? 1;
-    _freeLoggedSec = raw['loggedSec'] as int? ?? 0;
     _selectedSubjectId = raw['subjectId'] as String?;
     _selectedTopicId = raw['topicId'] as String?;
     final note = raw['note'] as String?;
     if (note != null && note.isNotEmpty) _noteController.text = note;
 
     final committedSec = raw['committedSec'] as int? ?? 0;
+    final loggedSec = raw['loggedSec'] as int? ?? 0;
     if (_mode == _Mode.free) {
       _freeCommittedSec = committedSec;
       _freeSegStart = segStart;
+      _freeLoggedSec = loggedSec;
     } else {
       _phaseAccumSec = committedSec;
       _phaseSegStart = segStart;
+      _phaseLoggedSec = loggedSec;
     }
     _running = true;
   }
@@ -406,6 +418,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _phase = _Phase.work;
       _pomoCycle = 1;
       _phaseAccumSec = 0;
+      _phaseLoggedSec = 0;
       _phaseSegStart = null;
       _freeTargetCelebrated = false;
     });
@@ -415,11 +428,18 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
 
   void _commitCurrentWorkBlock() {
     if (_phase != _Phase.work) return;
-    final workedMin = math.min(_phaseElapsedSec, _blockMin * 60) ~/ 60;
-    if (workedMin >= 1) {
-      ref.read(statsProvider.notifier).addFocusMinutes(workedMin);
+    // Delta bazlı: bu çağrıdan önce zaten yazılmış (_phaseLoggedSec) kısmı
+    // tekrar yazma — checkpoint artık _phaseAccumSec'i sıfırlamadığı için
+    // bu metod aynı faz içinde birden çok kez (her checkpoint'te + faz
+    // bitiminde) çağrılabilir; delta olmadan her seferinde TÜM fazı yeniden
+    // kaydedip dakikaları katlardı.
+    final totalSec = math.min(_phaseElapsedSec, _blockMin * 60);
+    final deltaMin = (totalSec - _phaseLoggedSec) ~/ 60;
+    if (deltaMin >= 1) {
+      _phaseLoggedSec += deltaMin * 60;
+      ref.read(statsProvider.notifier).addFocusMinutes(deltaMin);
       ref.read(focusSessionProvider.notifier).log(
-            minutes: workedMin,
+            minutes: deltaMin,
             mode: 'pomodoro',
             subjectId: _selectedSubjectId,
             topicId: _selectedTopicId,
@@ -455,9 +475,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         : ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
     final canCompleteTask = task != null && !task.isCompleted;
 
+    final note = _noteLabel();
     _showFocusCelebration(
       title: 'Hedefe ulaştın',
-      body: '$_blockMin dakikalık hedefini tamamladın.',
+      body: note == null
+          ? '$_blockMin dakikalık hedefini tamamladın.'
+          : '$_blockMin dakika · $note',
       actionLabel: canCompleteTask ? 'Görevi Tamamla' : null,
       onAction: canCompleteTask ? () => _completeLinkedTask(task.id) : null,
     );
@@ -467,7 +490,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     final task =
         ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
     if (task == null || task.isCompleted) return;
-    ref.read(taskProvider.notifier).toggleTaskCompletion(taskId, ref);
+    ref.read(taskProvider.notifier).toggleTaskCompletion(
+          taskId,
+          ref,
+          actualMinutes: _freeElapsedSec ~/ 60,
+        );
     if (mounted) {
       AppSnackBar.success(context, '"${task.title}" tamamlandı');
     }
@@ -545,10 +572,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
           // Sayaç gerçekten sıfırlandığı (kullanıcı elle atlamadığı) an —
           // önceden yalnız küçük bir snackbar vardı, "yazıdan ibaret"
           // kalıyordu. Artık gerçek bir dokunuşsal + görsel an.
+          final note = _noteLabel();
           _showFocusCelebration(
             title: 'Çalışma bloğu bitti',
-            body:
-                '$_blockMin dakika çalıştın. ${isLong ? "Uzun mola" : "Mola"} zamanı.',
+            body: '$_blockMin dakika çalıştın'
+                '${note == null ? '' : ' · $note'}. '
+                '${isLong ? "Uzun mola" : "Mola"} zamanı.',
           );
         } else {
           AppSnackBar.info(
@@ -565,7 +594,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       }
     }
 
+    // Gerçek faz geçişi (çalışma↔mola) — burada sıfırlamak doğru, çünkü
+    // yeni faz baştan başlıyor ve önceki fazın süresi zaten commit edildi.
     _phaseAccumSec = 0;
+    _phaseLoggedSec = 0;
     _phaseSegStart = _running ? DateTime.now() : null;
     if (_running) {
       _scheduleCompletionNotification();
@@ -625,7 +657,41 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   // seansı bitirme. Focus'a (Home/Koç, her neredense) tekrar girildiğinde
   // kaldığı yerden — duvar saatiyle, geçen süre kadar ileriden — devam
   // ediyor; tamamlanma bildirimi de iptal edilmiyor, zamanı gelince düşer.
-  void _leaveWhileRunning() {
+  //
+  // DÜRÜST SÜRTÜNME (kilitleme DEĞİL): anlamlı ilerleme varken geri
+  // gidilirse bir kez soruyoruz. Kullanıcı "Devam Et" derse seans aynen
+  // sürer; "Çık" derse (ya da hiç sormadan da çıkabileceği hiçbir teknik
+  // engel yok) normal şekilde kaydedip çıkar. Bilinçli karar: kullanıcıyı
+  // hiçbir şekilde durduramayız/durdurmamalıyız — sadece bir an düşünsün.
+  Future<void> _leaveWhileRunning() async {
+    if (!mounted || _leaving) return;
+
+    if (_hasUnsavedProgress) {
+      final leave = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: Icon(Icons.timer_outlined, color: AppColors.primary, size: 30),
+          title: const Text('Seansı yarıda mı bırakıyorsun?'),
+          content: const Text(
+            'Şu ana kadarki ilerleme kaydedilir, endişelenme. İstersen '
+            'devam et, istersen çık.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Devam Et'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Çık'),
+            ),
+          ],
+        ),
+      );
+      if (leave != true || !mounted) return;
+    }
+
     _checkpointProgress();
     if (_running) _writeAnchor();
     if (!mounted || _leaving) return;
@@ -663,6 +729,18 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         .where((t) => t.id == _selectedTopicId)
         .firstOrNull;
     return topic == null ? subject.name : '${subject.name} · ${topic.name}';
+  }
+
+  /// Serbest modda hedef süre geçildikten sonra ne kadar fazladan
+  /// çalışıldığını gösterir. Önceden hedefe ulaşınca etiket durağan
+  /// "hedefe ulaştın" metninde kalıyordu — halka da %100'de sabitlenince
+  /// kronometre gerçekte saymaya devam etse bile (asla durmuyor, hedef
+  /// sadece görsel bir milestone) her ikisi birden "seans bitti/kilitlendi"
+  /// izlenimi veriyordu. Bu etiket saniyede bir arttığı için hâlâ aktif
+  /// olduğu görünür.
+  String _fmtOverage(int overSec) {
+    if (overSec < 60) return '+$overSec sn';
+    return '+${overSec ~/ 60} dk';
   }
 
   String get _phaseLabel {
@@ -770,7 +848,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                             : AppColors.textPrimary,
                         statusLabel: _mode == _Mode.free
                             ? (reached
-                                ? 'hedefe ulaştın'
+                                ? 'hedefi geçtin · ${_fmtOverage(_freeElapsedSec - _blockMin * 60)}'
                                 : 'hedef $_blockMin dk')
                             : _phaseLabel,
                         statusColor: (isBreak || reached)
@@ -779,6 +857,16 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                         noteLabel: _noteLabel(),
                       ),
                     ),
+
+                    const SizedBox(height: 14),
+                    Center(child: _TodayTotalLabel(liveExtraSec: () {
+                      if (_mode == _Mode.free) {
+                        return _freeElapsedSec - _freeLoggedSec;
+                      }
+                      return _phase == _Phase.work
+                          ? _phaseElapsedSec - _phaseLoggedSec
+                          : 0;
+                    }())),
 
                     const SizedBox(height: 32),
                     if (!isBreak)
@@ -941,6 +1029,27 @@ class _FocusAuroraBackground extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Sayacın altında "bugün toplam X dk" satırı — odanın "sadece bugünkü an"
+/// değil, günün bütünü için bir yer olduğu hissini güçlendirir. Zaten
+/// geçmişe yazılmış (focusTodayMinutesProvider) + şu an süren ama henüz
+/// commit edilmemiş canlı seansın saniyeleri toplanır, saniyede bir
+/// güncellenir (ticker zaten her saniye setState çağırıyor).
+class _TodayTotalLabel extends ConsumerWidget {
+  final int liveExtraSec;
+  const _TodayTotalLabel({required this.liveExtraSec});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loggedMin = ref.watch(focusTodayMinutesProvider);
+    final totalMin = loggedMin + (liveExtraSec > 0 ? liveExtraSec ~/ 60 : 0);
+    if (totalMin < 1) return const SizedBox.shrink();
+    return Text(
+      'Bugün toplam $totalMin dk',
+      style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
     );
   }
 }

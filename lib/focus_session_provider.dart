@@ -121,3 +121,31 @@ final focusThisWeekMinutesProvider = Provider<int>((ref) {
   });
   return total;
 });
+
+/// Geçen haftanın (Pazartesi–Pazar) toplam odak dakikası — bu haftayla
+/// kıyaslayıp "daha çok mu az mı odaklandın" trendini göstermek için
+/// (bkz. stats_insight_engine.dart). `tasksCompletedLastWeekProvider` ile
+/// aynı hafta sınırı deseni (task_provider.dart).
+final focusLastWeekMinutesProvider = Provider<int>((ref) {
+  final byDay = ref.watch(focusMinutesByDayProvider);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final monday = today.subtract(Duration(days: today.weekday - 1));
+  final lastMonday = monday.subtract(const Duration(days: 7));
+  var total = 0;
+  byDay.forEach((day, min) {
+    if (!day.isBefore(lastMonday) && day.isBefore(monday)) total += min;
+  });
+  return total;
+});
+
+/// Bugüne kadar KAYDEDİLMİŞ (log'lanmış) odak dakikası — Odak ekranındaki
+/// "bugün toplam" satırı için. Şu an sürmekte olan (henüz commit edilmemiş)
+/// canlı seansın saniyelerini içermez; ekran kendi canlı süresini ayrıca
+/// ekleyip gösterir.
+final focusTodayMinutesProvider = Provider<int>((ref) {
+  final byDay = ref.watch(focusMinutesByDayProvider);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  return byDay[today] ?? 0;
+});

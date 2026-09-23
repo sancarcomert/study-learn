@@ -36,17 +36,16 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       targetNetTYT: fields[16] as double?,
       targetNetAYT: fields[17] as double?,
       lastCarryOverPromptDate: fields[18] as DateTime?,
-      // Elle yamalı (bkz. user_stats_model.dart'taki themeMode notu) —
-      // cihazda bazı eski kayıtlarda bu index'te String olmayan bir değer
-      // bulunuyor; ham `as String` cast'i çöküyordu.
       themeMode: fields[19] is String ? fields[19] as String : 'light',
+      bonusXp: fields[20] == null ? 0 : fields[20] as int,
+      selfReportedWeakSubjectName: fields[21] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserStatsModel obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.currentStreak)
       ..writeByte(1)
@@ -86,7 +85,11 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       ..writeByte(18)
       ..write(obj.lastCarryOverPromptDate)
       ..writeByte(19)
-      ..write(obj.themeMode);
+      ..write(obj.themeMode)
+      ..writeByte(20)
+      ..write(obj.bonusXp)
+      ..writeByte(21)
+      ..write(obj.selfReportedWeakSubjectName);
   }
 
   @override

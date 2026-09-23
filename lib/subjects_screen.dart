@@ -4,6 +4,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'subject_provider.dart';
 import 'subject_model.dart';
+import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'task_provider.dart';
 import 'add_subject_sheet.dart';
@@ -131,12 +132,33 @@ class _SubjectCard extends StatelessWidget {
         // closure içinde tekrar okumak, ait olduğu widget dispose
         // olduğunda Riverpod hatasına yol açabilir (bkz. task_tile.dart).
         final notifier = ref.read(subjectProvider.notifier);
+        final topicNotifier = ref.read(topicProvider.notifier);
+
+        // BUG FIX (beta öncesi QA): "GERİ AL" önceden yalnız dersi geri
+        // getiriyordu — deleteForSubject'in sildiği konular kalıcı olarak
+        // kayboluyordu, "geri al"a rağmen. Diyalog "geri alabilirsin"
+        // diyorsa gerçekten hepsini geri almalı. Konuların bağımsız bir
+        // kopyasını SİLİNMEDEN ÖNCE alıyoruz — deleteTopic/deleteTask'taki
+        // aynı desen (silinen HiveObject'in kendisi kullanılamaz).
+        final topicsSnapshot = ref
+            .read(topicProvider)
+            .where((t) => t.subjectId == subject.id)
+            .map((t) => TopicModel(
+                  id: t.id,
+                  subjectId: t.subjectId,
+                  name: t.name,
+                  status: t.status,
+                  createdAt: t.createdAt,
+                  updatedAt: t.updatedAt,
+                ))
+            .toList();
+
         final deleted = notifier.deleteSubject(subject.id);
         if (deleted != null) {
           // Ders silinince ona bağlı konular da temizlenir — aksi halde
           // subjectId'si artık var olmayan bir derse işaret eden konular
           // Hive'da öksüz kalıp kapsama hesaplarını sessizce bozardı.
-          ref.read(topicProvider.notifier).deleteForSubject(subject.id);
+          topicNotifier.deleteForSubject(subject.id);
           // Aynı gerekçe görevler için de geçerli: bu derse bağlı görevler
           // silinmez (kullanıcının yapılacak işi kaybolmasın), ama artık var
           // olmayan bir derse/konuya işaret etmesinler diye bağları temizlenir.
@@ -144,7 +166,12 @@ class _SubjectCard extends StatelessWidget {
           AppSnackBar.undo(
             context,
             '"${deleted.name}" silindi',
-            onUndo: () => notifier.restoreSubject(deleted),
+            onUndo: () {
+              notifier.restoreSubject(deleted);
+              for (final t in topicsSnapshot) {
+                topicNotifier.restoreTopic(t);
+              }
+            },
           );
         }
       },

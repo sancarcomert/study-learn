@@ -6,21 +6,14 @@ import 'app_text_styles.dart';
 import 'focus_screen.dart';
 import 'stats_provider.dart';
 import 'topic_catalog.dart';
+import 'topic_evidence.dart';
+import 'topic_evidence_provider.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
-import 'user_stats_model.dart';
 import 'tap_scale.dart';
 import 'widgets/section_header.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
-
-/// Kullanıcının sınıfına göre kataloğun üst sınırı (P0-11, kümülatif).
-/// Sınıf belirtilmemişse `null` — sınırsız/tüm liste (eski davranış).
-/// Mezun, 12. sınıfla aynı üst sınırı görür (YKS'ye hazırlanan konular).
-int? _maxGradeFor(int? grade) {
-  if (grade == null) return null;
-  return grade == UserStatsModel.mezun ? 12 : grade;
-}
 
 /// Bir dersin konu listesi. Satıra dokun → durum döngüsü
 /// (başlanmadı → çalışıldı → tekrar). Sola kaydır → sil.
@@ -58,7 +51,7 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
   void _addCatalog() {
     final catalog = TopicCatalog.forSubject(
       widget.subjectName,
-      maxGrade: _maxGradeFor(ref.read(statsProvider).gradeLevel),
+      maxGrade: TopicCatalog.maxGradeFor(ref.read(statsProvider).gradeLevel),
     );
     if (catalog.isEmpty) return;
     final added =
@@ -90,16 +83,36 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
         TopicStatus.reviewed => Icons.verified_outlined,
       };
 
+  // Kanıt rozeti (Bölüm 1) — [_statusColor]'dan BİLİNÇLİ OLARAK AYRI bir
+  // renk ekseni: [_statusColor] "ne kadar çalıştın" (çaba), bu ise "sınav
+  // sana ne söylüyor" (kanıt). İkisi aynı renk dilini paylaşırsa (ör. ikisi
+  // de yeşil) satırda hangisinin hangisi olduğu karışır.
+  static Color _evidenceColor(TopicEvidenceState s) => switch (s) {
+        TopicEvidenceState.weakConfirmed => AppColors.warning,
+        TopicEvidenceState.improving => AppColors.success,
+        TopicEvidenceState.needsReview => AppColors.info,
+        TopicEvidenceState.none => AppColors.textSecondary,
+      };
+
   @override
   Widget build(BuildContext context) {
     final topics = ref.watch(topicsForSubjectProvider(widget.subjectId));
+    final evidence = ref.watch(topicEvidenceProvider);
     final covered = topics.where((t) => t.isCovered).length;
     final catalog = TopicCatalog.forSubject(
       widget.subjectName,
-      maxGrade: _maxGradeFor(ref.watch(statsProvider).gradeLevel),
+      maxGrade: TopicCatalog.maxGradeFor(ref.watch(statsProvider).gradeLevel),
     );
-    final showCatalogButton =
-        catalog.isNotEmpty && topics.length < catalog.length;
+    // Sayıya değil gerçek isim eşleşmesine bak (addMany'nin kendi tekilleştirme
+    // mantığıyla aynı, küçük harfe çevrilmiş isim seti) — önceden yalnız
+    // "eklenen konu sayısı >= katalog uzunluğu" bakıyordu, yani kullanıcı
+    // kataloğun hiçbirini eklemeden aynı sayıda kendi özel konusunu eklerse
+    // buton kalıcı olarak kayboluyor, standart YKS listesine erişim
+    // kapanıyordu.
+    final existingNames =
+        topics.map((t) => t.name.trim().toLowerCase()).toSet();
+    final showCatalogButton = catalog.isNotEmpty &&
+        catalog.any((name) => !existingNames.contains(name.toLowerCase()));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -209,6 +222,9 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                               label: _statusLabel(t.status),
                               color: _statusColor(t.status),
                               icon: _statusIcon(t.status),
+                              evidence: evidence[t.id] ?? TopicEvidence.none,
+                              evidenceColor: _evidenceColor(
+                                  (evidence[t.id] ?? TopicEvidence.none).state),
                               onTap: () => ref
                                   .read(topicProvider.notifier)
                                   .cycleStatus(t.id),
@@ -285,6 +301,8 @@ class _TopicRow extends StatelessWidget {
   final String label;
   final Color color;
   final IconData icon;
+  final TopicEvidence evidence;
+  final Color evidenceColor;
   final VoidCallback onTap;
   final VoidCallback onFocusTap;
 
@@ -294,6 +312,8 @@ class _TopicRow extends StatelessWidget {
     required this.label,
     required this.color,
     required this.icon,
+    required this.evidence,
+    required this.evidenceColor,
     required this.onTap,
     required this.onFocusTap,
   });
@@ -329,14 +349,36 @@ class _TopicRow extends StatelessWidget {
                   Icon(icon, size: 20, color: color),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      name,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textPrimary,
-                        decoration: status == TopicStatus.reviewed
-                            ? TextDecoration.none
-                            : null,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          // Not: burada önceden durum bazlı bir "decoration"
+                          // (TextDecoration.none / null) ayrımı vardı — ikisi
+                          // de görsel olarak birebir aynı (dekorasyon yok),
+                          // yani hiçbir zaman fark yaratmayan ölü bir koşuldu.
+                          // Kaldırıldı; görünümde hiçbir değişiklik yok.
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        // Kanıt rozeti (Bölüm 1) — YALNIZ anlamlı bir sinyal
+                        // varken ikinci bir küçük satır. [label] durum
+                        // metniyle (sağdaki "Çalışıldı" vb.) KARIŞTIRILMASIN
+                        // diye ayrı bir eksen (çaba ≠ kanıt) ve konumda.
+                        if (evidence.hasBadge) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            evidence.label!,
+                            style: AppTextStyles.caption.copyWith(
+                              color: evidenceColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],

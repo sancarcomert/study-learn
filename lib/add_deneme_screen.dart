@@ -4,10 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'deneme_change_engine.dart';
 import 'deneme_model.dart';
 import 'deneme_provider.dart';
 import 'deneme_screen.dart' show ExamTypeToggle;
+import 'goal_gap_provider.dart';
+import 'rank_system.dart';
+import 'stats_provider.dart';
+import 'subject_provider.dart';
+import 'subject_topics_screen.dart';
 import 'tap_scale.dart';
+import 'topic_model.dart';
+import 'topic_provider.dart';
 import 'widgets/app_buttons.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/eyebrow.dart';
@@ -20,15 +28,22 @@ class _SectionInput {
   final TextEditingController wrong;
   final TextEditingController blank;
 
+  // Bu bölümde GERÇEKTEN yanlış yapılan konuların id'leri (Konu Takip'ten,
+  // opsiyonel) — bkz. DenemeSectionScore.weakTopicIds. Soru içeriği DEĞİL,
+  // yalnızca "hangi konudan yanlış yaptım" işareti.
+  final Set<String> weakTopicIds;
+
   _SectionInput({
     String name = '',
     int correct = 0,
     int wrong = 0,
     int blank = 0,
+    List<String> weakTopicIds = const [],
   })  : name = TextEditingController(text: name),
         correct = TextEditingController(text: correct == 0 ? '' : '$correct'),
         wrong = TextEditingController(text: wrong == 0 ? '' : '$wrong'),
-        blank = TextEditingController(text: blank == 0 ? '' : '$blank');
+        blank = TextEditingController(text: blank == 0 ? '' : '$blank'),
+        weakTopicIds = Set<String>.from(weakTopicIds);
 
   int _n(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
 
@@ -82,6 +97,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
           correct: s.correct,
           wrong: s.wrong,
           blank: s.blank,
+          weakTopicIds: s.weakTopicIds,
         ));
       }
     }
@@ -136,6 +152,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
               correct: int.tryParse(s.correct.text.trim()) ?? 0,
               wrong: int.tryParse(s.wrong.text.trim()) ?? 0,
               blank: int.tryParse(s.blank.text.trim()) ?? 0,
+              weakTopicIds: s.weakTopicIds.toList(),
             ))
         .toList();
 
@@ -154,12 +171,76 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
       e.sections = validSections;
       notifier.updateEntry(e);
     } else {
+      // Kişisel rekor kontrolü VE "önceki deneme" anlık görüntüsü EKLEMEDEN
+      // ÖNCE alınmalı — sonra bakarsak yeni kayıt zaten listede,
+      // "önceki"/"en iyi" kendisi olur (bkz. Faz 2/9 — RE-EVALUATION).
+      final previousBest = ref.read(denemeSummaryProvider(_type))?.best;
+      final priorEntries = ref.read(denemeByTypeProvider(_type)); // artan sıralı
+      final previousEntry = priorEntries.isEmpty ? null : priorEntries.last;
+      // Yalnız kıyas için — henüz kaydedilmedi, gerçek id'si yok.
+      final newEntryForCompare = DenemeEntry(
+        id: '',
+        examType: _type,
+        date: _date,
+        sections: validSections,
+      );
+      final subjectIdByName = {
+        for (final s in ref.read(subjectProvider)) s.name.toLowerCase(): s.id,
+      };
+      final touchedSubjectIds = validSections
+          .map((s) => subjectIdByName[s.subject.trim().toLowerCase()])
+          .whereType<String>()
+          .toSet();
+
       notifier.addEntry(
         examType: _type,
         name: trimmedName,
         date: _date,
         sections: validSections,
       );
+
+      // Yalnız YENİ kayıtta tetiklenir (düzenlemede değil) — aksi halde
+      // aynı deneme ileri-geri düzenlenerek XP çiftlenebilir. İlk deneme
+      // (previousBest null) "rekor" sayılmaz, kıyaslanacak bir şey yok.
+      int recordBonus = 0;
+      if (previousBest != null && _totalNet > previousBest) {
+        recordBonus = RankSystem.netImprovementBonus(_totalNet - previousBest);
+        if (recordBonus > 0) {
+          ref.read(statsProvider.notifier).addBonusXp(recordBonus);
+        }
+      }
+
+      // RE-EVALUATION (Faz 2/9) — "ne değişti?" GOAL → GAP zincirinin tek
+      // kaynağından (goal_gap_provider.dart, addEntry'den SONRA otomatik
+      // yeniden hesaplanır) + aynı kayıttan gelen konu/ders sinyallerinden.
+      // İkinci bir hesap İCAT EDİLMEZ.
+      final goalGap = ref.read(
+          _type == 'TYT' ? tytGoalGapProvider : aytGoalGapProvider);
+      final mostChanged =
+          DenemeChangeEngine.mostChangedSubject(newEntryForCompare, previousEntry);
+      final resolved = Map.fromEntries(
+        ref.read(resolvedWeakTopicsBySubjectProvider).entries.where(
+            (e) => touchedSubjectIds.contains(e.key)),
+      );
+      final newlyWeak = Map.fromEntries(
+        ref.read(newlyWeakTopicsBySubjectProvider).entries.where(
+            (e) => touchedSubjectIds.contains(e.key)),
+      );
+      final changeSummary = DenemeChangeEngine.summarize(
+        goalGap: goalGap,
+        mostChangedSubject: mostChanged,
+        resolvedSubjectTopics: resolved,
+        newlyWeakSubjectTopics: newlyWeak,
+      );
+
+      if (recordBonus > 0 && changeSummary != null) {
+        AppSnackBar.success(
+            context, 'Yeni en iyi net! +$recordBonus XP · $changeSummary');
+      } else if (recordBonus > 0) {
+        AppSnackBar.success(context, 'Yeni en iyi net! +$recordBonus XP');
+      } else if (changeSummary != null) {
+        AppSnackBar.info(context, changeSummary);
+      }
     }
     Navigator.of(context).pop();
   }
@@ -347,7 +428,7 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
   }
 }
 
-class _SectionCard extends StatelessWidget {
+class _SectionCard extends ConsumerWidget {
   final _SectionInput input;
   final VoidCallback onRemove;
   final VoidCallback onChanged;
@@ -358,8 +439,27 @@ class _SectionCard extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// Bölümün ders adını (serbest metin) kullanıcının GERÇEK ders listesine
+  /// eşler — deneme_provider.dart'taki weakestDenemeSubjectIdProvider ile
+  /// aynı isim-eşleme deseni. Eşleşme yoksa (ör. "Sosyal Bilimler" gibi bir
+  /// TYT bölümü, ayrı bir ders olarak eklenmemişse) konu etiketleme
+  /// gösterilmez — yeni bir taksonomi İCAT EDİLMEZ.
+  String? _matchSubjectId(WidgetRef ref) {
+    final name = input.name.text.trim().toLowerCase();
+    if (name.isEmpty) return null;
+    for (final s in ref.watch(subjectProvider)) {
+      if (s.name.toLowerCase() == name) return s.id;
+    }
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjectId = _matchSubjectId(ref);
+    final topics = subjectId == null
+        ? const <TopicModel>[]
+        : ref.watch(topicsForSubjectProvider(subjectId));
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -420,6 +520,88 @@ class _SectionCard extends StatelessWidget {
                       onChanged: onChanged)),
             ],
           ),
+          if (topics.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Hangi konu(lar)da yanlış yaptın? (opsiyonel)',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: topics.map((t) {
+                final selected = input.weakTopicIds.contains(t.id);
+                return TapScale(
+                  onTap: () {
+                    if (selected) {
+                      input.weakTopicIds.remove(t.id);
+                    } else {
+                      input.weakTopicIds.add(t.id);
+                    }
+                    onChanged();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.tonal(AppColors.danger)
+                          : AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(14),
+                      border: selected
+                          ? Border.all(
+                              color: AppColors.danger.withValues(alpha: 0.4))
+                          : null,
+                    ),
+                    child: Text(
+                      t.name,
+                      style: AppTextStyles.caption.copyWith(
+                        color: selected
+                            ? AppColors.danger
+                            : AppColors.textSecondary,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else if (subjectId != null) ...[
+            // Discovery (Ön-beta) — bu ders GERÇEKTEN eşleşti ama Konu
+            // Takip'te hiç konusu yok, bu yüzden yukarıdaki zayıf-konu
+            // işaretleme hiç görünmüyor. Sessizce hiçbir şey göstermek
+            // yerine, tam bu anın alakalı olduğu yerde tek satırlık bir
+            // sonraki adım — yeni bir ekran/akış İCAT EDİLMEDİ, zaten var
+            // olan SubjectTopicsScreen'e (+ oradaki "yaygın konuları ekle"
+            // kısayoluna) yönlendiriyor.
+            const SizedBox(height: 10),
+            TapScale(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SubjectTopicsScreen(
+                    subjectId: subjectId,
+                    subjectName: input.name.text.trim(),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.playlist_add_outlined,
+                      size: 15, color: AppColors.textMuted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bu ders için konu eklersen sonraki denemede hangi '
+                      'konudan yanlış yaptığını işaretleyebilirsin',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,

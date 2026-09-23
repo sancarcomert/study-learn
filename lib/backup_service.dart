@@ -239,6 +239,13 @@ class BackupService {
         'recurringGroupId': t.recurringGroupId,
         'recurrenceRule': t.recurrenceRule,
         'topicId': t.topicId,
+        // postponeCount/actualMinutes önceden hiç yedeklenmiyordu — geri
+        // yüklemede sessizce kayboluyorlardı. systemRescheduleCount/
+        // sourceReason ile birlikte eklendi (bkz. task_model.dart notları).
+        'postponeCount': t.postponeCount,
+        'actualMinutes': t.actualMinutes,
+        'systemRescheduleCount': t.systemRescheduleCount,
+        'sourceReason': t.sourceReason,
       };
 
   static TaskModel _taskFromMap(Map<String, dynamic> m) => TaskModel(
@@ -258,6 +265,10 @@ class BackupService {
         recurringGroupId: m['recurringGroupId'] as String?,
         recurrenceRule: m['recurrenceRule'] as String?,
         topicId: m['topicId'] as String?,
+        postponeCount: (m['postponeCount'] as num?)?.toInt() ?? 0,
+        actualMinutes: (m['actualMinutes'] as num?)?.toInt(),
+        systemRescheduleCount: (m['systemRescheduleCount'] as num?)?.toInt() ?? 0,
+        sourceReason: m['sourceReason'] as String?,
       );
 
   static Map<String, dynamic> _topicToMap(TopicModel t) => {

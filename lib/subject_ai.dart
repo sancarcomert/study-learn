@@ -71,7 +71,9 @@ class SubjectAI {
       "hız",
       "ivme",
       "enerji",
-      "hareket",
+      // "hareket" kasıtlı olarak kaldırıldı — günlük Türkçede çok genel
+      // ("nasıl hareket etmeliyim" gibi fizikle ilgisiz cümlelerde geçiyor),
+      // koç bunu yanlışlıkla Fizik konusu sanıp bağlamsız cevap verebiliyordu.
       "elektrik",
       "manyetik",
       "dalga",

@@ -26,6 +26,21 @@ void main() {
       final s = DenemeSectionScore(subject: 'Sosyal Bilimler', correct: 10, wrong: 3);
       expect(s.net, closeTo(9.25, 0.001)); // 10 - 3/4 = 9.25
     });
+
+    test('weakTopicIds verilmezse boş liste (eski kayıtlarla uyumlu)', () {
+      final s = DenemeSectionScore(subject: 'Matematik', correct: 30, wrong: 8);
+      expect(s.weakTopicIds, isEmpty);
+    });
+
+    test('weakTopicIds verilirse aynen tutulur', () {
+      final s = DenemeSectionScore(
+        subject: 'Matematik',
+        correct: 30,
+        wrong: 8,
+        weakTopicIds: ['topic-turev', 'topic-integral'],
+      );
+      expect(s.weakTopicIds, ['topic-turev', 'topic-integral']);
+    });
   });
 
   group('DenemeEntry toplamları', () {

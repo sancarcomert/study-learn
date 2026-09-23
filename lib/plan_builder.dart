@@ -19,6 +19,22 @@ class PlanBuilder {
         _ => 45,
       };
 
+  /// Blok süresi çarpanı — [subjectCompletionRates]'te bir oran varsa
+  /// (StudyAdvisor.completionRateBySubject, ≥3 görevlik örneklem) kademeli
+  /// ölçek (rate 0 → 0.5x, rate 1 → 1x) uygulanır; yoksa eski ikili
+  /// [reducedCapacitySubjectIds] bayrağına (sabit 0.6x) düşer. İkisi de
+  /// yoksa 1.0 (değişiklik yok).
+  static double _durationFactor(
+    String subjectId,
+    Set<String> reducedCapacitySubjectIds,
+    Map<String, double> subjectCompletionRates,
+  ) {
+    final rate = subjectCompletionRates[subjectId];
+    if (rate != null) return (0.5 + 0.5 * rate).clamp(0.5, 1.0);
+    if (reducedCapacitySubjectIds.contains(subjectId)) return 0.6;
+    return 1.0;
+  }
+
   /// [orderedSubjects] önerilen sıra (StudyAdvisor çıktısı + kalanlar).
   /// [explicitSubject] verilirse yalnızca o ders kullanılır.
   /// [topics] boş değilse görev sayısı = konu sayısı; her konu sırayla bir
@@ -32,16 +48,30 @@ class PlanBuilder {
   /// [fillToCapacity] true ise görev sayısı ders sayısıyla değil, kalan
   /// süreyle sınırlanır — Koç "sen ayarla" modunda dolu bir program
   /// çıkarmak için.
+  ///
+  /// [reducedCapacitySubjectIds] — StudyAdvisor.overcommittedSubjectIds'ten
+  /// gelir: geçmişte planlanan görevlerinin çoğunu bitirememiş dersler.
+  /// "Planlanan kapasite ≠ gerçekleşen kapasite" — bu derslere aynı sabit
+  /// bloğu (ör. 45 dk) tekrar tekrar dayatmak yerine daha küçük, gerçekçi
+  /// bir blok önerilir (bkz. _durationForSubject).
   static PlanResult build({
     required List<SubjectModel> orderedSubjects,
     SubjectModel? explicitSubject,
     List<String> topics = const [],
     Map<String, List<UncoveredTopic>> uncoveredTopics = const {},
     bool fillToCapacity = false,
-    required int hoursAvailable,
+    required int capacityMinutes,
     required String energy,
     int? examDays,
     Random? random,
+    Set<String> reducedCapacitySubjectIds = const {},
+    Map<String, double> subjectCompletionRates = const {},
+    Map<String, List<UncoveredTopic>> examWeakTopics = const {},
+    // "Neden bu görev?" (Faz 6/7) — StudyAdvisor.suggest()'in dersi SEÇERKEN
+    // ürettiği gerekçe (jenerik olanlar HARİÇ, bkz. çağıran taraf). Somut bir
+    // examWeakTopics gerekçesi varsa o KAZANIR (daha spesifik) — bu yalnız
+    // onun yokluğunda, blok bir dersten geldiği için kullanılan bir yedek.
+    Map<String, String> subjectReasons = const {},
   }) {
     final rng = random ?? Random();
 
@@ -74,7 +104,11 @@ class PlanBuilder {
     }
 
     final duration = durationFor(energy);
-    final capacity = hoursAvailable * 60;
+    // Doğrudan dakika — önceden "saate yuvarla, sonra 60'la çarp" yapılıyordu
+    // (ör. "20 dakikam var" → round(20/60)=0 → clamp(1,..)=1 saat = 60 dk),
+    // kullanıcının söylediği kısa sürelerde plan gerçekte söylenenin 2-3
+    // katı çıkıyordu (bkz. çağıran taraftaki clamp). Artık kayıpsız.
+    final capacity = capacityMinutes;
 
     final int count;
     if (topics.isNotEmpty) {
@@ -86,11 +120,46 @@ class PlanBuilder {
       count = targets.length;
     }
 
-    // Ders başına boş-konu imleci (round-robin).
+    // Ders başına boş-konu imleci (round-robin) + GERÇEK deneme sonucundan
+    // zayıf çıkan konu imleci (ayrı, öncelikli — bkz. examWeakTopics).
     final topicCursor = <String, int>{};
-    ({String title, String? topicId}) titleFor(SubjectModel subject, int i) {
+    final examWeakCursor = <String, int>{};
+    var anyExamReview = false;
+    ({String title, String? topicId, TopicDifficulty difficulty, String? reason})
+        titleFor(SubjectModel subject, int i) {
       if (topics.isNotEmpty) {
-        return (title: '${subject.name}: ${topics[i]}', topicId: null);
+        return (
+          title: '${subject.name}: ${topics[i]}',
+          topicId: null,
+          difficulty: TopicDifficulty.medium,
+          reason: subjectReasons[subject.id],
+        );
+      }
+      // Deneme sonucunda GERÇEKTEN yanlış yapılan konu — kapsanmış (studied/
+      // reviewed) olsa bile tekrar hak eder, bu yüzden uncoveredTopics'ten
+      // ÖNCE kontrol edilir. Title'daki "(tekrar)" bu görevin neden var
+      // olduğunu (kanıta dayalı bir tekrar, sıradan yeni bir konu değil)
+      // açıkça söyler. difficulty=hard: bu, task.difficulty'nin tek
+      // gerçek kaynağı (add_task ekranında elle seçim kaldırılmıştı,
+      // bkz. ui-sprint-progress memory) — bir görevi "zor" işaretlemek
+      // artık rastgele değil, GERÇEK bir sınav kanıtına dayanıyor, ve
+      // RankSystem.xpBonusHardTask'ı ilk kez erişilebilir kılıyor.
+      final weakPool = examWeakTopics[subject.id];
+      if (weakPool != null && weakPool.isNotEmpty) {
+        final widx = examWeakCursor[subject.id] ?? 0;
+        if (widx < weakPool.length) {
+          examWeakCursor[subject.id] = widx + 1;
+          anyExamReview = true;
+          final t = weakPool[widx];
+          return (
+            title: '${subject.name}: ${t.name} (tekrar)',
+            topicId: t.id,
+            difficulty: TopicDifficulty.hard,
+            // En somut gerekçe — dersin genel StudyAdvisor gerekçesinden
+            // (subjectReasons) daha spesifik, bu yüzden onu EZER.
+            reason: 'Son denemende "${t.name}" konusundan yanlış yapmıştın.',
+          );
+        }
       }
       final pool = uncoveredTopics[subject.id];
       if (pool != null && pool.isNotEmpty) {
@@ -98,20 +167,39 @@ class PlanBuilder {
         if (idx < pool.length) {
           topicCursor[subject.id] = idx + 1;
           final t = pool[idx];
-          return (title: '${subject.name}: ${t.name}', topicId: t.id);
+          return (
+            title: '${subject.name}: ${t.name}',
+            topicId: t.id,
+            difficulty: TopicDifficulty.medium,
+            reason: subjectReasons[subject.id],
+          );
         }
       }
-      return (title: subject.name, topicId: null);
+      return (
+        title: subject.name,
+        topicId: null,
+        difficulty: TopicDifficulty.medium,
+        reason: subjectReasons[subject.id],
+      );
     }
 
     var remaining = capacity;
     final blocks = <PlanBlock>[];
     final unfit = <String>[];
+    var anyReduced = false;
 
     for (var i = 0; i < count; i++) {
       final subject = ordered[i % ordered.length];
+      // Geçmişte bu dersin planlanan görevlerinin çoğu bitmemiş — aynı
+      // sabit bloğu tekrar dayatmak yerine kademeli küçült (15 dk altına
+      // inmez). Gerçekten küçülüyorsa (ör. 45→27) reason'da söylenir.
+      final factor = _durationFactor(
+          subject.id, reducedCapacitySubjectIds, subjectCompletionRates);
+      final subjectDuration =
+          (duration * factor).round().clamp(15, duration);
+      if (subjectDuration < duration) anyReduced = true;
 
-      if (duration > remaining) {
+      if (subjectDuration > remaining) {
         unfit.add(
             topics.isNotEmpty ? '${subject.name}: ${topics[i]}' : subject.name);
         continue;
@@ -122,24 +210,36 @@ class PlanBuilder {
         title: t.title,
         subjectId: subject.id,
         topicId: t.topicId,
-        minutes: duration,
+        minutes: subjectDuration,
         order: blocks.length,
         priority: priority,
+        difficulty: t.difficulty,
+        reason: t.reason,
       ));
 
-      remaining -= duration;
+      remaining -= subjectDuration;
     }
 
-    final String reason;
+    final String baseReason;
     if (examSoon) {
-      reason = 'Sınava $examDays gün — öncelikler yükseltildi.';
+      baseReason = 'Sınava $examDays gün — öncelikler yükseltildi.';
+    } else if (anyReduced) {
+      baseReason = 'Bazı derslerde tamamlama oranın düşüktü — o bloklar daha '
+          'küçük tutuldu, bitirmesi kolaylaşsın diye.';
     } else if (energy == 'düşük') {
-      reason = 'Enerjin düşük — daha kısa bloklar seçildi.';
+      baseReason = 'Enerjin düşük — daha kısa bloklar seçildi.';
     } else if (energy == 'yüksek') {
-      reason = 'Enerjin yüksek — uzun çalışma blokları seçildi.';
+      baseReason = 'Enerjin yüksek — uzun çalışma blokları seçildi.';
     } else {
-      reason = 'Dengeli bir çalışma planı.';
+      baseReason = 'Dengeli bir çalışma planı.';
     }
+    // Deneme sonucundan gelen tekrar önerisi, hangi enerji/kapasite
+    // gerekçesi geçerli olursa olsun her zaman EN ÖNE eklenir — bu,
+    // "neden bu konu programda" sorusunun en somut cevabı.
+    final reason = anyExamReview
+        ? 'Son denemende yanlış yaptığın konu(lar) tekrar programa alındı. '
+            '$baseReason'
+        : baseReason;
 
     return PlanResult(blocks: blocks, unfitTitles: unfit, reason: reason);
   }
@@ -154,11 +254,16 @@ class PlanBuilder {
   static WeekPlanResult buildWeek({
     required List<SubjectModel> orderedSubjects,
     Map<String, List<UncoveredTopic>> uncoveredTopics = const {},
-    required int hoursPerDay,
+    required int minutesPerDay,
     required DateTime startDate,
     int days = 7,
     int? examDays,
     Random? random,
+    Set<String> reducedCapacitySubjectIds = const {},
+    Map<String, double> subjectCompletionRates = const {},
+    Map<String, List<UncoveredTopic>> examWeakTopics = const {},
+    // Bkz. build()'daki aynı parametre notu.
+    Map<String, String> subjectReasons = const {},
   }) {
     final subjectsPool = List<SubjectModel>.from(orderedSubjects);
     if (subjectsPool.isEmpty || days < 1) {
@@ -168,26 +273,58 @@ class PlanBuilder {
     final examSoon = examDays != null && examDays >= 0 && examDays <= 30;
     final priority = examSoon ? TaskPriority.high : TaskPriority.medium;
     const duration = 45; // 'orta' blok
-    final perDayCapacity = hoursPerDay.clamp(1, 8) * 60;
+    // Doğrudan dakika (bkz. build() içindeki aynı düzeltme notu).
+    final perDayCapacity = minutesPerDay.clamp(15, 8 * 60);
     final blocksPerDay = (perDayCapacity ~/ duration).clamp(1, 6);
 
-    // Ders başına boş-konu imleci — TÜM hafta boyunca ilerler.
+    // Ders başına boş-konu imleci — TÜM hafta boyunca ilerler. Deneme
+    // sonucundan zayıf çıkan konular (bkz. build()'daki aynı mantık/yorum)
+    // yine ÖNCELİKLİ ve ayrı bir imleçle tüketilir.
     final topicCursor = <String, int>{};
-    ({String title, String? topicId}) titleFor(SubjectModel s) {
+    final examWeakCursor = <String, int>{};
+    var anyExamReview = false;
+    ({String title, String? topicId, TopicDifficulty difficulty, String? reason})
+        titleFor(SubjectModel s) {
+      final weakPool = examWeakTopics[s.id];
+      if (weakPool != null && weakPool.isNotEmpty) {
+        final widx = examWeakCursor[s.id] ?? 0;
+        if (widx < weakPool.length) {
+          examWeakCursor[s.id] = widx + 1;
+          anyExamReview = true;
+          final t = weakPool[widx];
+          return (
+            title: '${s.name}: ${t.name} (tekrar)',
+            topicId: t.id,
+            difficulty: TopicDifficulty.hard,
+            reason: 'Son denemende "${t.name}" konusundan yanlış yapmıştın.',
+          );
+        }
+      }
       final pool = uncoveredTopics[s.id];
       if (pool != null && pool.isNotEmpty) {
         final idx = topicCursor[s.id] ?? 0;
         if (idx < pool.length) {
           topicCursor[s.id] = idx + 1;
           final t = pool[idx];
-          return (title: '${s.name}: ${t.name}', topicId: t.id);
+          return (
+            title: '${s.name}: ${t.name}',
+            topicId: t.id,
+            difficulty: TopicDifficulty.medium,
+            reason: subjectReasons[s.id],
+          );
         }
       }
-      return (title: s.name, topicId: null);
+      return (
+        title: s.name,
+        topicId: null,
+        difficulty: TopicDifficulty.medium,
+        reason: subjectReasons[s.id],
+      );
     }
 
     final dayPlans = <DayPlan>[];
     var totalUnfit = 0;
+    var anyReduced = false;
 
     for (var d = 0; d < days; d++) {
       // Günü döndür: gün d, sıradaki d'inci dersten başlar.
@@ -199,21 +336,29 @@ class PlanBuilder {
       final blocks = <PlanBlock>[];
       var remaining = perDayCapacity;
       for (var b = 0; b < blocksPerDay; b++) {
-        if (duration > remaining) {
+        final subject = rotated[b % rotated.length];
+        final factor = _durationFactor(
+            subject.id, reducedCapacitySubjectIds, subjectCompletionRates);
+        final subjectDuration =
+            (duration * factor).round().clamp(15, duration);
+        if (subjectDuration < duration) anyReduced = true;
+
+        if (subjectDuration > remaining) {
           totalUnfit++;
           continue;
         }
-        final subject = rotated[b % rotated.length];
         final t = titleFor(subject);
         blocks.add(PlanBlock(
           title: t.title,
           subjectId: subject.id,
           topicId: t.topicId,
-          minutes: duration,
+          minutes: subjectDuration,
           order: b,
           priority: priority,
+          difficulty: t.difficulty,
+          reason: t.reason,
         ));
-        remaining -= duration;
+        remaining -= subjectDuration;
       }
 
       if (blocks.isNotEmpty) {
@@ -225,9 +370,16 @@ class PlanBuilder {
       }
     }
 
-    final reason = examSoon
+    final baseReason = examSoon
         ? 'Sınava $examDays gün — haftalık program, öncelikler yüksek.'
-        : 'Önümüzdeki ${dayPlans.length} güne dengeli bir program.';
+        : anyReduced
+            ? 'Bazı derslerde tamamlama oranın düşüktü — o bloklar daha '
+                'küçük tutuldu. Önümüzdeki ${dayPlans.length} güne yayıldı.'
+            : 'Önümüzdeki ${dayPlans.length} güne dengeli bir program.';
+    final reason = anyExamReview
+        ? 'Son denemende yanlış yaptığın konu(lar) tekrar programa alındı. '
+            '$baseReason'
+        : baseReason;
 
     return WeekPlanResult(
       days: dayPlans,
@@ -255,6 +407,17 @@ class PlanBlock {
   /// görev tamamlanınca otomatik işaretlensin diye. Yoksa null.
   final String? topicId;
 
+  /// Varsayılan medium — yalnız examWeakTopics'ten üretilen "(tekrar)"
+  /// blokları hard işaretlenir (bkz. titleFor). task.difficulty'nin TEK
+  /// gerçek kaynağı budur (add_task ekranındaki elle seçim kaldırılmıştı).
+  final TopicDifficulty difficulty;
+
+  /// "Neden bu görev?" (Faz 6/7) — somut bir sinyale dayanıyorsa dolu
+  /// (examWeakTopics ya da StudyAdvisor'ın jenerik olmayan gerekçesi),
+  /// yoksa null. Sahte/jenerik bir gerekçe ASLA üretilmez (bkz. titleFor).
+  /// task.sourceReason'a birebir taşınır (bkz. coach_screen._commit).
+  final String? reason;
+
   const PlanBlock({
     required this.title,
     required this.subjectId,
@@ -262,6 +425,8 @@ class PlanBlock {
     required this.order,
     required this.priority,
     this.topicId,
+    this.difficulty = TopicDifficulty.medium,
+    this.reason,
   });
 }
 

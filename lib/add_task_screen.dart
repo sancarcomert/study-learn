@@ -463,7 +463,36 @@ Widget build(BuildContext context) {
                 ),
                 const SizedBox(height: 16),
 
-
+                // "Neden bu görev?" (Faz 6/7) — yalnız Çalışma Koçu'nun
+                // otomatik plan akışından (StudyAdvisor/PlanBuilder) gelen,
+                // somut bir sinyale dayanan görevlerde dolu (bkz.
+                // task_model.dart'taki sourceReason notu). Kullanıcının
+                // kendi eklediği görevlerde hiç gösterilmez — zaten kendi
+                // kararı, açıklamaya gerek yok. Salt bilgi, düzenlenemez.
+                if (_isEditing && widget.taskToEdit!.sourceReason != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.insights_outlined,
+                            color: AppColors.primary, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.taskToEdit!.sourceReason!,
+                            style: AppTextStyles.body,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 if (_suggestedSubject != null) ...[
 

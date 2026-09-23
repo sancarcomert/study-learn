@@ -44,14 +44,44 @@ class RankSystem {
     0xFFE5442E, // Zirve      — kor
   ];
 
+  // Görev tamamlamanın "anlamına" göre ek XP — düz +10, hangi görevi
+  // bitirdiğin fark etmeksizin aynıydı. İkisi de gerçek, zaten var olan
+  // veriden (task.priority, task.postponeCount) türetiliyor, uydurma değil.
+  static const int xpBonusHighPriority = 5; // öncelikli bir görev
+  static const int xpBonusRecovered = 10; // 2+ kez ertelenmiş, sonunda bitti
+  // Zor işaretlenmiş bir görevi bitirmek — task.difficulty önceden
+  // kaydediliyordu ama hiçbir yerde okunmuyordu (ölü alan). Kolay/orta
+  // görevle aynı XP'yi vermek zorluğu anlamsızlaştırıyordu.
+  static const int xpBonusHardTask = 5;
+
+  // Deneme neti kişisel rekoru geçince — tek başına XP kaynakları hep
+  // "aktivite hacmi" (görev/gün/konu sayısı) ölçüyordu, GERÇEK akademik
+  // ilerlemeye (deneme netinin yükselmesi) bağlı hiçbir XP yoktu. Net
+  // puanı başına 4 XP, tek seferde en fazla 40 (aşırı/yanlış girilmiş bir
+  // sıçramanın XP'yi anlamsızca şişirmesini önler). Yalnız YENİ kayıt
+  // eklenince tetiklenir (düzenlemede değil — geri-ileri düzenleyerek
+  // XP çiftlemeyi önler, bkz. add_deneme_screen._save).
+  static const int xpPerNetImprovement = 4;
+  static const int maxNetImprovementBonus = 40;
+
+  static int netImprovementBonus(double improvement) {
+    if (improvement <= 0) return 0;
+    return (improvement * xpPerNetImprovement).round().clamp(
+          0,
+          maxNetImprovementBonus,
+        );
+  }
+
   static int xpFor({
     required int completedTasks,
     required int goalDays,
     required int coveredTopics,
+    int bonusXp = 0,
   }) =>
       completedTasks * xpPerTask +
       goalDays * xpPerGoalDay +
-      coveredTopics * xpPerTopic;
+      coveredTopics * xpPerTopic +
+      bonusXp;
 
   static RankInfo fromXp(int xp) {
     final safe = xp < 0 ? 0 : xp;
@@ -80,11 +110,13 @@ class RankSystem {
     required int completedTasks,
     required int goalDays,
     required int coveredTopics,
+    int bonusXp = 0,
   }) =>
       fromXp(xpFor(
         completedTasks: completedTasks,
         goalDays: goalDays,
         coveredTopics: coveredTopics,
+        bonusXp: bonusXp,
       ));
 }
 

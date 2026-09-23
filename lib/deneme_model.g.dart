@@ -21,13 +21,16 @@ class DenemeSectionScoreAdapter extends TypeAdapter<DenemeSectionScore> {
       correct: fields[1] as int,
       wrong: fields[2] as int,
       blank: fields[3] as int,
+      weakTopicIds: fields[4] == null
+          ? <String>[]
+          : (fields[4] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, DenemeSectionScore obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.subject)
       ..writeByte(1)
@@ -35,7 +38,9 @@ class DenemeSectionScoreAdapter extends TypeAdapter<DenemeSectionScore> {
       ..writeByte(2)
       ..write(obj.wrong)
       ..writeByte(3)
-      ..write(obj.blank);
+      ..write(obj.blank)
+      ..writeByte(4)
+      ..write(obj.weakTopicIds);
   }
 
   @override

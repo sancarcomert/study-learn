@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
@@ -8,14 +9,18 @@ import 'widgets/section_header.dart';
 import 'widgets/metric_tile.dart';
 import 'widgets/exam_countdown.dart';
 import 'widgets/activity_heatmap.dart';
+import 'coach_screen.dart';
 import 'deneme_model.dart';
 import 'deneme_provider.dart';
+import 'goal_gap_provider.dart';
 import 'focus_session_provider.dart';
+import 'study_advisor.dart';
 import 'task_model.dart';
 import 'task_provider.dart';
 import 'subject_model.dart';
 import 'subject_provider.dart';
 import 'stats_provider.dart';
+import 'stats_insight_engine.dart';
 import 'topic_provider.dart';
 import 'widget_service.dart';
 import 'widgets/animated_progress_bar.dart';
@@ -87,6 +92,58 @@ class StatsScreen extends ConsumerWidget {
     }.length;
     final denemeCount = ref.watch(denemeProvider).length;
     final latestDeneme = ref.watch(latestDenemeProvider);
+
+    // Haftalık "NEDEN" katmanı — ham sayıları geçen haftayla kıyaslayıp
+    // gerçek bir yön (iyiye/kötüye) + Akıllı Plan'ın sessizce küçülttüğü
+    // blokların açıklamasını çıkarır (bkz. stats_insight_engine.dart).
+    final weeklyInsights = StatsInsightEngine.build(
+      tasksThisWeek: ref.watch(tasksCompletedThisWeekProvider),
+      tasksLastWeek: ref.watch(tasksCompletedLastWeekProvider),
+      focusMinutesThisWeek: focusWeekMin,
+      focusMinutesLastWeek: ref.watch(focusLastWeekMinutesProvider),
+      completionRateBySubject: StudyAdvisor.completionRateBySubject(
+        subjects: subjects,
+        tasks: allTasks,
+      ),
+      subjectNamesById: {for (final s in subjects) s.id: s.name},
+      examWeakTopicsBySubject: ref.watch(examWeakTopicNamesBySubjectProvider),
+      // GOAL → GAP → RE-EVALUATION (Faz 6/8/9) — Coach'un _progressSummary'de
+      // kullandığı AYNI kaynak, ikinci bir hesap icat edilmiyor.
+      goalGap: ref.watch(primaryGoalGapProvider),
+      weakestSubjectName: ref.watch(weakestDenemeSubjectNameProvider),
+      resolvedWeakTopicsBySubject:
+          ref.watch(resolvedWeakTopicsBySubjectProvider),
+    );
+
+    // Haftalık İçgörü — Ham sayıları ("18 saat, 42 görev") tek başına
+    // bırakmak yerine, Home/Koç'u zaten besleyen AYNI motoru (StudyAdvisor)
+    // kullanıp "peki şimdi ne yapmalıyım" sorusuna somut bir cevap veriyor.
+    // Yeni, paralel bir "akıllılık" icat etmiyoruz — tek beyin, üç yerde.
+    final topInsight = subjects.isEmpty
+        ? null
+        : StudyAdvisor.suggest(
+            subjects: subjects,
+            tasks: allTasks,
+            examDate: stats.examDate,
+            limit: 1,
+            coveragePercent: {
+              for (final e in coverage.entries)
+                if (e.value.hasTopics) e.key: e.value.ratio,
+            },
+            weakestDenemeSubjectId: ref.watch(weakestDenemeSubjectIdProvider),
+            focusMinutesBySubject: ref.watch(focusMinutesBySubjectProvider),
+            staleReviewSubjectIds: ref.watch(staleReviewSubjectIdsProvider),
+            worseningDenemeSubjectIds:
+                ref.watch(worseningDenemeSubjectIdsProvider),
+            difficultTopicsBySubject:
+                ref.watch(difficultTopicNamesBySubjectProvider),
+            selfReportedWeakSubjectId:
+                ref.watch(selfReportedWeakSubjectIdProvider),
+            examWeakTopicsBySubject:
+                ref.watch(examWeakTopicNamesBySubjectProvider),
+            goalGapAmplifier: ref.watch(goalGapAmplifierProvider),
+          ).firstOrNull;
+
     return Scaffold(
       // Diğer sekmelerle (Ana Sayfa/Dersler/Koç) aynı üst şerit — tasarım
       // sisteminin her sekmede aynı görünmesi için paylaşılan AppHeader/
@@ -138,6 +195,29 @@ class StatsScreen extends ConsumerWidget {
               ),
             ],
           ),
+
+          if (weeklyInsights.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const SectionHeader(
+              title: 'Neden',
+              subtitle: 'Geçen haftaya göre nerede durduğun.',
+            ),
+            const SizedBox(height: 12),
+            for (final insight in weeklyInsights) ...[
+              _WhyCard(insight: insight),
+              const SizedBox(height: 10),
+            ],
+          ],
+
+          if (topInsight != null) ...[
+            const SizedBox(height: 12),
+            _InsightCard(
+              suggestion: topInsight,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CoachScreen()),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 28),
           const SectionHeader(title: 'Sınav'),
@@ -638,6 +718,87 @@ class _DenemeSummaryCard extends StatelessWidget {
             entry.totalNet.toStringAsFixed(2),
             style: AppTextStyles.heading3.copyWith(color: AppColors.primary),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Bu Hafta" metriklerinin hemen altında — DATA'yı (görev/gün sayıları)
+/// doğrudan bir ÖNERİYE bağlıyor. Home/Koç'la aynı StudyAdvisor çıktısı,
+/// burada salt "veri" değil "ne yapmalıyım" sorusuna cevap olarak gösteriliyor.
+class _InsightCard extends StatelessWidget {
+  final StudySuggestion suggestion;
+  final VoidCallback onTap;
+
+  const _InsightCard({required this.suggestion, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.tonal(AppColors.primary),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.insights_outlined, color: AppColors.primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    suggestion.subjectName,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(suggestion.reason, style: AppTextStyles.caption),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// [_InsightCard] "sırada ne var"ı cevaplıyor — bu, "neden buradasın"ı.
+/// Bilinçli olarak tıklanamaz (dokunulacak bir aksiyon değil, bir
+/// gözlem) — [_InsightCard]'ın vurgu rengini (primary) değil nötr bir
+/// tonu kullanır, ikisi karışmasın.
+class _WhyCard extends StatelessWidget {
+  final StatsInsight insight;
+
+  const _WhyCard({required this.insight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.surfaceVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            insight.title,
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(insight.body, style: AppTextStyles.caption),
         ],
       ),
     );

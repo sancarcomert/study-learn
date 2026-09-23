@@ -77,7 +77,12 @@ class PlanParser {
       final m = int.parse(hm.group(2)!);
       if (h < 24 && m < 60) {
         consumed.add(_Consumed(hm.group(0)!, PlanSpanKind.time));
-        return _Time(h, m);
+        // Diğer tüm saat biçimleri (saat 3, 3 gibi, akşam 3...) _resolveHour
+        // ile sabah/akşam ipucuna göre öğleden sonraya kayıyordu, ama bu
+        // biçim (3:30 / 3.30) atlanıyordu — "3:30'da matematik" (kastedilen
+        // 15:30) sessizce 03:30'a yazılıyordu. h zaten 13-23 aralığındaysa
+        // (ör. "15:30") _resolveHour dokunmuyor, yalnız 1-8 aralığını kaydırır.
+        return _Time(_resolveHour(h, eveningHint, morningHint), m);
       }
     }
 
@@ -169,8 +174,11 @@ class PlanParser {
 
   // --- Süre -----------------------------------------------------------------
 
+  // "s" de kabul edilir ("2s") — sırayla denendiği için (Dart regex'i
+  // alternatifleri soldan sağa dener) "saat"/"sa" önce denenir, "s" yalnız
+  // ikisi de eşleşmezse devreye girer; "2 saat" hâlâ "saat" ile eşleşir.
   static final RegExp _hoursDecimal =
-      RegExp(r'(\d+)(?:[.,](\d+))?\s*(saat|sa)\b');
+      RegExp(r'(\d+)(?:[.,](\d+))?\s*(saat|sa|s)\b');
   static final RegExp _minutes = RegExp(r'(\d+)\s*(dakika|dk|dak)\b');
   static final RegExp _halfHour = RegExp(r'\byarım\s+saat\b');
   // "üç çeyrek saat" (45 dk), "çeyrek saat" (15 dk) — sıra önemli, uzun
@@ -184,7 +192,7 @@ class PlanParser {
   // "1 saat 30 dakika" gibi bileşik süre — tek başına _hoursDecimal yalnız
   // "1 saat"i yakalayıp 30 dakikayı sessizce yutuyordu.
   static final RegExp _hourMinuteCompound =
-      RegExp(r'(\d{1,2})\s*(saat|sa)\s*(\d{1,2})\s*(dakika|dk|dak)\b');
+      RegExp(r'(\d{1,2})\s*(saat|sa|s)\s*(\d{1,2})\s*(dakika|dk|dak)\b');
   // "üç" gibi ASCII-olmayan baş harfli kelimelerde baştaki \b kasıtlı yok
   // (yukarıdaki not) — yanlış pozitif riski düşük, çünkü hemen ardından
   // boşluk + "saat" gerekiyor ("üçgen saat" gibi bitişik bir kelime bu
@@ -294,14 +302,20 @@ class PlanParser {
       consumed.add(const _Consumed('obur gun', PlanSpanKind.date));
       return today.add(const Duration(days: 2));
     }
-    if (lower.contains('yarın') || lower.contains('yarin')) {
+    if (lower.contains('yarın') ||
+        lower.contains('yarin') ||
+        _containsWord(lower, 'yrn')) {
       consumed.add(const _Consumed('yarın', PlanSpanKind.date));
       consumed.add(const _Consumed('yarin', PlanSpanKind.date));
+      consumed.add(const _Consumed('yrn', PlanSpanKind.date));
       return today.add(const Duration(days: 1));
     }
-    if (lower.contains('bugün') || lower.contains('bugun')) {
+    if (lower.contains('bugün') ||
+        lower.contains('bugun') ||
+        _containsWord(lower, 'bgn')) {
       consumed.add(const _Consumed('bugün', PlanSpanKind.date));
       consumed.add(const _Consumed('bugun', PlanSpanKind.date));
+      consumed.add(const _Consumed('bgn', PlanSpanKind.date));
       return today;
     }
     // "bu akşam / bu sabah / bu gece / bu öğlen" — hepsi bugünü kasteder.
@@ -383,6 +397,26 @@ class PlanParser {
 
   // --- Ders ------------------------------------------------------------
 
+  /// Öğrencilerin mesajlaşmada kullandığı yaygın ders kısaltmaları —
+  /// kısaltma → (küçük harfli canonical ad, düzgün görüntü adı). Önceden
+  /// yalnız TAM ders adı ("Matematik") tanınıyordu; "mat" yazınca hiçbir
+  /// ders eşleşmiyor, koç aynı soruyu tekrar soruyordu. "kim" bilinçli
+  /// olarak YOK — Türkçede çok yaygın bir soru sözcüğü ("kim geldi?"),
+  /// Kimya kısaltması olarak kabul etmek yanlış-pozitif riski taşır.
+  static const Map<String, (String, String)> _subjectAbbreviations = {
+    'mat': ('matematik', 'Matematik'),
+    'fiz': ('fizik', 'Fizik'),
+    'tar': ('tarih', 'Tarih'),
+    'coğ': ('coğrafya', 'Coğrafya'),
+    'cog': ('coğrafya', 'Coğrafya'),
+    'ing': ('ingilizce', 'İngilizce'),
+    'bio': ('biyoloji', 'Biyoloji'),
+    'biy': ('biyoloji', 'Biyoloji'),
+    'geo': ('geometri', 'Geometri'),
+    'edeb': ('edebiyat', 'Edebiyat'),
+    'felf': ('felsefe', 'Felsefe'),
+  };
+
   static _SubjectMatch? _parseSubject(
     String lower,
     String raw,
@@ -397,6 +431,24 @@ class PlanParser {
         consumed.add(_Consumed(s.name, PlanSpanKind.subject));
         return _SubjectMatch(s.id, s.name);
       }
+    }
+
+    // 1b) Yaygın ders kısaltması — önce kullanıcının kendi dersleriyle
+    // canonical ada göre eşleştir (gerçek id bağlansın), yoksa sadece adı
+    // taşı (kullanıcıda o ders yoksa öneri olarak görünür, SubjectAI
+    // dalıyla aynı davranış).
+    for (final entry in _subjectAbbreviations.entries) {
+      if (!_containsWord(lower, entry.key)) continue;
+      final canonical = entry.value.$1;
+      for (final s in subjects) {
+        final name = _trLower(s.name);
+        if (name == canonical || name.contains(canonical)) {
+          consumed.add(_Consumed(entry.key, PlanSpanKind.subject));
+          return _SubjectMatch(s.id, s.name);
+        }
+      }
+      consumed.add(_Consumed(entry.key, PlanSpanKind.subject));
+      return _SubjectMatch(null, entry.value.$2);
     }
 
     // 2) Anahtar kelime tahmini (Matematik, Fizik, ...). Kullanıcıda aynı adlı

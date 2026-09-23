@@ -18,7 +18,7 @@ void main() {
   test('ders yoksa boş sonuç', () {
     final r = PlanBuilder.build(
       orderedSubjects: const [],
-      hoursAvailable: 3,
+      capacityMinutes: 3 * 60,
       energy: 'orta',
     );
     expect(r.isEmpty, isTrue);
@@ -27,7 +27,7 @@ void main() {
   test('orta enerji → 45 dk bloklar, ders başına bir görev', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
-      hoursAvailable: 3,
+      capacityMinutes: 3 * 60,
       energy: 'orta',
     );
     expect(r.blocks.length, 3);
@@ -38,7 +38,7 @@ void main() {
   test('kapasite dolunca kalanlar unfit', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
-      hoursAvailable: 1, // 60 dk → yalnız 1 blok (45 dk) sığar
+      capacityMinutes: 60, // 60 dk → yalnız 1 blok (45 dk) sığar
       energy: 'orta',
     );
     expect(r.blocks.length, 1);
@@ -48,7 +48,7 @@ void main() {
   test('bloklara saat atanmaz, sıra order ile taşınır', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
-      hoursAvailable: 3,
+      capacityMinutes: 3 * 60,
       energy: 'yüksek', // 60 dk
     );
     expect(r.blocks.map((b) => b.order).toList(), [0, 1, 2]);
@@ -57,7 +57,7 @@ void main() {
   test('sınav <= 30 gün → tüm bloklar yüksek öncelik', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
-      hoursAvailable: 3,
+      capacityMinutes: 3 * 60,
       energy: 'orta',
       examDays: 12,
     );
@@ -69,7 +69,7 @@ void main() {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
       topics: const ['türev', 'integral', 'limit', 'polinom'],
-      hoursAvailable: 8,
+      capacityMinutes: 8 * 60,
       energy: 'orta',
     );
     expect(r.blocks.length, 4);
@@ -81,7 +81,7 @@ void main() {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
       explicitSubject: _sub('Fizik'),
-      hoursAvailable: 2,
+      capacityMinutes: 2 * 60,
       energy: 'orta',
     );
     expect(r.blocks.length, 1);
@@ -100,7 +100,7 @@ void main() {
         ],
       },
       fillToCapacity: true,
-      hoursAvailable: 3, // 180 dk / 45 = 4 blok
+      capacityMinutes: 3 * 60, // 180 dk / 45 = 4 blok
       energy: 'orta',
     );
     expect(r.blocks.length, 4);
@@ -122,7 +122,7 @@ void main() {
           (name: 'İntegral', id: 'topic-integral'),
         ],
       },
-      hoursAvailable: 3,
+      capacityMinutes: 3 * 60,
       energy: 'orta',
     );
     expect(r.blocks.length, 1);
@@ -133,7 +133,7 @@ void main() {
   test('düşük enerji → 25 dk + ters sıra', () {
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
-      hoursAvailable: 3,
+      capacityMinutes: 3 * 60,
       energy: 'düşük',
     );
     expect(r.blocks.every((b) => b.minutes == 25), isTrue);
@@ -141,10 +141,85 @@ void main() {
     expect(r.blocks.first.priority, TaskPriority.low);
   });
 
+  test('reducedCapacitySubjectIds → o dersin bloğu küçülür, diğerleri aynı',
+      () {
+    final r = PlanBuilder.build(
+      orderedSubjects: subjects,
+      capacityMinutes: 3 * 60,
+      energy: 'orta', // 45 dk taban
+      reducedCapacitySubjectIds: {'id-Fizik'},
+    );
+    final fizik = r.blocks.firstWhere((b) => b.subjectId == 'id-Fizik');
+    final matematik = r.blocks.firstWhere((b) => b.subjectId == 'id-Matematik');
+    expect(fizik.minutes, lessThan(45));
+    expect(fizik.minutes, greaterThanOrEqualTo(15));
+    expect(matematik.minutes, 45); // küçültme yalnız işaretli derse uygulanır
+    expect(r.reason, contains('tamamlama oranın düşüktü'));
+  });
+
+  test('subjectCompletionRates → süre orana göre kademeli küçülür', () {
+    final r = PlanBuilder.build(
+      orderedSubjects: subjects,
+      capacityMinutes: 3 * 60,
+      energy: 'orta', // 45 dk taban
+      subjectCompletionRates: {'id-Fizik': 0.0, 'id-Kimya': 0.9},
+    );
+    final fizik = r.blocks.firstWhere((b) => b.subjectId == 'id-Fizik');
+    final kimya = r.blocks.firstWhere((b) => b.subjectId == 'id-Kimya');
+    final matematik = r.blocks.firstWhere((b) => b.subjectId == 'id-Matematik');
+    expect(fizik.minutes, 23); // rate 0 → factor 0.5 → 45*0.5=22.5→round 23
+    expect(kimya.minutes, 43); // rate 0.9 → factor 0.95 → 45*0.95=42.75→43
+    expect(matematik.minutes, 45); // orana dahil değil → değişmez
+  });
+
+  test('subjectCompletionRates verilince ikili reducedCapacitySubjectIds görmezden gelinir',
+      () {
+    final r = PlanBuilder.build(
+      orderedSubjects: subjects,
+      capacityMinutes: 3 * 60,
+      energy: 'orta',
+      reducedCapacitySubjectIds: {'id-Fizik'},
+      subjectCompletionRates: {'id-Fizik': 1.0},
+    );
+    final fizik = r.blocks.firstWhere((b) => b.subjectId == 'id-Fizik');
+    expect(fizik.minutes, 45); // rate 1.0 → factor 1.0, ikili bayrağı ezer
+  });
+
+  test('examWeakTopics uncoveredTopics\'ten ÖNCE gelir, başlığa "(tekrar)" ekler',
+      () {
+    final r = PlanBuilder.build(
+      orderedSubjects: [_sub('Matematik')],
+      uncoveredTopics: {
+        'id-Matematik': [(name: 'Limit', id: 'topic-limit')],
+      },
+      examWeakTopics: {
+        'id-Matematik': [(name: 'Türev', id: 'topic-turev')],
+      },
+      fillToCapacity: true,
+      capacityMinutes: 2 * 45,
+      energy: 'orta',
+    );
+    expect(r.blocks[0].title, 'Matematik: Türev (tekrar)');
+    expect(r.blocks[0].topicId, 'topic-turev');
+    expect(r.blocks[0].difficulty, TopicDifficulty.hard);
+    expect(r.blocks[1].title, 'Matematik: Limit');
+    expect(r.blocks[1].difficulty, TopicDifficulty.medium);
+    expect(r.reason, contains('Son denemende yanlış yaptığın'));
+  });
+
+  test('examWeakTopics verilmezse eski davranış/reason aynen korunur', () {
+    final r = PlanBuilder.build(
+      orderedSubjects: [_sub('Matematik')],
+      capacityMinutes: 45,
+      energy: 'orta',
+    );
+    expect(r.reason, isNot(contains('Son denemende')));
+  });
+
   test('sınav modu shuffle deterministik (seed)', () {
     PlanResult run() => PlanBuilder.build(
           orderedSubjects: subjects,
-          hoursAvailable: 8,
+          capacityMinutes: 8 * 60,
           energy: 'orta',
           examDays: 5,
           random: Random(42),
@@ -159,7 +234,7 @@ void main() {
     test('7 gün, her gün dolu, tarihler ardışık', () {
       final w = PlanBuilder.buildWeek(
         orderedSubjects: subjects,
-        hoursPerDay: 2,
+        minutesPerDay: 2 * 60,
         startDate: start,
       );
       expect(w.days.length, 7);
@@ -173,7 +248,7 @@ void main() {
     test('odak her gün döner — ilk blok her gün farklı derse kayar', () {
       final w = PlanBuilder.buildWeek(
         orderedSubjects: subjects,
-        hoursPerDay: 1,
+        minutesPerDay: 60,
         startDate: start,
         days: 3,
       );
@@ -192,7 +267,7 @@ void main() {
             (name: 'Limit', id: 'topic-limit'),
           ],
         },
-        hoursPerDay: 1,
+        minutesPerDay: 60,
         startDate: start,
         days: 5,
       );
@@ -207,7 +282,7 @@ void main() {
     test('sınav yakınsa öncelik yüksek + gerekçe', () {
       final w = PlanBuilder.buildWeek(
         orderedSubjects: subjects,
-        hoursPerDay: 2,
+        minutesPerDay: 2 * 60,
         startDate: start,
         examDays: 12,
       );
@@ -218,10 +293,31 @@ void main() {
     test('ders yoksa boş sonuç', () {
       final w = PlanBuilder.buildWeek(
         orderedSubjects: const [],
-        hoursPerDay: 3,
+        minutesPerDay: 3 * 60,
         startDate: start,
       );
       expect(w.isEmpty, isTrue);
+    });
+
+    test('examWeakTopics uncoveredTopics\'ten ÖNCE gelir, "(tekrar)" eklenir',
+        () {
+      final w = PlanBuilder.buildWeek(
+        orderedSubjects: [_sub('Matematik')],
+        uncoveredTopics: {
+          'id-Matematik': [(name: 'Limit', id: 'topic-limit')],
+        },
+        examWeakTopics: {
+          'id-Matematik': [(name: 'Türev', id: 'topic-turev')],
+        },
+        minutesPerDay: 2 * 45,
+        startDate: start,
+        days: 1,
+      );
+      expect(w.allBlocks[0].title, 'Matematik: Türev (tekrar)');
+      expect(w.allBlocks[0].difficulty, TopicDifficulty.hard);
+      expect(w.allBlocks[1].title, 'Matematik: Limit');
+      expect(w.allBlocks[1].difficulty, TopicDifficulty.medium);
+      expect(w.reason, contains('Son denemende yanlış yaptığın'));
     });
   });
 }

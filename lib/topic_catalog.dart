@@ -1,3 +1,5 @@
+import 'user_stats_model.dart';
+
 /// YKS (TYT+AYT) için yaygın konu listeleri — "Yaygın konuları ekle" hızlı
 /// eklemesi bunları kullanır. Kesin/resmi müfredat değil; başlangıç listesi,
 /// kullanıcı ekleyip çıkarabilir. Anahtar = ders adı (küçük harf, Türkçe).
@@ -23,6 +25,12 @@ class TopicCatalog {
       ('İkinci Dereceden Denklemler', 10),
       ('Permütasyon - Kombinasyon', 10), ('Olasılık', 10),
       ('Trigonometri', 10),
+      // Türkiye Yüzyılı Maarif Modeli (2025-26 itibarıyla kademeli
+      // uygulanıyor) 10. sınıf matematiğine yeni bir tema olarak
+      // "Analitik İnceleme" (koordinat düzleminde iki nokta arası uzaklık,
+      // doğrunun eğimi, paralellik) ekledi — eskiden bu konu 11. sınıfta
+      // işleniyordu. tymm.meb.gov.tr (resmi MEB portalı) ile doğrulandı.
+      ('Analitik İnceleme (Koordinat Düzlemi)', 10),
       ('Logaritma', 11), ('Diziler', 11),
       ('Limit ve Süreklilik', 12), ('Türev', 12), ('İntegral', 12),
     ],
@@ -41,7 +49,11 @@ class TopicCatalog {
       ('Fizik Bilimine Giriş', 9), ('Madde ve Özellikleri', 9),
       ('Hareket ve Kuvvet', 9), ('İş - Güç - Enerji', 9),
       ('Isı ve Sıcaklık', 9), ('Elektrostatik', 9),
-      ('Basınç ve Kaldırma', 10), ('Elektrik Akımı', 10),
+      // "Akışkanlar" resmi Maarif Modeli'nde 9. sınıfın kendi ünitesi
+      // (tymm.meb.gov.tr) — önceden yalnız "Basınç ve Kaldırma" adıyla
+      // 10. sınıfta vardı, 9. sınıf hiç kapsamıyordu.
+      ('Akışkanlar (Basınç ve Kaldırma)', 9),
+      ('Elektrik Akımı', 10),
       ('Manyetizma', 10), ('Dalgalar', 10), ('Optik', 10),
       ('Dinamik', 11), ('Vektörler', 11), ('Bağıl Hareket', 11),
       ('Newton Yasaları', 11), ('İtme ve Momentum', 11),
@@ -142,7 +154,11 @@ class TopicCatalog {
       ('Dialogue Completion', 12), ('Restatement', 12), ('Translation', 12),
     ],
     'din kültürü': [
-      ('Bilgi ve İnanç', 9), ('İslam ve İbadet', 9),
+      // 9. sınıf, resmi Maarif Modeli programıyla (tymm.meb.gov.tr) 5 ünite
+      // olarak doğrulandı — önceki 2 kalemlik liste eksikti.
+      ('Allah-İnsan İlişkisi', 9), ('İslam’da İnanç Esasları', 9),
+      ('İslam’da İbadetler', 9), ('İslam’da Ahlak İlkeleri', 9),
+      ('Kur’an’a Göre Hz. Muhammed', 9),
       ('Ahlak ve Değerler', 10), ('Din ve Hayat', 10),
       ('Hz. Muhammed’in Hayatı', 11), ('Kur’an ve Yorumu', 11),
       ('İnançla İlgili Meseleler', 11),
@@ -175,4 +191,15 @@ class TopicCatalog {
 
   static bool hasCatalog(String subjectName) =>
       _entriesFor(subjectName).isNotEmpty;
+
+  /// Kullanıcının sınıfına göre kataloğun üst sınırı (P0-11, kümülatif).
+  /// Sınıf belirtilmemişse `null` — sınırsız/tüm liste. Mezun, 12. sınıfla
+  /// aynı üst sınırı görür (YKS'ye hazırlanan konular). Önceden yalnız
+  /// subject_topics_screen.dart içinde private bir kopyası vardı; ders
+  /// ekleme akışının da (add_subject_sheet.dart) aynı mantığa ihtiyacı
+  /// olunca buraya, tek kaynağa taşındı.
+  static int? maxGradeFor(int? grade) {
+    if (grade == null) return null;
+    return grade == UserStatsModel.mezun ? 12 : grade;
+  }
 }

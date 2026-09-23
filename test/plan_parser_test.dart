@@ -65,6 +65,16 @@ void main() {
           subjects: subjects, now: now);
       expect(p.durationMinutes, 360);
     });
+
+    test('"2s" (kısaltma) → 120', () {
+      final p = PlanParser.parse('mat 2s', subjects: subjects, now: now);
+      expect(p.durationMinutes, 120);
+    });
+
+    test('"1.5s" (kısaltma, ondalık) → 90', () {
+      final p = PlanParser.parse('fizik 1.5s', subjects: subjects, now: now);
+      expect(p.durationMinutes, 90);
+    });
   });
 
   group('tarih', () {
@@ -113,6 +123,16 @@ void main() {
           subjects: subjects, now: now);
       expect(p.date, DateTime(2026, 9, 14));
       expect(p.title.toLowerCase().contains('gelecek'), isFalse);
+    });
+
+    test('"yrn" (kısaltma) → +1 gün', () {
+      final p = PlanParser.parse('yrn mat 2s', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 11));
+    });
+
+    test('"bgn" (kısaltma) → aynı gün', () {
+      final p = PlanParser.parse('bgn fizik', subjects: subjects, now: now);
+      expect(p.date, DateTime(2026, 9, 10));
     });
   });
 
@@ -231,6 +251,29 @@ void main() {
           subjects: subjects, now: now);
       expect(p.subjectId, isNull);
       expect(p.subjectName, 'Biyoloji');
+    });
+
+    test('kısaltma "mat" → kullanıcının Matematik dersine bağlanır', () {
+      final p = PlanParser.parse('mat 2s', subjects: subjects, now: now);
+      expect(p.subjectId, 'id-Matematik');
+      expect(p.subjectName, 'Matematik');
+    });
+
+    test('kısaltma "fiz" → kullanıcının Fizik dersine bağlanır', () {
+      final p = PlanParser.parse('fiz yarın', subjects: subjects, now: now);
+      expect(p.subjectId, 'id-Fizik');
+    });
+
+    test('kısaltma "coğ" kullanıcıda o ders yoksa sadece ad taşınır', () {
+      final p = PlanParser.parse('coğ tekrarı', subjects: subjects, now: now);
+      expect(p.subjectId, isNull);
+      expect(p.subjectName, 'Coğrafya');
+    });
+
+    test('"kim" kısaltma sayılmaz (Türkçe soru sözcüğüyle çakışma riski)',
+        () {
+      final p = PlanParser.parse('kim geldi', subjects: subjects, now: now);
+      expect(p.subjectName, isNull);
     });
   });
 

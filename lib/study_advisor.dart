@@ -9,6 +9,11 @@ import 'task_model.dart';
 class StudyAdvisor {
   const StudyAdvisor._();
 
+  /// [_reason]'ın hiçbir spesifik sinyal eşleşmediğinde döndüğü jenerik
+  /// gerekçe — çağıran taraflar (ör. coach_screen açılış gözlemi) bunu
+  /// "somut bir gözlem yok, genel öneri" ayrımı için kullanır.
+  static const String genericReason = 'Dengeli ilerlemek için iyi bir seçim';
+
   /// En çok ihmal edilen / geride kalan dersleri gerekçesiyle sıralar.
   /// Bugün zaten görevi olan dersler elenir (tekrar önermek anlamsız).
   /// [coveragePercent] (subjectId → 0..1): yalnızca konusu olan dersler için
@@ -31,6 +36,17 @@ class StudyAdvisor {
     Map<String, double> coveragePercent = const {},
     String? weakestDenemeSubjectId,
     Map<String, int> focusMinutesBySubject = const {},
+    Set<String> staleReviewSubjectIds = const {},
+    Set<String> worseningDenemeSubjectIds = const {},
+    Map<String, List<String>> difficultTopicsBySubject = const {},
+    String? selfReportedWeakSubjectId,
+    Map<String, List<String>> examWeakTopicsBySubject = const {},
+    // GOAL → GAP sinyali (bkz. goal_gap_engine.dart). 0..1 — hedefe ne kadar
+    // uzak ve sınav ne kadar yakınsa o kadar büyük. BAĞLAMSAL bir çarpandır:
+    // aşağıda yalnızca dersin ZATEN gerçek bir zayıflık kanıtı varsa etki
+    // eder (bkz. hasRealWeaknessSignal) — güçlü/nötr bir dersi hedef farkı
+    // yüzünden yapay olarak öne çıkarmaz.
+    double goalGapAmplifier = 0.0,
   }) {
     if (subjects.isEmpty) return const [];
 
@@ -85,7 +101,31 @@ class StudyAdvisor {
           (focusMinutesBySubject[s.id] ?? 0) == 0 &&
           (total > 0 || coverage != null);
 
-      // --- Puan (0..~1.6) ---
+      // Kronik erteleme — en çok ertelenmiş tamamlanmamış görev kaç kez
+      // ertelendi. Tek bir erteleme (postponeCount==1) normal/gündelik,
+      // sinyal değil; 2+ art arda erteleme gerçek bir kaçınma paterni.
+      final maxPostpone = subjectTasks
+          .where((t) => !t.isCompleted)
+          .map((t) => t.postponeCount)
+          .fold(0, (a, b) => a > b ? a : b);
+      final isAvoided = maxPostpone >= 2;
+      final needsReview = staleReviewSubjectIds.contains(s.id);
+      final isWorsening = worseningDenemeSubjectIds.contains(s.id);
+      final difficultTopics = difficultTopicsBySubject[s.id];
+      final difficultTopic =
+          (difficultTopics != null && difficultTopics.isNotEmpty)
+              ? difficultTopics.first
+              : null;
+      final isSelfReportedWeak = selfReportedWeakSubjectId == s.id;
+      // GERÇEK bir denemede yanlış yapılan, davranışsal (süre) sinyalinden
+      // AYRI, kanıta dayalı akademik zayıflık — bkz. deneme_provider.dart.
+      final examWeakTopics = examWeakTopicsBySubject[s.id];
+      final examWeakTopic =
+          (examWeakTopics != null && examWeakTopics.isNotEmpty)
+              ? examWeakTopics.first
+              : null;
+
+      // --- Puan (0..~2.7) ---
       var score = 0.0;
       score += (daysSinceTouch.clamp(0, 21) / 21) * 0.50; // ihmal
       score += (1 - completionRate) * 0.25; // geride kalma
@@ -94,6 +134,36 @@ class StudyAdvisor {
       if (coverage != null) score += (1 - coverage) * 0.35; // konu boşluğu
       if (isWeakestDeneme) score += 0.20; // deneme netinde en zayıf
       if (neverFocused) score += 0.15; // hiç gerçek odak seansı yok
+      if (isAvoided) score += 0.25 + (maxPostpone.clamp(0, 5) * 0.03); // kaçınma
+      if (needsReview) score += 0.12; // tekrar zamanı geçmiş konu var
+      // Sabit düşük ortalamadan farklı, gerçek bir kötüleşme trendi — statik
+      // "en zayıf" sinyalinden daha ağır (durağan zayıflık ≠ gerileme).
+      if (isWorsening) score += 0.22;
+      // Konu granülerliğinde en somut sinyal — belirli bir konu adı
+      // gerekçede geçince öneri soyut ("bu ders geride") olmaktan çıkar.
+      if (difficultTopic != null) score += 0.10;
+      // Onboarding'deki kendi-bildirimi — hesaplanmış sinyallerden (deneme,
+      // kapsama) daha düşük ağırlık: veri birikince onlar zaten baskın
+      // çıkar, ilk günlerde (hiç veri yokken) tek kişiselleştirme kaynağı.
+      if (isSelfReportedWeak) score += 0.10;
+      // En yüksek ağırlık — tahmin/ortalama değil, öğrencinin GERÇEK bir
+      // sınavda somut bir konudan yanlış yaptığının kanıtı.
+      if (examWeakTopic != null) score += 0.28;
+
+      // GOAL → GAP bağlamsal amplifikatörü (Faz 3) — YALNIZ ders zaten
+      // kanıta dayalı bir zayıflık taşıyorsa devreye girer. examWeakTopic'in
+      // (0.28) ve isAvoided'ın (0.25+) altında bir tavan (0.15) — hedef
+      // farkı ASLA tek başına bir dersi öne çıkarmaz, yalnız var olan bir
+      // sinyali güçlendirir.
+      final hasRealWeaknessSignal = examWeakTopic != null ||
+          isWorsening ||
+          isWeakestDeneme ||
+          needsReview ||
+          isAvoided ||
+          difficultTopic != null;
+      if (hasRealWeaknessSignal && goalGapAmplifier > 0) {
+        score += goalGapAmplifier * 0.15;
+      }
 
       if (score <= 0.05) continue;
 
@@ -110,6 +180,12 @@ class StudyAdvisor {
           coverage: coverage,
           isWeakestDeneme: isWeakestDeneme,
           neverFocused: neverFocused,
+          maxPostpone: isAvoided ? maxPostpone : 0,
+          needsReview: needsReview,
+          isWorsening: isWorsening,
+          difficultTopic: difficultTopic,
+          isSelfReportedWeak: isSelfReportedWeak,
+          examWeakTopic: examWeakTopic,
         ),
       ));
     }
@@ -132,7 +208,29 @@ class StudyAdvisor {
     double? coverage,
     bool isWeakestDeneme = false,
     bool neverFocused = false,
+    int maxPostpone = 0,
+    bool needsReview = false,
+    bool isWorsening = false,
+    String? difficultTopic,
+    bool isSelfReportedWeak = false,
+    String? examWeakTopic,
   }) {
+    // Kaçınma sinyali en açık/en erken gösterilen gerekçe — "N kez ertelendi"
+    // öğrenciye kaçırdığı şeyin ne olduğunu net söylüyor, suçlamadan.
+    if (maxPostpone >= 2) {
+      return '$maxPostpone kez ertelendi — bugün küçük bir adım atalım mı?';
+    }
+    // Somut bir GERÇEK sınav kanıtı — tahmine/ortalamaya dayalı diğer tüm
+    // sinyallerden (gerileme, kapsama, davranışsal zorluk) daha güçlü:
+    // "hangi konudan" sorusuna kesin cevap veriyor.
+    if (examWeakTopic != null) {
+      return '"$examWeakTopic" konusunda denemede yanlış yapmıştın';
+    }
+    // Gerileme, sabit zayıflıktan daha acil — "hep zayıftın" değil "kötüye
+    // gidiyorsun" mesajı erken müdahaleyi hak ediyor.
+    if (isWorsening) {
+      return 'Deneme netlerin bu derste geriliyor';
+    }
     if (coverage != null && coverage < 0.6) {
       return 'Konuların %${(coverage * 100).round()}\'i işaretli — geride';
     }
@@ -148,6 +246,12 @@ class StudyAdvisor {
     if (neverFocused) {
       return 'Bu derse hiç odak seansı ayırmadın';
     }
+    if (needsReview) {
+      return 'Tekrar ettiğin bir konunun üstünden uzun süre geçti';
+    }
+    if (difficultTopic != null) {
+      return '"$difficultTopic" konusu tahmininden çok daha uzun sürdü';
+    }
     if (daysSinceTouch >= 7) {
       return '$daysSinceTouch gündür dokunmadın';
     }
@@ -157,7 +261,52 @@ class StudyAdvisor {
     if (examDays != null && examDays >= 0 && examDays <= 30) {
       return 'Sınav yaklaşıyor — tekrar için iyi zaman';
     }
-    return 'Dengeli ilerlemek için iyi bir seçim';
+    if (isSelfReportedWeak) {
+      return 'Kendin de bu derste zorlandığını söylemiştin';
+    }
+    return genericReason;
+  }
+
+  /// "Planlanan kapasite ≠ gerçekleşen kapasite" — bir dersin GEÇMİŞTE
+  /// planlanan görevlerinin çoğunu bitiremediğini işaretler (>=3 görev,
+  /// tamamlama oranı <%50 — [_reason]'daki "Tamamlama oranın düşük"
+  /// eşiğiyle BİREBİR aynı, iki farklı sessiz eşik olmasın diye). PlanBuilder
+  /// bu ID'ler için daha küçük bloklar önerir — aynı büyüklükte bloğu
+  /// tekrar tekrar başarısızlıkla sonuçlanan bir derse dayatmak yerine.
+  static Set<String> overcommittedSubjectIds({
+    required List<SubjectModel> subjects,
+    required List<TaskModel> tasks,
+  }) {
+    final result = <String>{};
+    for (final s in subjects) {
+      final subjectTasks = tasks.where((t) => t.subjectId == s.id).toList();
+      final total = subjectTasks.length;
+      if (total < 3) continue;
+      final completed = subjectTasks.where((t) => t.isCompleted).length;
+      if (completed / total < 0.5) result.add(s.id);
+    }
+    return result;
+  }
+
+  /// Sürekli tamamlama oranı (subjectId → 0..1, completed/total) — yalnız
+  /// ≥[minTasks] görevi olan dersler için (küçük örneklemde gürültülü).
+  /// [overcommittedSubjectIds]'in ikili bayrağının yerini alacak şekilde
+  /// PlanBuilder'a geçilir: %51 tamamlama ile %99 tamamlama artık aynı
+  /// muameleyi görmez, blok süresi orana göre kademeli küçülür/büyür.
+  static Map<String, double> completionRateBySubject({
+    required List<SubjectModel> subjects,
+    required List<TaskModel> tasks,
+    int minTasks = 3,
+  }) {
+    final result = <String, double>{};
+    for (final s in subjects) {
+      final subjectTasks = tasks.where((t) => t.subjectId == s.id).toList();
+      final total = subjectTasks.length;
+      if (total < minTasks) continue;
+      final completed = subjectTasks.where((t) => t.isCompleted).length;
+      result[s.id] = completed / total;
+    }
+    return result;
   }
 
   static int _dayDiff(DateTime from, DateTime to) {
