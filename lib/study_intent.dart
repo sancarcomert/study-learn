@@ -2,6 +2,11 @@ import 'study_advisor.dart';
 import 'task_model.dart';
 import 'topic_model.dart';
 
+/// Süre verilmemiş bir çalışmanın varsayılan uzunluğu (dk). Focus bu süreyle
+/// açılır; kartlar da "ne kadar?" sorusuna aynı sayıyla cevap verir — arayüzde
+/// ve Focus'ta ayrı ayrı yazılmış bir "25" olmasın.
+const int kDefaultFocusMinutes = 25;
+
 /// Bir çalışma niyetinin NEREDEN geldiği.
 enum StudyIntentSource {
   /// Öneri motorundan (Home kartı) — gerekçesi öğrenciye gösterilmiş öneri.

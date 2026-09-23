@@ -14,6 +14,7 @@ import 'deneme_model.dart';
 import 'deneme_provider.dart';
 import 'goal_gap_provider.dart';
 import 'day_summary.dart';
+import 'format_minutes.dart';
 import 'focus_session_model.dart';
 import 'focus_session_provider.dart';
 import 'study_advisor.dart';
@@ -39,14 +40,6 @@ DateTime _taskDay(TaskModel t) {
   return DateTime(d.year, d.month, d.day);
 }
 
-String _fmtMinutes(int m) {
-  if (m <= 0) return '0 dk';
-  final h = m ~/ 60;
-  final mm = m % 60;
-  if (h == 0) return '$mm dk';
-  if (mm == 0) return '$h sa';
-  return '$h sa $mm dk';
-}
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
@@ -329,7 +322,7 @@ class StatsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Bu hafta: ${_fmtMinutes(focusWeekMin)}',
+                        'Bu hafta: ${formatMinutes(focusWeekMin)}',
                         style: AppTextStyles.body
                             .copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -520,7 +513,7 @@ class _StudyCalendarBodyState extends ConsumerState<_StudyCalendarBody> {
     final summary = [
       if (log.tasks.isNotEmpty)
         '${log.completedCount}/${log.tasks.length} görev',
-      if (log.focusMinutes > 0) '${_fmtMinutes(log.focusMinutes)} odak',
+      if (log.focusMinutes > 0) '${formatMinutes(log.focusMinutes)} odak',
     ].join(' · ');
 
     // Satırlar: görevler (plan ↔ gerçek), sonra göreve bağlı olmayan çalışmalar.

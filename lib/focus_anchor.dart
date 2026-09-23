@@ -54,4 +54,37 @@ class FocusAnchorMath {
           targetSec: targetSec,
         );
   }
+
+  /// Çapadaki (devam eden) seansın SAYILAN çalışma süresi, saniye. Serbest
+  /// modda arka plan kırpması uygulanır; Pomodoro'da çalışma fazı blokla
+  /// sınırlıdır, molada yalnız zaten yazılmış süre sayılır. Duraklatılmış
+  /// (segStartMs yok) seans yalnız yazılmış süredir.
+  static int creditedWorkSec(Map raw, {required int nowMs}) {
+    final committed = raw['committedSec'] as int? ?? 0;
+    final logged = raw['loggedSec'] as int? ?? 0;
+    final segStartMs = raw['segStartMs'] as int?;
+    if (segStartMs == null) return logged;
+    final block = (raw['blockMin'] as int? ?? 25) * 60;
+    if (raw['mode'] != 'pomodoro') {
+      return creditedFreeElapsedSec(
+        committedSec: committed,
+        segStartMs: segStartMs,
+        lastActiveMs: raw['lastActiveMs'] as int?,
+        nowMs: nowMs,
+        targetSec: block,
+      );
+    }
+    if (raw['phase'] == 'work') {
+      return math.min<int>(
+          committed + math.max<int>(0, (nowMs - segStartMs) ~/ 1000), block);
+    }
+    return logged;
+  }
+
+  /// Devam eden seansta HENÜZ FocusSession'a yazılmamış tam dakika — "bugün
+  /// çalışılan" toplamına canlı olarak eklenir (yazılmış + bu).
+  static int unloggedMinutes(Map raw, {required int nowMs}) {
+    final logged = raw['loggedSec'] as int? ?? 0;
+    return math.max<int>(0, (creditedWorkSec(raw, nowMs: nowMs) - logged) ~/ 60);
+  }
 }

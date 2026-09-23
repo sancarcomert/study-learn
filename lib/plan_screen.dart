@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'coach_screen.dart';
+import 'format_minutes.dart';
 import 'deneme_provider.dart';
 import 'deneme_screen.dart';
 import 'focus_screen.dart';
@@ -25,15 +26,6 @@ import 'widgets/app_header.dart';
 /// gerçek ilerleme verisiyle (kapsama %, bu hafta odak, son deneme neti).
 class PlanScreen extends ConsumerWidget {
   const PlanScreen({super.key});
-
-  static String _fmtDuration(int minutes) {
-    if (minutes <= 0) return '0 dk';
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    if (h == 0) return '$m dk';
-    if (m == 0) return '$h sa';
-    return '$h sa $m dk';
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -107,7 +99,7 @@ class PlanScreen extends ConsumerWidget {
                   tint: AppColors.primary,
                   value: focusThisWeek == 0
                       ? '—'
-                      : _fmtDuration(focusThisWeek),
+                      : formatMinutes(focusThisWeek),
                   sub: focusThisWeek == 0 ? 'bu hafta boş' : 'bu hafta',
                   onTap: () => Navigator.push(
                     context,

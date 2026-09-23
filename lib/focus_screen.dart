@@ -45,10 +45,16 @@ class FocusScreen extends ConsumerStatefulWidget {
   // ekran Serbest yerine doğrudan Pomodoro modunda açılır.
   final bool initialPomodoro;
 
+  /// true ise ekran açılır açılmaz sayaç BAŞLAR — Home'daki "Başla" gibi
+  /// açık bir başlatma jestinden gelindiğinde öğrenci bir kez daha "Başlat"a
+  /// basmak zorunda kalmasın. Devam eden bir seans geri yüklendiyse etkisizdir.
+  final bool autoStart;
+
   const FocusScreen({
     super.key,
     this.intent = StudyIntent.free,
     this.initialPomodoro = false,
+    this.autoStart = false,
   });
 
   @override
@@ -66,7 +72,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   bool _leaving = false;
 
   late _Mode _mode = widget.initialPomodoro ? _Mode.pomodoro : _Mode.free;
-  late int _blockMin = widget.intent.targetMinutes ?? 25;
+  late int _blockMin = widget.intent.targetMinutes ?? kDefaultFocusMinutes;
 
   late final TextEditingController _noteController =
       TextEditingController(text: widget.intent.title ?? '');
@@ -139,7 +145,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       // Devam eden bir seans geri yüklendiyse ekranı da canlandır — bildirim
       // yeniden zamanlanmaz, o zaten ilk başladığında OS'e yazılmıştı ve
       // sürecimiz öldürülse bile kendi kendine düşer.
-      if (_running) _startTicker();
+      if (_running) {
+        _startTicker();
+      } else if (widget.autoStart) {
+        _toggleRun();
+      }
     });
   }
 
@@ -317,26 +327,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   void _finalizeSupersededRun(Map raw) {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final free = raw['mode'] == _Mode.free.name;
-    final committed = raw['committedSec'] as int? ?? 0;
     final logged = raw['loggedSec'] as int? ?? 0;
-    final segStartMs = raw['segStartMs'] as int? ?? nowMs;
-    final block = (raw['blockMin'] as int? ?? 25) * 60;
-
-    final int elapsedSec;
-    if (free) {
-      elapsedSec = FocusAnchorMath.creditedFreeElapsedSec(
-        committedSec: committed,
-        segStartMs: segStartMs,
-        lastActiveMs: raw['lastActiveMs'] as int?,
-        nowMs: nowMs,
-        targetSec: block,
-      );
-    } else if (raw['phase'] == _Phase.work.name) {
-      elapsedSec =
-          math.min(committed + (nowMs - segStartMs) ~/ 1000, block);
-    } else {
-      elapsedSec = logged;
-    }
+    final elapsedSec = FocusAnchorMath.creditedWorkSec(raw, nowMs: nowMs);
 
     final minutes = (elapsedSec - logged) ~/ 60;
     // Çapa HEMEN temizlenir (aynı seans iki kez sonlandırılmasın); provider

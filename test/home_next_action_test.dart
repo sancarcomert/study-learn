@@ -125,7 +125,8 @@ void main() {
 
     expect(find.text('Matematik: ilk çalışma'), findsOneWidget);
     expect(find.text('Matematik · 25 dk'), findsOneWidget);
-    expect(find.textContaining('0/1 görevi tamamladın'), findsOneWidget);
+    // Başlık artık görev sayısı değil GERÇEK çalışma: plan 25 dk, henüz başlamadı.
+    expect(find.text('Bugünkü plan 25 dk · henüz başlamadın'), findsOneWidget);
     expect(find.text('Bugün için plan yok'), findsNothing);
     expect(find.textContaining('Bir görev planlamadın'), findsNothing);
   });
@@ -176,7 +177,7 @@ void main() {
     expect(find.text('Birinci'), findsOneWidget);
     expect(find.text('İkinci'), findsWidgets);
     expect(find.text('Bugün Kalanlar'), findsOneWidget);
-    expect(find.text('1 görev'), findsOneWidget);
+    expect(find.text('1 çalışma'), findsOneWidget);
   });
 
   testWidgets(
@@ -208,7 +209,10 @@ void main() {
 
     // Dokun → Focus: aynı gerekçe + konu, ders/konu seçili.
     await tester.tap(find.text(reason));
-    await tester.pumpAndSettle();
+    // "Başla" sayacı başlatır → sürekli animasyon; sabit sayıda kare ilerlet.
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(find.text('ODAK SEANSI'), findsOneWidget);
     expect(find.text(reason), findsOneWidget,
         reason: 'öneri gerekçesi Focus\'ta kaybolmamalı');
@@ -234,10 +238,14 @@ void main() {
     expect(find.text(reason), findsOneWidget);
 
     await tester.tap(find.text(reason));
-    await tester.pumpAndSettle();
+    // "Başla" sayacı başlatır → sürekli animasyon; sabit sayıda kare ilerlet.
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(find.text('ODAK SEANSI'), findsOneWidget);
     expect(find.text(reason), findsOneWidget);
-    expect(find.text('Başlat'), findsOneWidget);
+    // "Başla" başlatma jestidir: sayaç zaten çalışıyor (ikinci bir "Başlat" yok).
+    expect(find.text('Duraklat'), findsOneWidget);
 
     // Niyet ≠ kanıt: Focus açıldı ama hiçbir çalışma kaydı/durum değişimi yok.
     expect(c.read(topicProvider).single.status, TopicStatus.notStarted);

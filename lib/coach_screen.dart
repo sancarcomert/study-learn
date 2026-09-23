@@ -2094,6 +2094,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
               MaterialPageRoute(
                 builder: (_) => FocusScreen(
                   intent: intentForTask(ref.read, task),
+                  autoStart: true, // "Şimdi Başla" açık bir başlatma jesti
                 ),
               ),
             );

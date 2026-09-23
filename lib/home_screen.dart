@@ -23,6 +23,8 @@ import 'next_task_picker.dart';
 import 'topic_provider.dart';
 import 'goal_gap_provider.dart';
 import 'focus_anchor.dart';
+import 'today_study.dart';
+import 'topic_evidence_provider.dart';
 import 'focus_session_provider.dart';
 import 'focus_screen.dart';
 import 'add_subject_sheet.dart';
@@ -711,7 +713,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Öneri/görev kartından Focus'a geçiş — bağlam ([StudyIntent]) kaynağında
   /// üretilmiş olarak, OLDUĞU GİBİ taşınır (gerekçe dahil). Niyet yoksa
   /// (henüz ne çalışılacağı belli değil) Koç'a gider.
-  void _startWorking(StudyIntent? intent) {
+  void _startWorking(StudyIntent? intent, {bool autoStart = false}) {
     // Hiç ders yoksa (onboarding atlandı) tek anlamlı eylem ders eklemek —
     // Koç sohbetine gönderip "Profil'den ekle" demek çıkmaz sokaktı.
     if (intent == null && ref.read(subjectProvider).isEmpty) {
@@ -730,7 +732,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => FocusScreen(intent: intent)),
+      MaterialPageRoute(
+        builder: (_) => FocusScreen(intent: intent, autoStart: autoStart),
+      ),
     );
   }
 
@@ -745,9 +749,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final now = DateTime.now();
     // "Şimdi ne yapmalıyım?" kartı: zamanlı görevler + (önceden hiç
     // görünmeyen) saatsiz bugünkü görevler — bkz. next_task_picker.dart.
-    final activeTask = NextTaskPicker.pick(allTasks, now);
-    final remainingTasks =
-        NextTaskPicker.remaining(allTasks, now, exclude: activeTask);
+    // Sıra mevcut konu kanıtından türer (yeni bir plan üreticisi YOK): güçlü
+    // kanıt (deneme zayıf / üst üste zorlandı) sırayı öne çeker, gerisi
+    // öğrencinin kendi öncelik/ekleme sırasıdır.
+    final evidence = ref.watch(topicEvidenceProvider);
+    final activeTask =
+        NextTaskPicker.pick(allTasks, now, evidenceByTopic: evidence);
+    final remainingTasks = NextTaskPicker.remaining(allTasks, now,
+        exclude: activeTask, evidenceByTopic: evidence);
 
     ref.listen<int>(taskCompletionEventProvider, (previous, next) {
       if (previous == null || next <= previous) return;
@@ -870,8 +879,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .where((t) => t.id == activeTask!.topicId)
             .firstOrNull
             ?.name;
-    final activeReason = cardIntent?.reason;
-
+    // Gerekçe HER ZAMAN gerçek bir kaynaktan: konu kanıtı / planlanırken yazılan
+    // / öneri motorunun somut nedeni. Hiçbiri yoksa görev için dürüst tek cümle
+    // ("planındaki sıradaki çalışma"); öneri için hiçbir şey (jenerik
+    // "dengeli ilerle" gibi sahte kişiselleştirme gösterilmez).
+    final activeReason = cardIntent?.reason ??
+        (activeTask != null ? 'Bugünkü planında sıradaki çalışma.' : null);
+    final StudyIntent? startIntent = cardIntent?.copyWith(reason: activeReason);
+    final todayStudyBase = TodayStudy.compute(
+      tasks: allTasks,
+      loggedMinutes: ref.watch(focusTodayMinutesProvider),
+      now: now,
+    );
     SubjectModel? activeSubject;
     final activeSubjectId = activeTask?.subjectId ?? topSuggestion?.subjectId;
     if (activeSubjectId != null) {
@@ -915,12 +934,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 34),
-                AppTitleBlock(
-                  eyebrow: _HomeScreenState._todayLabel(),
-                  title: '${_greeting(stats.userName)} 👋',
-                  subtitle: todayTotal == 0
-                      ? 'Bugün hedeflerine bir adım daha yaklaşalım.'
-                      : 'Bugün $todayCompleted/$todayTotal görevi tamamladın.',
+                // Gerçek çalışma süresi burada, Stats'a gitmeden: yazılmış odak
+                // dakikaları + devam eden seansın henüz yazılmamış kısmı. Plan
+                // (tahmini) ayrı gösterilir; XP/görev sayısı ASLA dakika değil.
+                ValueListenableBuilder<Box>(
+                  valueListenable: HiveBoxes.focusAnchor.listenable(),
+                  builder: (context, box, _) {
+                    final raw = box.get('current');
+                    final live = raw is Map
+                        ? FocusAnchorMath.unloggedMinutes(raw,
+                            nowMs: DateTime.now().millisecondsSinceEpoch)
+                        : 0;
+                    final study = TodayStudy(
+                      actualMinutes: todayStudyBase.actualMinutes + live,
+                      plannedMinutes: todayStudyBase.plannedMinutes,
+                    );
+                    return AppTitleBlock(
+                      eyebrow: _HomeScreenState._todayLabel(),
+                      title: '${_greeting(stats.userName)} 👋',
+                      subtitle:
+                          todayStudyLine(study, hasTasksToday: todayTotal > 0),
+                    );
+                  },
                 ),
                 // Dün "Bugünü kapat"ta yazılmış tek cümlelik niyet varsa —
                 // sabah nazik bir hatırlatma (yesterdayIntentProvider zaten
@@ -981,7 +1016,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   nextUpTitle: remainingTasks.firstOrNull?.title,
                   allDoneToday: todayTotal > 0 && todayCompleted == todayTotal,
                   hasAnySubject: subjects.isNotEmpty,
-                  onStart: () => _startWorking(cardIntent),
+                  minutes: startIntent?.targetMinutes ?? kDefaultFocusMinutes,
+                  onStart: () => _startWorking(startIntent, autoStart: true),
                   onAskCoach: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const CoachScreen()),
                   ),
@@ -995,8 +1031,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const _TaskHintStrip(),
                 if (remainingTasks.isNotEmpty) ...[
                   SectionHeader(
-                    title: 'Bugün Kalanlar',
-                    trailing: '${remainingTasks.length} görev',
+                    // "Önerilen sıra" YALNIZ sıra gerçekten bir sinyale
+                    // (kanıt/öncelik/gerekçe) dayanıyorsa; değilse öğrencinin
+                    // kendi sırası — sahte kesinlik yok.
+                    title: NextTaskPicker.isRecommendedOrder(
+                            [if (activeTask != null) activeTask, ...remainingTasks],
+                            evidenceByTopic: evidence)
+                        ? 'Önerilen sıra'
+                        : 'Bugün Kalanlar',
+                    trailing: '${remainingTasks.length} çalışma',
                   ),
                   const SizedBox(height: 12),
                   ...remainingTasks.map((task) {
@@ -1015,15 +1058,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         task: task,
                         margin: const EdgeInsets.only(bottom: 10),
                         borderRadius: BorderRadius.circular(18),
+                        // Satıra dokunmak o çalışmayı BAŞLATMA niyetidir ("başka
+                        // görevi seç"); düzenleme/silme uzun basış, erteleme
+                        // kaydırma ile (TaskSwipeActions).
                         child: _UpcomingSessionRow(
                           task: task,
                           subject: subject,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  AddTaskScreen(taskToEdit: task),
-                            ),
-                          ),
+                          reason: reasonForTask(ref.watch, task),
+                          onTap: () => _startWorking(
+                              intentForTask(ref.read, task)),
                         ),
                       ),
                     );
@@ -1182,13 +1225,8 @@ class _ActiveFocusBannerState extends ConsumerState<_ActiveFocusBanner> {
         // FocusAnchorMath) — banner da Focus'un kaydedeceği süreyi göstersin.
         final elapsedSec = mode == 'pomodoro'
             ? committedSec + DateTime.now().difference(segStart).inSeconds
-            : FocusAnchorMath.creditedFreeElapsedSec(
-                committedSec: committedSec,
-                segStartMs: segStartMs,
-                lastActiveMs: raw['lastActiveMs'] as int?,
-                nowMs: DateTime.now().millisecondsSinceEpoch,
-                targetSec: blockMin * 60,
-              );
+            : FocusAnchorMath.creditedWorkSec(raw,
+                nowMs: DateTime.now().millisecondsSinceEpoch);
 
         final isPomodoro = mode == 'pomodoro';
         final remainingSec = isPomodoro ? (blockMin * 60 - elapsedSec) : null;
@@ -1205,9 +1243,11 @@ class _ActiveFocusBannerState extends ConsumerState<_ActiveFocusBanner> {
         final label = (note?.isNotEmpty ?? false)
             ? note!
             : (subject?.name ?? 'Odak seansı');
+        // Serbest seansta "kaç dakikadır odaktasın" (gerçek, kırpılmış süre);
+        // Pomodoro'da blokta kalan süre.
         final timeText = remainingSec != null
             ? '${_fmt(remainingSec)} kaldı'
-            : '${_fmt(elapsedSec)} geçti';
+            : '${elapsedSec ~/ 60} dk odaktasın';
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
@@ -1395,11 +1435,11 @@ class _PointsStreakCard extends StatelessWidget {
   }
 }
 
-/// Home'un özü: "şimdi ne yapmalıyım, neden, ne kadar" tek kartta. Öncelik:
-/// sürüyor/yaklaşan/geciken zamanlı görev > bugünün saatsiz görevi >
-/// StudyAdvisor önerisi > boş durum. Satırın tamamı CTA'dır (Odak Seansı
-/// başlatır, hiçbir hedef yoksa doğrudan Çalışma Koçu'nu açar); hasTarget=true
-/// iken küçük bir "Koç'a danış" bağlantısı da her zaman erişilebilir kalır.
+/// Home'un özü: "şimdi ne yapmalıyım, neden, ne kadar, nasıl başlarım" tek
+/// kartta. Öncelik: sürüyor/yaklaşan/geciken zamanlı görev > önerilen sıradaki
+/// saatsiz görev > StudyAdvisor önerisi > boş durum. Tek dominant eylem
+/// "Başla": ders/konu/süre/görev/gerekçe niyetle taşınır, sayaç çalışır durumda
+/// açılır — öğrenci dört beş karar vermez. Kartın tamamı da aynı eylemdir.
 class _FocusRowCard extends StatelessWidget {
   final TaskModel? task;
   final SubjectModel? subject;
@@ -1411,6 +1451,9 @@ class _FocusRowCard extends StatelessWidget {
   final String? nextUpTitle;
   final bool allDoneToday;
   final bool hasAnySubject;
+
+  /// Başla'nın açacağı seansın süresi (dk).
+  final int minutes;
   final VoidCallback onStart;
   final VoidCallback onAskCoach;
 
@@ -1423,6 +1466,7 @@ class _FocusRowCard extends StatelessWidget {
     required this.nextUpTitle,
     required this.allDoneToday,
     required this.hasAnySubject,
+    required this.minutes,
     required this.onStart,
     required this.onAskCoach,
   });
@@ -1438,24 +1482,28 @@ class _FocusRowCard extends StatelessWidget {
         suggestion?.subjectName ??
         (allDoneToday ? 'Bugünkü planın tamam' : 'Bugün için plan yok');
 
-    // Ne / ne kadar: "Matematik · Türev · 25 dk".
-    final meta = task == null
-        ? (suggestion?.topicName == null ? null : suggestion?.subjectName)
-        : [
-            subject?.name ?? 'Derssiz',
-            if (topicName != null) topicName!,
-            if (task!.estimatedMinutes != null) '${task!.estimatedMinutes} dk',
-          ].join(' · ');
+    // Ne / ne kadar: "Matematik · Bölünebilme · 25 dk".
+    final meta = !hasTarget
+        ? null
+        : task != null
+            ? [
+                subject?.name ?? 'Derssiz',
+                if (topicName != null) topicName!,
+                '$minutes dk',
+              ].join(' · ')
+            : [
+                if (suggestion!.topicName != null) suggestion!.subjectName,
+                '$minutes dk',
+              ].join(' · ');
 
     // Neden: yalnız gerçek bir sinyal varsa; yoksa satır çizilmez.
-    final why = task != null
+    final why = hasTarget
         ? reason
-        : suggestion?.reason ??
-            (allDoneToday
-                ? 'Bir şey daha eklemek istersen Koç yardım eder.'
-                : (hasAnySubject
-                    ? 'Bir görev planlamadın — hadi başlayalım.'
-                    : 'Önce bir ders ekle, sonra plan kur.'));
+        : (allDoneToday
+            ? 'Bir şey daha eklemek istersen Koç yardım eder.'
+            : (hasAnySubject
+                ? 'Bir görev planlamadın — hadi başlayalım.'
+                : 'Önce bir ders ekle, sonra plan kur.'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1463,79 +1511,82 @@ class _FocusRowCard extends StatelessWidget {
         TapScale(
           onTap: onStart,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: AppColors.border),
               boxShadow: AppColors.softShadow,
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: AppTextStyles.body
-                            .copyWith(fontWeight: FontWeight.w700),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (meta != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          meta,
-                          style: AppTextStyles.caption.copyWith(
-                            color: tint,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      if (why != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          why,
-                          style: AppTextStyles.caption,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      if (hasTarget && nextUpTitle != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'Sonra: $nextUpTitle',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
+                Text(
+                  title,
+                  style: AppTextStyles.heading3,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(width: 12),
-                if (hasTarget)
+                if (meta != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    meta,
+                    style: AppTextStyles.caption.copyWith(
+                      color: tint,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (why != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    why,
+                    style: AppTextStyles.bodySecondary,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (hasTarget) ...[
+                  const SizedBox(height: 16),
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: double.infinity,
+                    height: 46,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: AppColors.primary,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(999),
                       boxShadow: [AppColors.glow(AppColors.primary)],
                     ),
-                    child: Icon(
-                      Icons.play_arrow_rounded,
-                      color: AppColors.onColor(AppColors.primary),
-                      size: 26,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.play_arrow_rounded,
+                            color: AppColors.onColor(AppColors.primary),
+                            size: 22),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Başla',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.onColor(AppColors.primary),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                else
-                  Icon(Icons.chevron_right, color: AppColors.textMuted),
+                  ),
+                  if (nextUpTitle != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      'Sonra: $nextUpTitle',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
@@ -1556,7 +1607,7 @@ class _FocusRowCard extends StatelessWidget {
                     'Koç\'a danış',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.vibrantViolet,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -1881,16 +1932,19 @@ class _SparklinePainter extends CustomPainter {
       oldDelegate.values != values || oldDelegate.color != color;
 }
 
-/// "Sıradaki Oturumlar" satırı — ders rozeti + başlık + saat. Swipe ile
+/// Günün geri kalanındaki bir çalışma satırı: ders rozeti + başlık + (varsa)
+/// gerçek gerekçe + süre/saat. Dokunmak o çalışmayı başlatır. Swipe ile
 /// tamamla/ertele/sil (TaskSwipeActions, task_tile.dart ile paylaşılan).
 class _UpcomingSessionRow extends StatelessWidget {
   final TaskModel task;
   final SubjectModel? subject;
+  final String? reason;
   final VoidCallback onTap;
 
   const _UpcomingSessionRow({
     required this.task,
     required this.subject,
+    required this.reason,
     required this.onTap,
   });
 
@@ -1898,6 +1952,7 @@ class _UpcomingSessionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tint = subject != null ? Color(subject!.colorValue) : AppColors.primary;
     final scheduled = task.scheduledTime;
+    final minutes = task.estimatedMinutes ?? kDefaultFocusMinutes;
 
     return TapScale(
       onTap: onTap,
@@ -1927,20 +1982,34 @@ class _UpcomingSessionRow extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                task.title,
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: AppTextStyles.body,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (reason != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      reason!,
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (scheduled != null) ...[
-              const SizedBox(width: 8),
-              Text(
-                _HomeScreenState._hhmm(scheduled),
-                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
+            const SizedBox(width: 8),
+            Text(
+              scheduled != null
+                  ? '${_HomeScreenState._hhmm(scheduled)} · $minutes dk'
+                  : '$minutes dk',
+              style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),

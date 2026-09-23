@@ -171,6 +171,8 @@ void main() {
       }
       expect(find.text('Bugünkü planın tamam'), findsOneWidget);
       expect(find.text('Bugün için plan yok'), findsNothing);
+      // Focus'tan sonra Home gerçek sonucu söyler: ölçülen 15 dk, plan 25 dk.
+      expect(find.text('15 dk çalıştın · plan 25 dk'), findsOneWidget);
     });
 
     testWidgets(
@@ -275,7 +277,7 @@ void main() {
       expect(t.title, 'Bölünebilme');
       // Home: bugünün eylemi, ders · konu meta ile.
       expect(find.text('Bölünebilme'), findsWidgets);
-      expect(find.text('Matematik · Bölünebilme'), findsOneWidget);
+      expect(find.text('Matematik · Bölünebilme · 25 dk'), findsOneWidget);
     });
 
     testWidgets(
@@ -285,8 +287,9 @@ void main() {
       await seedOnboarded(topics: ['Bölünebilme']);
       final c = await pumpApp(tester);
 
-      await tester.ensureVisible(find.text('Matematik').first);
-      await tester.tap(find.text('Matematik').first);
+      // Ders kısayolu kutusu (Home'da en altta; üstteki 'Matematik' odak kartı).
+      await tester.ensureVisible(find.text('Matematik').last);
+      await tester.tap(find.text('Matematik').last);
       await frames(tester);
       expect(find.text('Bölünebilme'), findsWidgets);
       await tester.tap(find.text('Bölünebilme').first);

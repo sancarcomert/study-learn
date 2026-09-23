@@ -1,5 +1,6 @@
 import 'task_model.dart';
 import 'task_time_status.dart';
+import 'topic_evidence.dart';
 
 /// Home'un "şimdi ne yapmalıyım?" kartı için bugünün sıradaki görevini seçer.
 ///
@@ -10,6 +11,10 @@ import 'task_time_status.dart';
 /// bir taahhüttür), sonra saatsizler.
 class NextTaskPicker {
   const NextTaskPicker._();
+
+  /// Saatli bir görevin "şimdi" sayılacağı yakınlık (başlamasına en çok bu kadar
+  /// kala).
+  static const Duration imminentWindow = Duration(minutes: 60);
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -31,10 +36,30 @@ class NextTaskPicker {
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
   }
 
-  /// Bugünün tamamlanmamış SAATSİZ görevleri: önce yüksek öncelik, sonra bir
-  /// gerekçesi (sourceReason) olanlar (somut bir sinyalden geldiler), sonra
-  /// eklenme sırası.
-  static List<TaskModel> untimedToday(Iterable<TaskModel> tasks, DateTime now) {
+  /// Konu kanıtının SIRAYI değiştirme gücü. Yalnız GÜÇLÜ kanıt sırayı öne
+  /// çeker (deneme kanıtı, doğrulanmış "üst üste zorlandım"); tek bir
+  /// "zorlandım", "düzeliyor" ya da salt zaman ("tekrar gerekli") öğrencinin
+  /// ekranını her küçük olayda oynatmasın diye sırayı DEĞİŞTİRMEZ — onlar
+  /// yalnız gerekçe olarak görünür.
+  static int strongEvidenceRank(TopicEvidence? e) => switch (e?.state) {
+        TopicEvidenceState.weakConfirmed => 0,
+        TopicEvidenceState.strugglingRepeatedly => 1,
+        _ => 2,
+      };
+
+  /// Bugünün tamamlanmamış SAATSİZ görevleri, ÖNERİLEN SIRAYLA:
+  /// 1) güçlü konu kanıtı olanlar (deneme zayıf > üst üste zorlandı),
+  /// 2) yüksek öncelik,
+  /// 3) somut bir gerekçesi (sourceReason) olanlar,
+  /// 4) eklenme sırası (kanıt/öncelik yoksa öğrencinin kendi sırası korunur).
+  /// [evidenceByTopic]: topicId → TopicEvidence (topicEvidenceProvider).
+  static List<TaskModel> untimedToday(
+    Iterable<TaskModel> tasks,
+    DateTime now, {
+    Map<String, TopicEvidence> evidenceByTopic = const {},
+  }) {
+    int rank(TaskModel t) => strongEvidenceRank(
+        t.topicId == null ? null : evidenceByTopic[t.topicId]);
     return tasks
         .where((t) =>
             !t.isCompleted &&
@@ -42,6 +67,8 @@ class NextTaskPicker {
             _sameDay(t.dueDate, now))
         .toList()
       ..sort((a, b) {
+        final byEvidence = rank(a).compareTo(rank(b));
+        if (byEvidence != 0) return byEvidence;
         final byPriority =
             _priorityRank(b.priority).compareTo(_priorityRank(a.priority));
         if (byPriority != 0) return byPriority;
@@ -52,10 +79,29 @@ class NextTaskPicker {
       });
   }
 
+  /// Sıralama gerçekten bir SİNYALE dayanıyor mu (kanıt/öncelik/gerekçe)? Değilse
+  /// sıra yalnız öğrencinin ekleme sırasıdır ve "önerilen sıra" denmez —
+  /// sahte kesinlik yok.
+  static bool isRecommendedOrder(
+    Iterable<TaskModel> ordered, {
+    Map<String, TopicEvidence> evidenceByTopic = const {},
+  }) {
+    return ordered.any((t) =>
+        strongEvidenceRank(
+                t.topicId == null ? null : evidenceByTopic[t.topicId]) <
+            2 ||
+        t.priority == TaskPriority.high ||
+        t.sourceReason != null);
+  }
+
   /// Kartta gösterilecek görev: sürüyor > yaklaşan > geciken (saatliler),
   /// hiçbiri yoksa saatsizlerin en öncelikli olanı. Bugün bekleyen görev yoksa
   /// null.
-  static TaskModel? pick(Iterable<TaskModel> tasks, DateTime now) {
+  static TaskModel? pick(
+    Iterable<TaskModel> tasks,
+    DateTime now, {
+    Map<String, TopicEvidence> evidenceByTopic = const {},
+  }) {
     final timed = timedToday(tasks, now);
     TaskModel? firstWith(TaskTimeStatus s) {
       for (final t in timed) {
@@ -64,13 +110,26 @@ class NextTaskPicker {
       return null;
     }
 
+    // Yaklaşan saatli görev, YALNIZ yakınsa (imminentWindow) "şimdi"nin
+    // eylemidir; saati saatler sonraysa "şimdi ne yapmalıyım?"ın cevabı değil
+    // — o zaman hazır bekleyen (önerilen sıradaki) çalışma öne geçer.
+    TaskModel? imminentUpcoming() {
+      for (final t in timed) {
+        if (t.timeStatusAt(now) == TaskTimeStatus.upcoming &&
+            t.scheduledTime!.difference(now) <= imminentWindow) {
+          return t;
+        }
+      }
+      return null;
+    }
+
+    final untimed =
+        untimedToday(tasks, now, evidenceByTopic: evidenceByTopic);
     return firstWith(TaskTimeStatus.inProgress) ??
-        firstWith(TaskTimeStatus.upcoming) ??
+        imminentUpcoming() ??
         firstWith(TaskTimeStatus.overdue) ??
-        (() {
-          final untimed = untimedToday(tasks, now);
-          return untimed.isEmpty ? null : untimed.first;
-        })();
+        (untimed.isEmpty ? null : untimed.first) ??
+        firstWith(TaskTimeStatus.upcoming);
   }
 
   /// "Sıradakiler" listesi: bugünün bekleyen görevleri (saatliler saat
@@ -79,10 +138,11 @@ class NextTaskPicker {
     Iterable<TaskModel> tasks,
     DateTime now, {
     TaskModel? exclude,
+    Map<String, TopicEvidence> evidenceByTopic = const {},
   }) {
     return [
       ...timedToday(tasks, now),
-      ...untimedToday(tasks, now),
+      ...untimedToday(tasks, now, evidenceByTopic: evidenceByTopic),
     ].where((t) => t.id != exclude?.id).toList();
   }
 }

@@ -15,6 +15,10 @@ import 'widgets/section_header.dart';
 import 'widgets/task_tile.dart';
 import 'task_time_status.dart';
 import 'day_summary.dart';
+import 'focus_session_provider.dart';
+import 'format_minutes.dart';
+import 'next_task_picker.dart';
+import 'topic_evidence_provider.dart';
 import 'tap_scale.dart';
 import 'stats_provider.dart';
 import 'rank_provider.dart';
@@ -66,15 +70,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 
   /// "3 görev · 1 sa 35 dk · 1/3 tamam" — o günün yükü ve ilerlemesi tek satırda.
-  static String _daySummaryLine(DayPlanSummary s) {
+  /// Plan (tahmini) ve gerçek (ölçülmüş odak) AYRI etiketlerle: karışmasın.
+  static String _daySummaryLine(DayPlanSummary s, int actualMinutes) {
     final parts = <String>['${s.total} görev'];
     if (s.plannedMinutes > 0) {
-      final h = s.plannedMinutes ~/ 60;
-      final m = s.plannedMinutes % 60;
-      parts.add(h == 0
-          ? '$m dk'
-          : (m == 0 ? '$h sa' : '$h sa $m dk'));
+      parts.add('plan ${formatMinutes(s.plannedMinutes)}');
     }
+    if (actualMinutes > 0) parts.add('gerçek ${formatMinutes(actualMinutes)}');
     parts.add('${s.completed}/${s.total} tamam');
     return parts.join(' · ');
   }
@@ -89,7 +91,22 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     final scheduled = dayTasks.where((t) => t.scheduledTime != null).toList()
       ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
-    final unscheduled = dayTasks.where((t) => t.scheduledTime == null).toList();
+    // Bugün için saatsiz görevler Home'la AYNI önerilen sırada (kanıt >
+    // öncelik > gerekçe > ekleme sırası); biten görevler en altta. Başka
+    // günlerde öğrencinin kendi sırası.
+    final evidence = ref.watch(topicEvidenceProvider);
+    var unscheduled = dayTasks.where((t) => t.scheduledTime == null).toList();
+    var recommendedOrder = false;
+    if (_isSameDay(_selectedDate, DateTime.now())) {
+      final ordered = NextTaskPicker.untimedToday(dayTasks, DateTime.now(),
+          evidenceByTopic: evidence);
+      recommendedOrder = NextTaskPicker.isRecommendedOrder(ordered,
+          evidenceByTopic: evidence);
+      unscheduled = [
+        ...ordered,
+        ...unscheduled.where((t) => t.isCompleted),
+      ];
+    }
 
     final now = DateTime.now();
     final isTodaySelected = _isSameDay(_selectedDate, now);
@@ -150,7 +167,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  _daySummaryLine(DaySummaries.plan(allTasks, _selectedDate)),
+                  _daySummaryLine(
+                    DaySummaries.plan(allTasks, _selectedDate),
+                    DaySummaries.log(_selectedDate, allTasks,
+                            ref.watch(focusSessionProvider))
+                        .focusMinutes,
+                  ),
                   style: AppTextStyles.caption,
                 ),
               ),
@@ -188,7 +210,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         }),
                       if (unscheduled.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        const SectionHeader(title: 'Saatsiz Görevler'),
+                        SectionHeader(
+                            title: recommendedOrder
+                                ? 'Önerilen sıra'
+                                : 'Saatsiz Görevler'),
                         const SizedBox(height: 12),
                         ...unscheduled.map(
                           (task) => TaskTile(task: task, subjects: subjects),

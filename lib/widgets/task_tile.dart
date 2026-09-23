@@ -436,6 +436,18 @@ class TaskTile extends ConsumerWidget {
                               ),
                               child: Text(task.title),
                             ),
+                            // "Bu görev neden burada?" — yalnız GERÇEK bir
+                            // gerekçe varsa (konu kanıtı / planlanırken yazılan).
+                            if (!task.isCompleted &&
+                                reasonForTask(ref.watch, task) != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                reasonForTask(ref.watch, task)!,
+                                style: AppTextStyles.caption,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                             if (subject != null ||
                                 task.scheduledTime != null ||
                                 task.estimatedMinutes != null ||
@@ -521,6 +533,7 @@ class TaskTile extends ConsumerWidget {
                             MaterialPageRoute(
                               builder: (_) => FocusScreen(
                                 intent: intentForTask(ref.read, task),
+                                autoStart: true, // ▶ = başlat
                               ),
                             ),
                           );
