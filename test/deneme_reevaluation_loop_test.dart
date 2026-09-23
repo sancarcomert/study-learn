@@ -1,17 +1,13 @@
-import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:study_planner/deneme_change_engine.dart';
 import 'package:study_planner/deneme_model.dart';
 import 'package:study_planner/deneme_provider.dart';
 import 'package:study_planner/goal_gap_provider.dart';
-import 'package:study_planner/hive_boxes.dart';
 import 'package:study_planner/stats_provider.dart';
 import 'package:study_planner/study_advisor.dart';
-import 'package:study_planner/subject_model.dart';
 import 'package:study_planner/subject_provider.dart';
 import 'package:study_planner/stats_insight_engine.dart';
 import 'package:study_planner/task_model.dart';
@@ -19,7 +15,8 @@ import 'package:study_planner/topic_evidence.dart';
 import 'package:study_planner/topic_evidence_provider.dart';
 import 'package:study_planner/topic_model.dart';
 import 'package:study_planner/topic_provider.dart';
-import 'package:study_planner/user_stats_model.dart';
+
+import 'support/hive_memory.dart';
 
 /// Faz 9 — DENEME → ZAYIFLIK → HEDEF FARKI → ADVISOR → PLAN döngüsünü UÇTAN
 /// UCA, gerçek Hive/Riverpod ile izler. Yalnız sınıfların teknik olarak
@@ -32,37 +29,8 @@ import 'package:study_planner/user_stats_model.dart';
 ///           "iyileşme" olarak işaretlenir, Matematik'in advisor gerekçesi
 ///           ARTIK "denemede yanlış yapmıştın" DEĞİLDİR (çünkü kanıt kalktı).
 void main() {
-  late Directory tempDir;
-
-  setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('pusula_loop_test');
-    Hive.init(tempDir.path);
-    Hive.registerAdapter(SubjectModelAdapter());
-    Hive.registerAdapter(TopicStatusAdapter());
-    Hive.registerAdapter(TopicModelAdapter());
-    Hive.registerAdapter(DenemeSectionScoreAdapter());
-    Hive.registerAdapter(DenemeEntryAdapter());
-    Hive.registerAdapter(UserStatsModelAdapter());
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    tempDir.deleteSync(recursive: true);
-  });
-
-  setUp(() async {
-    await Hive.openBox<SubjectModel>(HiveBoxes.subjectsBoxName);
-    await Hive.openBox<TopicModel>(HiveBoxes.topicsBoxName);
-    await Hive.openBox<DenemeEntry>(HiveBoxes.denemelerBoxName);
-    await Hive.openBox<UserStatsModel>(HiveBoxes.statsBoxName);
-  });
-
-  tearDown(() async {
-    await Hive.deleteBoxFromDisk(HiveBoxes.subjectsBoxName);
-    await Hive.deleteBoxFromDisk(HiveBoxes.topicsBoxName);
-    await Hive.deleteBoxFromDisk(HiveBoxes.denemelerBoxName);
-    await Hive.deleteBoxFromDisk(HiveBoxes.statsBoxName);
-  });
+  setUp(openMemoryBoxes);
+  tearDown(closeMemoryBoxes);
 
   test(
       'GOAL → DENEME → GAP → ADVISOR → STUDY → RE-EVALUATION → ROZET → STATS '

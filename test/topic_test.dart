@@ -13,10 +13,11 @@ TopicModel _t(TopicStatus s) => TopicModel(
 
 void main() {
   group('TopicModel', () {
-    test('durum döngüsü: başlanmadı → çalışıldı → tekrar → başlanmadı', () {
-      expect(_t(TopicStatus.notStarted).nextStatus, TopicStatus.studied);
-      expect(_t(TopicStatus.studied).nextStatus, TopicStatus.reviewed);
-      expect(_t(TopicStatus.reviewed).nextStatus, TopicStatus.notStarted);
+    // Konu durumu artık bir "dokun ve sıradaki duruma geç" döngüsü DEĞİL;
+    // yalnız gerçek çalışma olaylarından ilerler (bkz. topic_progress_test.dart).
+    test('yeni konunun olay anahtarı yoktur (eski kayıtlarla uyumlu boş liste)',
+        () {
+      expect(_t(TopicStatus.notStarted).activityKeys, isEmpty);
     });
 
     test('isCovered yalnız çalışıldı/tekrar için true', () {

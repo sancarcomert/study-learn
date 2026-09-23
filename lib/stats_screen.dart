@@ -13,6 +13,8 @@ import 'coach_screen.dart';
 import 'deneme_model.dart';
 import 'deneme_provider.dart';
 import 'goal_gap_provider.dart';
+import 'day_summary.dart';
+import 'focus_session_model.dart';
 import 'focus_session_provider.dart';
 import 'study_advisor.dart';
 import 'task_model.dart';
@@ -22,6 +24,7 @@ import 'subject_provider.dart';
 import 'stats_provider.dart';
 import 'stats_insight_engine.dart';
 import 'topic_provider.dart';
+import 'study_recommendation.dart';
 import 'widget_service.dart';
 import 'widgets/animated_progress_bar.dart';
 import 'widgets/empty_state_card.dart';
@@ -121,28 +124,7 @@ class StatsScreen extends ConsumerWidget {
     // Yeni, paralel bir "akıllılık" icat etmiyoruz — tek beyin, üç yerde.
     final topInsight = subjects.isEmpty
         ? null
-        : StudyAdvisor.suggest(
-            subjects: subjects,
-            tasks: allTasks,
-            examDate: stats.examDate,
-            limit: 1,
-            coveragePercent: {
-              for (final e in coverage.entries)
-                if (e.value.hasTopics) e.key: e.value.ratio,
-            },
-            weakestDenemeSubjectId: ref.watch(weakestDenemeSubjectIdProvider),
-            focusMinutesBySubject: ref.watch(focusMinutesBySubjectProvider),
-            staleReviewSubjectIds: ref.watch(staleReviewSubjectIdsProvider),
-            worseningDenemeSubjectIds:
-                ref.watch(worseningDenemeSubjectIdsProvider),
-            difficultTopicsBySubject:
-                ref.watch(difficultTopicNamesBySubjectProvider),
-            selfReportedWeakSubjectId:
-                ref.watch(selfReportedWeakSubjectIdProvider),
-            examWeakTopicsBySubject:
-                ref.watch(examWeakTopicNamesBySubjectProvider),
-            goalGapAmplifier: ref.watch(goalGapAmplifierProvider),
-          ).firstOrNull;
+        : runStudyAdvisor(ref.watch, limit: 1).firstOrNull;
 
     return Scaffold(
       // Diğer sekmelerle (Ana Sayfa/Dersler/Koç) aynı üst şerit — tasarım
@@ -303,8 +285,8 @@ class StatsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           const SectionHeader(
             title: 'Çalışma Takvimi',
-            subtitle: 'Son 12 hafta. Her kare bir gün — görev bitirdiğin ya da '
-                'odaklandığın günler kare o kadar koyu olur.',
+            subtitle: 'Son 12 hafta. Her kare bir gün — bir güne dokunup o gün '
+                'ne çalıştığını gör.',
           ),
           const SizedBox(height: 12),
           countsByDay.isEmpty
@@ -320,7 +302,7 @@ class StatsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: AppColors.softShadow,
                   ),
-                  child: ActivityHeatmap(countsByDay: countsByDay, weeks: 12),
+                  child: _StudyCalendarBody(countsByDay: countsByDay),
                 ),
 
           const SizedBox(height: 28),
@@ -459,6 +441,188 @@ class StatsScreen extends ConsumerWidget {
             }),
         ],
         ),
+      ),
+    );
+  }
+}
+
+/// Çalışma Takvimi: ısı haritası + dokunulan günün "ne çalıştım?" özeti.
+/// Isı haritası tek başına yalnız "çalıştım/çalışmadım" diyordu; hangi derse,
+/// ne kadar — bunu göstermek için bir güne dokunmak yeterli.
+class _StudyCalendarBody extends ConsumerStatefulWidget {
+  final Map<DateTime, int> countsByDay;
+  const _StudyCalendarBody({required this.countsByDay});
+
+  @override
+  ConsumerState<_StudyCalendarBody> createState() => _StudyCalendarBodyState();
+}
+
+class _StudyCalendarBodyState extends ConsumerState<_StudyCalendarBody> {
+  DateTime? _selected;
+
+  static const _months = [
+    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _selected;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ActivityHeatmap(
+          countsByDay: widget.countsByDay,
+          weeks: 12,
+          selectedDay: selected,
+          onDayTap: (d) => setState(() => _selected = d),
+        ),
+        const SizedBox(height: 12),
+        Divider(height: 1, color: AppColors.surfaceVariant),
+        const SizedBox(height: 12),
+        if (selected == null)
+          Text('Bir güne dokun.', style: AppTextStyles.caption)
+        else
+          _dayDetail(selected),
+      ],
+    );
+  }
+
+  Widget _dayDetail(DateTime day) {
+    final subjects = ref.watch(subjectProvider);
+    final topics = ref.watch(topicProvider);
+    final log = DaySummaries.log(
+      day,
+      ref.watch(taskProvider),
+      ref.watch(focusSessionProvider),
+    );
+    String? subjectName(String? id) =>
+        id == null ? null : subjects.where((s) => s.id == id).firstOrNull?.name;
+    String? topicName(String? id) =>
+        id == null ? null : topics.where((t) => t.id == id).firstOrNull?.name;
+
+    final title = '${day.day} ${_months[day.month - 1]}';
+    final head = Text(title,
+        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700));
+    if (log.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          head,
+          const SizedBox(height: 4),
+          Text('Bu gün planlı görev ya da çalışma kaydı yok.',
+              style: AppTextStyles.caption),
+        ],
+      );
+    }
+
+    // Özet: "2/3 görev · 1 sa 10 dk odak".
+    final summary = [
+      if (log.tasks.isNotEmpty)
+        '${log.completedCount}/${log.tasks.length} görev',
+      if (log.focusMinutes > 0) '${_fmtMinutes(log.focusMinutes)} odak',
+    ].join(' · ');
+
+    // Satırlar: görevler (plan ↔ gerçek), sonra göreve bağlı olmayan çalışmalar.
+    final rows = <Widget>[];
+    for (final t in log.tasks) {
+      final runs = log.runsForTask(t.id).toList();
+      final actual = t.actualMinutes ??
+          (runs.isEmpty ? null : runs.fold<int>(0, (a, r) => a + r.minutes));
+      final planned = t.estimatedMinutes;
+      final feeling =
+          runs.map((r) => r.feeling).whereType<int>().lastOrNull;
+      final minutesText = actual != null && planned != null
+          ? '$actual/$planned dk'
+          : (actual != null
+              ? '$actual dk'
+              : (planned != null ? 'plan $planned dk' : null));
+      final where = [
+        subjectName(t.subjectId),
+        topicName(t.topicId),
+      ].whereType<String>().join(' · ');
+      rows.add(_dayRow(
+        icon: t.isCompleted
+            ? Icons.check_circle_rounded
+            : Icons.radio_button_unchecked,
+        iconColor: t.isCompleted ? AppColors.success : AppColors.textMuted,
+        title: t.title,
+        subtitle: where.isEmpty ? null : where,
+        trailing: [
+          if (minutesText != null) minutesText,
+          if (feeling != null) FocusFeeling.emoji(feeling),
+        ].join(' '),
+      ));
+    }
+    for (final r in log.looseRuns) {
+      final where = [
+        subjectName(r.subjectId),
+        topicName(r.topicId),
+      ].whereType<String>().join(' · ');
+      rows.add(_dayRow(
+        icon: Icons.timer_outlined,
+        iconColor: AppColors.primary,
+        title: where.isEmpty ? 'Serbest odak' : where,
+        subtitle: 'Odak seansı',
+        trailing: [
+          '${r.minutes} dk',
+          if (r.feeling != null) FocusFeeling.emoji(r.feeling!),
+        ].join(' '),
+      ));
+    }
+    const maxRows = 6;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        head,
+        const SizedBox(height: 2),
+        Text(summary, style: AppTextStyles.caption),
+        const SizedBox(height: 8),
+        ...rows.take(maxRows),
+        if (rows.length > maxRows)
+          Text('+${rows.length - maxRows} daha', style: AppTextStyles.caption),
+      ],
+    );
+  }
+
+  Widget _dayRow({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    String trailing = '',
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: AppTextStyles.body,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                if (subtitle != null)
+                  Text(subtitle,
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          if (trailing.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Text(trailing,
+                style: AppTextStyles.caption
+                    .copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ],
       ),
     );
   }

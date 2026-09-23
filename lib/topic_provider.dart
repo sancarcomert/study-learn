@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import 'topic_model.dart';
+import 'topic_progress.dart';
 import 'topic_repository.dart';
 
 const _uuid = Uuid();
@@ -59,14 +60,34 @@ class TopicNotifier extends StateNotifier<List<TopicModel>> {
     return added;
   }
 
-  void cycleStatus(String id) {
-    final topic = state.firstWhere((t) => t.id == id);
-    topic.status = topic.nextStatus;
-    topic.updatedAt = DateTime.now();
+  /// Bir gerçek çalışma OLAYINI kaydeder ve konunun durumunu
+  /// [TopicProgress.applyStudyActivity] kuralına göre ilerletir. Konu durumunu
+  /// değiştirmenin TEK olay-tabanlı yolu budur; aynı [eventKey] ikinci kez
+  /// gelirse hiçbir şey olmaz. Konu yoksa (silinmiş) sessizce atlanır.
+  /// Döndürür: bu çağrıyla durum ilerledi mi.
+  bool recordStudyActivity(String topicId, String eventKey) {
+    final index = state.indexWhere((t) => t.id == topicId);
+    if (index == -1) return false;
+    final topic = state[index];
+    final result = TopicProgress.applyStudyActivity(
+      status: topic.status,
+      keys: topic.activityKeys,
+      eventKey: eventKey,
+    );
+    if (!result.isNewEvent) return false;
+    final advanced = result.status != topic.status;
+    topic.status = result.status;
+    topic.activityKeys = result.keys;
+    // updatedAt her YENİ çalışma olayında yenilenir (tekrar-zamanı sinyali
+    // "en son ne zaman çalışıldı"ya bakar), durum aynı kalsa bile.
     _repository.update(topic);
     _reload();
+    return advanced;
   }
 
+  /// Öğrencinin kendi kaydını ELLE düzeltmesi (ör. uygulamadan önce çalıştığı
+  /// bir konu). Bu bir kanıt/olay DEĞİL: olay anahtarı üretmez, rozetleri ya da
+  /// zayıf-konu sinyallerini beslemez; yalnız kapsama gösterimini düzeltir.
   void setStatus(String id, TopicStatus status) {
     final topic = state.firstWhere((t) => t.id == id);
     topic.status = status;
@@ -84,14 +105,7 @@ class TopicNotifier extends StateNotifier<List<TopicModel>> {
     if (index == -1) return null;
 
     final original = state[index];
-    final snapshot = TopicModel(
-      id: original.id,
-      subjectId: original.subjectId,
-      name: original.name,
-      status: original.status,
-      createdAt: original.createdAt,
-      updatedAt: original.updatedAt,
-    );
+    final snapshot = original.copy();
 
     _repository.delete(id);
     _reload();

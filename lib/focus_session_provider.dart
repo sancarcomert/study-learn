@@ -24,25 +24,48 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
 
   FocusSessionNotifier(this._repo) : super(_repo.getAll());
 
-  /// Tamamlanan bir odak dilimini kaydeder. [minutes] < 1 ise atlar.
-  void log({
+  /// Tamamlanan bir odak dilimini kaydeder. [minutes] < 1 ise atlar ve null
+  /// döner; aksi halde kaydın id'sini döndürür — çağıran (Focus ekranı)
+  /// seans bitince "nasıl geçti" cevabını bu kayıtlara yazabilsin diye.
+  String? log({
     required int minutes,
     required String mode,
     String? subjectId,
     String? topicId,
     String? note,
+    String? taskId,
+    String? runId,
   }) {
-    if (minutes < 1) return;
+    if (minutes < 1) return null;
+    final id = _uuid.v4();
     _repo.add(FocusSession(
-      id: _uuid.v4(),
+      id: id,
       endedAt: DateTime.now(),
       minutes: minutes,
       mode: mode,
       subjectId: subjectId,
       topicId: topicId,
       note: (note == null || note.trim().isEmpty) ? null : note.trim(),
+      taskId: taskId,
+      runId: runId,
     ));
     state = _repo.getAll();
+    return id;
+  }
+
+  /// Bir Focus ÇALIŞMASININ (tüm dilimlerinin) "nasıl geçti" cevabını yazar —
+  /// bkz. [FocusFeeling]. Cevap çalışmaya aittir, tek tek dilimlere değil.
+  /// Döndürür: kaç dilime yazıldı (0 = o çalışmada kayıtlı dilim yok).
+  int setFeelingForRun(String runId, int feeling) {
+    var n = 0;
+    for (final s in state) {
+      if (s.runKey != runId) continue;
+      s.feeling = feeling;
+      _repo.add(s);
+      n++;
+    }
+    if (n > 0) state = _repo.getAll();
+    return n;
   }
 
   /// Siler ve "Geri Al" için bir kopyasını döndürür. Not: Profil'deki
@@ -61,6 +84,9 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
       subjectId: original.subjectId,
       topicId: original.topicId,
       note: original.note,
+      feeling: original.feeling,
+      taskId: original.taskId,
+      runId: original.runId,
     );
     _repo.delete(id);
     state = _repo.getAll();

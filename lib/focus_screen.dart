@@ -9,14 +9,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'focus_anchor.dart';
 import 'focus_history_screen.dart';
+import 'focus_session_model.dart';
 import 'focus_session_provider.dart';
 import 'hive_boxes.dart';
 import 'notification_service.dart';
 import 'stats_provider.dart';
+import 'study_events.dart';
+import 'study_intent.dart';
 import 'subject_provider.dart';
 import 'task_provider.dart';
 import 'tap_scale.dart';
+import 'topic_evidence.dart';
+import 'topic_evidence_provider.dart';
 import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'widgets/eyebrow.dart';
@@ -30,28 +36,19 @@ import 'widgets/app_snackbar.dart';
 /// Süre her yerde DUVAR-SAATİ farkıyla hesaplanır (tick sayarak değil) —
 /// arka plan / jank'te kaymaz. Bağımlılık yok, bildirim/ses yok (v1).
 class FocusScreen extends ConsumerStatefulWidget {
-  final String? initialNote;
-  final int? initialTargetMin;
-  final String? initialSubjectId;
-  final String? initialTopicId;
+  /// Çalışmanın bağlamı: ne, neden, ne kadar, hangi görev/konu (bkz.
+  /// [StudyIntent]). Kaynağı (Home önerisi, görev, konu, Koç) üretir, Focus
+  /// yeniden türetmez — öneri gerekçesi ekranlar arasında kaybolmaz.
+  final StudyIntent intent;
+
   // Koç'un "Pomodoro Başlat" hızlı aksiyonundan gelen giriş — verilirse
   // ekran Serbest yerine doğrudan Pomodoro modunda açılır.
   final bool initialPomodoro;
-  // Bir görevden başlatıldıysa o görevin id'si — Serbest modun hedefi
-  // (görevin tahmini süresi) dolunca bu görevi doğrudan tamamlanmış
-  // işaretleyebilmek için (bkz. _celebrateFreeTargetReached). Önceden
-  // seans bitince görevle HİÇBİR bağlantı yoktu — kronometre dolsa da
-  // görev Görevler'de işaretsiz kalıyordu.
-  final String? initialTaskId;
 
   const FocusScreen({
     super.key,
-    this.initialNote,
-    this.initialTargetMin,
-    this.initialSubjectId,
-    this.initialTopicId,
+    this.intent = StudyIntent.free,
     this.initialPomodoro = false,
-    this.initialTaskId,
   });
 
   @override
@@ -69,15 +66,28 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   bool _leaving = false;
 
   late _Mode _mode = widget.initialPomodoro ? _Mode.pomodoro : _Mode.free;
-  late int _blockMin = widget.initialTargetMin ?? 25;
+  late int _blockMin = widget.intent.targetMinutes ?? 25;
 
   late final TextEditingController _noteController =
-      TextEditingController(text: widget.initialNote ?? '');
+      TextEditingController(text: widget.intent.title ?? '');
 
-  // Ders/konu bağlama — opsiyonel. Bir görevden başlatıldıysa o görevin
-  // dersi/konusu önceden seçili gelir (kullanıcı isterse değiştirebilir).
-  late String? _selectedSubjectId = widget.initialSubjectId;
-  late String? _selectedTopicId = widget.initialTopicId;
+  // Ders/konu bağlama — opsiyonel. Niyetten (görev/öneri/konu) önceden seçili
+  // gelir; öğrenci isterse çalışma başlamadan değiştirebilir.
+  late String? _selectedSubjectId = widget.intent.subjectId;
+  late String? _selectedTopicId = widget.intent.topicId;
+
+  // Bağlı görev — niyetten; çalışma süreç ölümünden geri yüklenirse çapadan.
+  late String? _taskId = widget.intent.taskId;
+
+  // Bu Focus çalışmasının kimliği: tüm dilimleri (Pomodoro blokları,
+  // checkpoint'ler) tek bir "çalışma olayı" olarak bağlar (bkz. StudyEvents).
+  late String _runId = ref.read(studyEventsProvider).newRunId();
+
+  // Çalışma geri yüklenirse, niyetteki gerekçe ve BAŞLANGIÇ seçimi (gerekçenin
+  // hangi ders/konu için geçerli olduğu) çapadan gelir.
+  late String? _intentReason = widget.intent.reason;
+  late String? _baseSubjectId = widget.intent.subjectId;
+  late String? _baseTopicId = widget.intent.topicId;
 
   // Serbest'in hedefi sadece görsel/ilerleme çubuğu için — kısa bir mola
   // ya da hızlı bir başlangıç için 5/10 dk da mantıklı. Pomodoro'nun
@@ -109,6 +119,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   // aynı olsaydı her arka plana alınışta faz hedefi sıfırdan saymaya
   // başlardı (bkz. _checkpointProgress).
   int _phaseLoggedSec = 0;
+
+  // Bu çalışmada şimdiye kadar KAYDA GEÇEN (ölçülmüş) dakika. Süre yalnız
+  // etkinlik kanıtıdır ("şu kadar zaman harcandı"); çalışmanın iyi ya da
+  // yeterli olduğunu göstermez — bunu yalnız öğrencinin cevabı ve deneme söyler.
+  int _sessionLoggedMin = 0;
 
   // Serbest hedefi bir kez kutlanır — ticker her saniye çalıştığı için
   // bayrak olmadan aynı dialog defalarca açılırdı.
@@ -143,7 +158,37 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _checkpointProgress();
-      if (_running) _writeAnchor();
+      if (_running) {
+        _leftAt = DateTime.now();
+        _elapsedAtLeaveSec = _mode == _Mode.free ? _freeElapsedSec : 0;
+        _writeAnchor();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _discountUnattendedTime();
+    }
+  }
+
+  // Uygulama arka plana alındığı an ve o anki geçen süre — geri dönüşte,
+  // arka planda geçen sürenin ne kadarının "çalışma" sayılacağını belirlemek
+  // için (bkz. FocusAnchorMath).
+  DateTime? _leftAt;
+  int _elapsedAtLeaveSec = 0;
+
+  /// Uygulama aynı süreçte arka plandan döndüğünde: serbest modda, unutulmuş
+  /// zamanlayıcının uzun arka plan süresini "çalışma" saymaz.
+  void _discountUnattendedTime() {
+    final left = _leftAt;
+    _leftAt = null;
+    if (left == null || !_running || _mode != _Mode.free) return;
+    final segStart = _freeSegStart;
+    if (segStart == null) return;
+    final uncredited = FocusAnchorMath.uncreditedAwaySec(
+      elapsedAtLeaveSec: _elapsedAtLeaveSec,
+      awaySec: DateTime.now().difference(left).inSeconds,
+      targetSec: _blockMin * 60,
+    );
+    if (uncredited > 0) {
+      setState(() => _freeSegStart = segStart.add(Duration(seconds: uncredited)));
     }
   }
 
@@ -178,6 +223,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       'subjectId': _selectedSubjectId,
       'topicId': _selectedTopicId,
       'note': _noteController.text,
+      // Çalışmanın kimliği ve bağlamı çapada durur: Home'daki "Odak devam
+      // ediyor" bandından dönüldüğünde (ya da süreç öldürülüp yeniden
+      // açıldığında) görev bağı, gerekçe ve aynı çalışma olarak devam eder.
+      'runId': _runId,
+      'taskId': _taskId,
+      'reason': _intentReason,
+      // Uygulamanın en son ön planda görüldüğü an — unutulmuş bir seansın
+      // arka planda "çalıştığı" varsayılan süresini sınırlamak için.
+      'lastActiveMs': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
@@ -194,6 +248,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     final segStartMs = raw['segStartMs'] as int?;
     if (segStartMs == null) return;
 
+    // Yeni ve FARKLI bir çalışma başlatılıyorsa (başka görev/konu/ders) eski
+    // seans sessizce geri yüklenmez: ölçülmüş dakikaları kendi bağlamına
+    // kaydedilir, yeni niyet kazanır. Aynı bağlam (ya da bağlamsız açılış:
+    // Home bandı) ise kaldığı yerden devam eder.
+    if (!_anchorMatchesIntent(raw)) {
+      _finalizeSupersededRun(raw);
+      return;
+    }
+
     final segStart = DateTime.fromMillisecondsSinceEpoch(segStartMs);
     _mode = _Mode.values
         .firstWhere((m) => m.name == raw['mode'], orElse: () => _Mode.free);
@@ -203,6 +266,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     _pomoCycle = raw['pomoCycle'] as int? ?? 1;
     _selectedSubjectId = raw['subjectId'] as String?;
     _selectedTopicId = raw['topicId'] as String?;
+    _baseSubjectId = _selectedSubjectId;
+    _baseTopicId = _selectedTopicId;
+    _runId = raw['runId'] as String? ?? _runId;
+    _taskId = raw['taskId'] as String? ?? _taskId;
+    _intentReason = raw['reason'] as String? ?? _intentReason;
     final note = raw['note'] as String?;
     if (note != null && note.isNotEmpty) _noteController.text = note;
 
@@ -210,8 +278,20 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     final loggedSec = raw['loggedSec'] as int? ?? 0;
     if (_mode == _Mode.free) {
       _freeCommittedSec = committedSec;
-      _freeSegStart = segStart;
       _freeLoggedSec = loggedSec;
+      // Unutulmuş zamanlayıcı: arka planda geçen sürenin yalnız makul kısmı
+      // sayılır (bkz. FocusAnchorMath) — segment başlangıcı buna göre ileri
+      // alınır, böylece geçen süre zaten kırpılmış görünür.
+      final credited = FocusAnchorMath.creditedFreeElapsedSec(
+        committedSec: committedSec,
+        segStartMs: segStartMs,
+        lastActiveMs: raw['lastActiveMs'] as int?,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+        targetSec: _blockMin * 60,
+      );
+      final rawElapsed = committedSec +
+          (DateTime.now().millisecondsSinceEpoch - segStartMs) ~/ 1000;
+      _freeSegStart = segStart.add(Duration(seconds: rawElapsed - credited));
     } else {
       _phaseAccumSec = committedSec;
       _phaseSegStart = segStart;
@@ -220,20 +300,93 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     _running = true;
   }
 
+  /// Çapadaki seans, açılan niyetle aynı bağlamda mı? Görev varsa görev, yoksa
+  /// konu, yoksa ders karşılaştırılır; niyet bağlamsızsa (Home bandı, hızlı
+  /// Pomodoro) her zaman eşleşir — devam eden seansa dönülür.
+  bool _anchorMatchesIntent(Map raw) {
+    final i = widget.intent;
+    if (i.taskId != null) return raw['taskId'] == i.taskId;
+    if (i.topicId != null) return raw['topicId'] == i.topicId;
+    if (i.subjectId != null) return raw['subjectId'] == i.subjectId;
+    return true;
+  }
+
+  /// Yerini yeni bir çalışmaya bırakan seansın ölçülmüş (kırpılmış) dakikalarını
+  /// KENDİ bağlamına (görev/konu/ders) kaydeder ve çapayı temizler. Cevap
+  /// sorulmaz — öğrenci artık başka bir şeye geçti.
+  void _finalizeSupersededRun(Map raw) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final free = raw['mode'] == _Mode.free.name;
+    final committed = raw['committedSec'] as int? ?? 0;
+    final logged = raw['loggedSec'] as int? ?? 0;
+    final segStartMs = raw['segStartMs'] as int? ?? nowMs;
+    final block = (raw['blockMin'] as int? ?? 25) * 60;
+
+    final int elapsedSec;
+    if (free) {
+      elapsedSec = FocusAnchorMath.creditedFreeElapsedSec(
+        committedSec: committed,
+        segStartMs: segStartMs,
+        lastActiveMs: raw['lastActiveMs'] as int?,
+        nowMs: nowMs,
+        targetSec: block,
+      );
+    } else if (raw['phase'] == _Phase.work.name) {
+      elapsedSec =
+          math.min(committed + (nowMs - segStartMs) ~/ 1000, block);
+    } else {
+      elapsedSec = logged;
+    }
+
+    final minutes = (elapsedSec - logged) ~/ 60;
+    // Çapa HEMEN temizlenir (aynı seans iki kez sonlandırılmasın); provider
+    // yazımı ise initState içinde YAPILAMAZ (Riverpod yasağı) — ilk kareden
+    // sonra, kopyalanmış verilerle yapılır.
+    final runId = raw['runId'] as String?;
+    final subjectId = raw['subjectId'] as String?;
+    final topicId = raw['topicId'] as String?;
+    final taskId = raw['taskId'] as String?;
+    final note = raw['note'] as String?;
+    _cancelCompletionNotification();
+    _clearAnchor();
+    if (minutes >= 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final events = ref.read(studyEventsProvider);
+        events.recordFocusActivity(
+          runId: runId ?? events.newRunId(),
+          minutes: minutes,
+          mode: free ? 'serbest' : 'pomodoro',
+          subjectId: subjectId,
+          topicId: topicId,
+          taskId: taskId,
+          note: note,
+        );
+      });
+    }
+  }
+
   void _flushFreeProgress() {
     final totalSec = _freeElapsedSec;
     final deltaMin = (totalSec - _freeLoggedSec) ~/ 60;
     if (deltaMin < 1) return;
     _freeLoggedSec += deltaMin * 60;
-    ref.read(statsProvider.notifier).addFocusMinutes(deltaMin);
-    ref.read(focusSessionProvider.notifier).log(
-          minutes: deltaMin,
-          mode: 'serbest',
+    _recordActivity(deltaMin, 'serbest');
+  }
+
+  /// Ölçülmüş bir çalışma dilimini olay servisine bildirir. Kayıt, toplam odak
+  /// süresi ve konuya çalışma olayı işlenmesi TEK yerde (StudyEvents) olur.
+  void _recordActivity(int minutes, String mode) {
+    final id = ref.read(studyEventsProvider).recordFocusActivity(
+          runId: _runId,
+          minutes: minutes,
+          mode: mode,
           subjectId: _selectedSubjectId,
           topicId: _selectedTopicId,
+          taskId: _taskId,
           note: _noteController.text,
         );
-    _markLinkedTopicStudied();
+    if (id != null) _sessionLoggedMin += minutes;
   }
 
   @override
@@ -437,28 +590,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     final deltaMin = (totalSec - _phaseLoggedSec) ~/ 60;
     if (deltaMin >= 1) {
       _phaseLoggedSec += deltaMin * 60;
-      ref.read(statsProvider.notifier).addFocusMinutes(deltaMin);
-      ref.read(focusSessionProvider.notifier).log(
-            minutes: deltaMin,
-            mode: 'pomodoro',
-            subjectId: _selectedSubjectId,
-            topicId: _selectedTopicId,
-            note: _noteController.text,
-          );
-      _markLinkedTopicStudied();
-    }
-  }
-
-  /// Seans bir Konu Takip konusuna bağlıysa ve o konu hâlâ "başlanmadı"
-  /// durumundaysa "çalışıldı"ya geçirir — task_provider'daki görev-konu
-  /// bağıyla aynı desen, elle iki kere işaretleme zorunluluğu kalkar.
-  void _markLinkedTopicStudied() {
-    final topicId = _selectedTopicId;
-    if (topicId == null) return;
-    final topic =
-        ref.read(topicProvider).where((t) => t.id == topicId).firstOrNull;
-    if (topic != null && topic.status == TopicStatus.notStarted) {
-      ref.read(topicProvider.notifier).setStatus(topicId, TopicStatus.studied);
+      _recordActivity(deltaMin, 'pomodoro');
     }
   }
 
@@ -469,7 +601,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   /// an: dokunuşsal geri bildirim + görevi doğrudan tamamlama seçeneği.
   void _celebrateFreeTargetReached() {
     HapticFeedback.heavyImpact();
-    final taskId = widget.initialTaskId;
+    final taskId = _taskId;
     final task = taskId == null
         ? null
         : ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
@@ -486,15 +618,16 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     );
   }
 
-  void _completeLinkedTask(String taskId) {
+  /// "Görevi Tamamla" (hedefe ulaşınca): önce o ana kadarki çalışmayı KAYDA
+  /// geçirir (görev tamamlama, harcanan süreyi ve "bu çalışma zaten ölçüldü"
+  /// bilgisini kayıtlı seanslardan okur), sonra görevi tamamlar. Konu ilerlemesi
+  /// bu çalışmadan bir kez sayılır — burada tekrar hesaplanmaz.
+  Future<void> _completeLinkedTask(String taskId) async {
     final task =
         ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
     if (task == null || task.isCompleted) return;
-    ref.read(taskProvider.notifier).toggleTaskCompletion(
-          taskId,
-          ref,
-          actualMinutes: _freeElapsedSec ~/ 60,
-        );
+    _checkpointProgress();
+    await ref.read(taskProvider.notifier).completeTask(taskId);
     if (mounted) {
       AppSnackBar.success(context, '"${task.title}" tamamlandı');
     }
@@ -610,7 +743,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
 
   // ---- çıkış ----
 
-  void _saveIfNeeded() {
+  /// Bu seansta şimdiye kadar GERÇEKTEN çalışılan dakika. Serbest modda canlı
+  /// süre (henüz bir tam dakikaya yuvarlanmamış kısım dahil), Pomodoro'da
+  /// yazılmış çalışma blokları toplamı.
+  int get _sessionMinutes => _mode == _Mode.free
+      ? math.max(_sessionLoggedMin, _freeElapsedSec ~/ 60)
+      : _sessionLoggedMin;
+
+  void _saveIfNeeded({bool quiet = false}) {
     _ticker?.cancel();
     _cancelCompletionNotification();
     _clearAnchor();
@@ -619,7 +759,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _flushFreeProgress();
       _freeCommittedSec = _freeElapsedSec;
       _freeSegStart = null;
-      if (totalMinutes >= 1) {
+      if (totalMinutes >= 1 && !quiet) {
         final note = _noteController.text.trim();
         AppSnackBar.success(
           context,
@@ -637,13 +777,106 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     _running = false;
   }
 
-  void _exit() {
-    _saveIfNeeded();
+  Future<void> _exit() async {
+    if (_leaving) return;
+    final messenger = ScaffoldMessenger.of(context);
+    // Bu ekranın KENDİ rotası: bitişte kapanan şey mutlaka bu olmalı. Görev
+    // Focus'tan tamamlanınca Home hedef kutlaması diyaloğunu bu rotanın ÜSTÜNE
+    // açabilir; düz pop() o zaman diyaloğu kapatıp öğrenciyi durmuş bir Focus
+    // ekranında bırakırdı.
+    final route = ModalRoute.of(context);
+
+    // Sonuç sheet'i yalnız ölçülmüş bir çalışma varsa (≥1 dk) çıkar; 1
+    // dakikadan kısa bir "Bitir" hiçbir şey sormaz.
+    final hadMinutes = _mode == _Mode.free
+        ? _freeElapsedSec >= 60
+        : (_sessionLoggedMin +
+                (_phase == _Phase.work
+                    ? math.max(
+                        0,
+                        math.min(_phaseElapsedSec, _blockMin * 60) -
+                            _phaseLoggedSec)
+                    : 0) >=
+            60);
+    _saveIfNeeded(quiet: hadMinutes);
+    if (!mounted) return;
+
+    final sessionMin = _sessionMinutes;
+    if (hadMinutes && sessionMin >= 1) {
+      final taskId = _taskId;
+      final task = taskId == null
+          ? null
+          : ref.read(taskProvider).where((t) => t.id == taskId).firstOrNull;
+      final canComplete = task != null && !task.isCompleted;
+
+      final outcome = await showModalBottomSheet<_FocusOutcome>(
+        context: context,
+        backgroundColor: AppColors.surface,
+        showDragHandle: true,
+        builder: (_) => _FocusOutcomeSheet(
+          minutes: sessionMin,
+          label: _noteLabel(),
+          canCompleteTask: canComplete,
+          completeTaskByDefault: sessionMin >= _blockMin,
+        ),
+      );
+      if (!mounted) return;
+
+      // Olayı TEK kapıdan bildir: cevap çalışmaya yazılır, görev (istenirse)
+      // tamamlanır; öneri/rozet/plan bundan türer.
+      final result = await ref.read(studyEventsProvider).finishFocusRun(
+            runId: _runId,
+            topicId: _selectedTopicId,
+            taskId: taskId,
+            feeling: outcome?.feeling,
+            completeTask: canComplete && (outcome?.completeTask ?? false),
+          );
+
+      // Öğrenciye söylenen cümle YALNIZ gerçekten olacak şeyi söyler.
+      final message = _outcomeMessage(outcome?.feeling, result);
+      if (message != null) {
+        messenger.clearSnackBars();
+        messenger.showSnackBar(SnackBar(
+          duration: const Duration(seconds: 3),
+          content: Text(
+            message,
+            style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+          ),
+        ));
+      }
+    }
+
     if (!mounted || _leaving) return;
     setState(() => _leaving = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      final r = route;
+      if (r != null && r.isActive && !r.isCurrent) {
+        r.navigator?.removeRoute(r); // üstte bir diyalog var — onu bozma
+      } else {
+        Navigator.of(context).pop();
+      }
     });
+  }
+
+  /// Bitişte öğrenciye söylenecek tek cümle. Konu bağlı değilse "hatırlatırım"
+  /// denmez (hatırlatacak bir konu yok); zorlanma zaten "üst üste"ye
+  /// dönüştüyse bunu söyler; "normaldi/iyi gitti" yalnız gerçekten bir
+  /// zorlanma işaretini kaldırdıysa bunu söyler.
+  String? _outcomeMessage(int? feeling, FocusRunResult r) {
+    if (feeling == null) return null;
+    final hasTopic = _selectedTopicId != null;
+    if (feeling == FocusFeeling.hard) {
+      if (!hasTopic) return 'Not aldım.';
+      return r.difficultyAfter == DifficultySignal.repeated
+          ? 'Not aldım. Bu konuda art arda zorlandın — bir sonraki plana bunu da katarım.'
+          : 'Not aldım. Bu konuya tekrar bakarken hatırlatırım.';
+    }
+    if (r.difficultyBefore != DifficultySignal.none &&
+        r.difficultyAfter == DifficultySignal.none) {
+      return 'Güzel. Bu konu artık zorlandıkların arasında değil.';
+    }
+    return 'Not aldım.';
   }
 
   // "Bitir" butonundan FARKLI: kullanıcı sadece geri gidiyor (geri tuşu/
@@ -671,20 +904,23 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         context: context,
         builder: (dialogContext) => AlertDialog(
           icon: Icon(Icons.timer_outlined, color: AppColors.primary, size: 30),
-          title: const Text('Seansı yarıda mı bırakıyorsun?'),
+          // Dürüst metin: ekrandan çıkmak seansı BİTİRMEZ — sayaç arka planda
+          // sürer (Ana Sayfa'daki "Odak devam ediyor" bandından dönülür).
+          // Bitirmek için "Bitir".
+          title: const Text('Sayaç arka planda sürsün mü?'),
           content: const Text(
-            'Şu ana kadarki ilerleme kaydedilir, endişelenme. İstersen '
-            'devam et, istersen çık.',
+            'Bu ekrandan çıkmak seansı bitirmez; sayaç çalışmaya devam eder '
+            "ve Ana Sayfa'daki bantla geri dönebilirsin. Bitirmek için "
+            '"Bitir"e bas.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Devam Et'),
+              child: const Text('Ekranda Kal'),
             ),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Çık'),
+              child: const Text('Arka Plana Al'),
             ),
           ],
         ),
@@ -729,6 +965,55 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         .where((t) => t.id == _selectedTopicId)
         .firstOrNull;
     return topic == null ? subject.name : '${subject.name} · ${topic.name}';
+  }
+
+  // ---- bağlam kartı (seans öncesi/sırasında "ne + neden") ----
+
+  String? _selectedTopicName() {
+    final topicId = _selectedTopicId;
+    final subjectId = _selectedSubjectId;
+    if (topicId == null || subjectId == null) return null;
+    return ref
+        .read(topicsForSubjectProvider(subjectId))
+        .where((t) => t.id == topicId)
+        .firstOrNull
+        ?.name;
+  }
+
+  String _contextTitle() {
+    final note = _noteController.text.trim();
+    return _selectedTopicName() ??
+        (note.isNotEmpty ? note : (_noteLabel() ?? 'Serbest çalışma'));
+  }
+
+  String _contextSubtitle() {
+    final subjectName = _selectedSubjectId == null
+        ? null
+        : ref
+            .read(subjectProvider)
+            .where((s) => s.id == _selectedSubjectId)
+            .firstOrNull
+            ?.name;
+    return [
+      if (subjectName != null && subjectName != _contextTitle()) subjectName,
+      '$_blockMin dk',
+    ].join(' · ');
+  }
+
+  /// "Neden bu?" satırı. Niyetin gerekçesi (öğrenciye Home'da/listede
+  /// HANGİ metin gösterildiyse o) öncelikli — bağlam ekranlar arasında
+  /// kaybolmasın diye. Öğrenci konuyu değiştirdiyse o gerekçe artık geçerli
+  /// değildir; o zaman seçili konunun canlı kanıtı (deneme / çalışma). İkisi
+  /// de yoksa null — uydurma gerekçe yok.
+  String? _contextReason() {
+    final sameSelection = _selectedSubjectId == _baseSubjectId &&
+        _selectedTopicId == _baseTopicId;
+    if (sameSelection && _intentReason != null) return _intentReason;
+    final topicId = _selectedTopicId;
+    if (topicId != null) {
+      return ref.watch(topicEvidenceProvider)[topicId]?.sentence;
+    }
+    return null;
   }
 
   /// Serbest modda hedef süre geçildikten sonra ne kadar fazladan
@@ -813,26 +1098,54 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                     ),
 
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _noteController,
-                      textInputAction: TextInputAction.done,
-                      decoration: const InputDecoration(
-                        hintText: 'Ne üzerinde çalışıyorsun? (opsiyonel)',
+                    // Seans BAŞLAMADAN önce: ne çalışıyorum + neden. Seans
+                    // sürerken alanlar gizlenir (dikkat dağıtmasın); bağlam
+                    // kartı kalır — öğrenci neye çalıştığını görmeye devam
+                    // eder.
+                    if (_running)
+                      _FocusContextCard(
+                        title: _contextTitle(),
+                        subtitle: _contextSubtitle(),
+                        reason: _contextReason(),
+                      )
+                    else ...[
+                      // Bağlam (ne + kaç dk, varsa neden) seçili bir şey
+                      // varken HER ZAMAN görünür; yalnız hiç bağlam yoksa
+                      // (serbest çalışma) kart çizilmez.
+                      if (_selectedSubjectId != null ||
+                          _noteController.text.trim().isNotEmpty) ...[
+                        _FocusContextCard(
+                          title: _contextTitle(),
+                          subtitle: _contextSubtitle(),
+                          reason: _contextReason(),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      // Konu seçiliyse "ne çalışıyorum" zaten belli (kart +
+                      // çip); serbest not yalnız konu yokken sorulur.
+                      if (_selectedTopicId == null) ...[
+                        TextField(
+                          controller: _noteController,
+                          textInputAction: TextInputAction.done,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            hintText: 'Ne üzerinde çalışıyorsun? (opsiyonel)',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _SubjectTopicPicker(
+                        enabled: !_running,
+                        selectedSubjectId: _selectedSubjectId,
+                        selectedTopicId: _selectedTopicId,
+                        onSubjectChanged: (id) => setState(() {
+                          _selectedSubjectId = id;
+                          _selectedTopicId = null;
+                        }),
+                        onTopicChanged: (id) =>
+                            setState(() => _selectedTopicId = id),
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-                    _SubjectTopicPicker(
-                      enabled: !_running,
-                      selectedSubjectId: _selectedSubjectId,
-                      selectedTopicId: _selectedTopicId,
-                      onSubjectChanged: (id) => setState(() {
-                        _selectedSubjectId = id;
-                        _selectedTopicId = null;
-                      }),
-                      onTopicChanged: (id) =>
-                          setState(() => _selectedTopicId = id),
-                    ),
+                    ],
 
                     const SizedBox(height: 32),
 
@@ -1451,6 +1764,195 @@ class _ModeToggle extends StatelessWidget {
               fontSize: 14,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Seans bitince tek sheet'ten dönen cevap.
+class _FocusOutcome {
+  final int? feeling; // FocusFeeling.* ya da null (atlandı)
+  final bool completeTask;
+  const _FocusOutcome({this.feeling, this.completeTask = false});
+}
+
+/// "Ne çalışıyorum, neden, ne kadar" — seans öncesi ve sırasında üstte duran
+/// sakin bir kart. [reason] null ise satır hiç çizilmez.
+class _FocusContextCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String? reason;
+
+  const _FocusContextCard({
+    required this.title,
+    required this.subtitle,
+    this.reason,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.surfaceVariant),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.heading3,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(subtitle, style: AppTextStyles.bodySecondary),
+          if (reason != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.insights_outlined,
+                    size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    reason!,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Nasıl geçti?" — 1 dokunuş. Bir seçenek seçilince sheet kapanır; bağlı
+/// görev varsa altta ayrı, tek satırlık "görevi tamamlandı say" seçeneği.
+class _FocusOutcomeSheet extends StatefulWidget {
+  final int minutes;
+  final String? label;
+  final bool canCompleteTask;
+  final bool completeTaskByDefault;
+
+  const _FocusOutcomeSheet({
+    required this.minutes,
+    required this.label,
+    required this.canCompleteTask,
+    required this.completeTaskByDefault,
+  });
+
+  @override
+  State<_FocusOutcomeSheet> createState() => _FocusOutcomeSheetState();
+}
+
+class _FocusOutcomeSheetState extends State<_FocusOutcomeSheet> {
+  late bool _complete = widget.completeTaskByDefault;
+
+  void _done(int? feeling) => Navigator.pop(
+        context,
+        _FocusOutcome(
+          feeling: feeling,
+          completeTask: widget.canCompleteTask && _complete,
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${widget.minutes} dk çalıştın',
+                style: AppTextStyles.heading3),
+            if (widget.label != null) ...[
+              const SizedBox(height: 2),
+              Text(widget.label!, style: AppTextStyles.bodySecondary),
+            ],
+            const SizedBox(height: 16),
+            Text('Nasıl geçti?', style: AppTextStyles.eyebrow),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _feelingButton(FocusFeeling.hard),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _feelingButton(FocusFeeling.ok),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child:
+                      _feelingButton(FocusFeeling.great),
+                ),
+              ],
+            ),
+            if (widget.canCompleteTask) ...[
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _complete,
+                activeColor: AppColors.primary,
+                onChanged: (v) => setState(() => _complete = v ?? false),
+                title: Text('Görevi tamamlandı say',
+                    style: AppTextStyles.body),
+              ),
+            ],
+            Align(
+              alignment: Alignment.center,
+              child: TextButton(
+                onPressed: () => _done(null),
+                child: Text(
+                  'Şimdilik geç',
+                  style: AppTextStyles.body
+                      .copyWith(color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _feelingButton(int feeling) {
+    return TapScale(
+      onTap: () => _done(feeling),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.tonal(AppColors.primary),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Text(FocusFeeling.emoji(feeling),
+                style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 6),
+            Text(
+              FocusFeeling.label(feeling),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

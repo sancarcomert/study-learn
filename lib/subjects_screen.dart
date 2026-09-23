@@ -4,7 +4,6 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'subject_provider.dart';
 import 'subject_model.dart';
-import 'topic_model.dart';
 import 'topic_provider.dart';
 import 'task_provider.dart';
 import 'add_subject_sheet.dart';
@@ -143,14 +142,7 @@ class _SubjectCard extends StatelessWidget {
         final topicsSnapshot = ref
             .read(topicProvider)
             .where((t) => t.subjectId == subject.id)
-            .map((t) => TopicModel(
-                  id: t.id,
-                  subjectId: t.subjectId,
-                  name: t.name,
-                  status: t.status,
-                  createdAt: t.createdAt,
-                  updatedAt: t.updatedAt,
-                ))
+            .map((t) => t.copy())
             .toList();
 
         final deleted = notifier.deleteSubject(subject.id);
@@ -162,7 +154,8 @@ class _SubjectCard extends StatelessWidget {
           // Aynı gerekçe görevler için de geçerli: bu derse bağlı görevler
           // silinmez (kullanıcının yapılacak işi kaybolmasın), ama artık var
           // olmayan bir derse/konuya işaret etmesinler diye bağları temizlenir.
-          ref.read(taskProvider.notifier).clearSubjectFromTasks(subject.id);
+          final taskNotifier = ref.read(taskProvider.notifier);
+          final taskLinks = taskNotifier.clearSubjectFromTasks(subject.id);
           AppSnackBar.undo(
             context,
             '"${deleted.name}" silindi',
@@ -171,6 +164,9 @@ class _SubjectCard extends StatelessWidget {
               for (final t in topicsSnapshot) {
                 topicNotifier.restoreTopic(t);
               }
+              // Görevlerin ders/konu bağları da geri gelir — yoksa "geri al"a
+              // rağmen görevler kalıcı olarak dersiz/konusuz kalırdı.
+              taskNotifier.restoreSubjectLinks(taskLinks);
             },
           );
         }

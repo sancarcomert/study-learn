@@ -104,6 +104,7 @@ void main() {
         status: TopicStatus.reviewed,
         createdAt: DateTime(2026, 3, 2),
         updatedAt: DateTime(2026, 9, 5),
+        activityKeys: ['run:r1', 'task:t1'],
       ),
     );
     await HiveBoxes.focusSessions.put(
@@ -113,6 +114,9 @@ void main() {
         endedAt: DateTime(2026, 9, 10, 18),
         minutes: 25,
         mode: 'pomodoro',
+        feeling: FocusFeeling.hard,
+        taskId: 't1',
+        runId: 'r1',
       ),
     );
     await HiveBoxes.dailyCloseouts.put(
@@ -192,12 +196,19 @@ void main() {
 
     final topic = HiveBoxes.topics.get('k1')!;
     expect(topic.name, 'İntegral');
+    expect(topic.activityKeys, ['run:r1', 'task:t1']);
     expect(topic.status, TopicStatus.reviewed);
     expect(topic.updatedAt, DateTime(2026, 9, 5));
 
     final focus = HiveBoxes.focusSessions.get('f1')!;
     expect(focus.minutes, 25);
     expect(focus.mode, 'pomodoro');
+    // "Nasıl geçti" cevabı yedekten geri yüklemede kaybolmamalı.
+    expect(focus.feeling, FocusFeeling.hard);
+    // Çalışma kimliği/görev bağı yedekten dönünce de sürer — yoksa "bir
+    // çalışma = bir olay" ve "bu görev zaten ölçüldü" bilgisi kaybolurdu.
+    expect(focus.taskId, 't1');
+    expect(focus.runId, 'r1');
 
     final closeout = HiveBoxes.dailyCloseouts.get('2026-09-10')!;
     expect(closeout.intent, 'Yarın türev tekrarı — İş çıkışı');

@@ -12,10 +12,17 @@ class ActivityHeatmap extends StatelessWidget {
   final Map<DateTime, int> countsByDay;
   final int weeks;
 
+  /// Verilirse kareler dokunulabilir olur (o günün ne olduğunu göstermek
+  /// çağıranın işi); [selectedDay] o karenin etrafına ince bir çerçeve çizer.
+  final ValueChanged<DateTime>? onDayTap;
+  final DateTime? selectedDay;
+
   const ActivityHeatmap({
     super.key,
     required this.countsByDay,
     this.weeks = 12,
+    this.onDayTap,
+    this.selectedDay,
   });
 
   static const _dayLabels = ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'];
@@ -38,14 +45,31 @@ class ActivityHeatmap extends StatelessWidget {
       const gap = 4.0;
       final cell = ((c.maxWidth - gap * 6) / 7).clamp(10.0, 22.0);
 
-      Widget square(Color color, {bool ghost = false}) => Container(
-            width: cell,
-            height: cell,
-            decoration: BoxDecoration(
-              color: ghost ? Colors.transparent : color,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          );
+      Widget square(Color color,
+              {bool ghost = false, DateTime? day}) {
+        final selected = day != null &&
+            selectedDay != null &&
+            day.year == selectedDay!.year &&
+            day.month == selectedDay!.month &&
+            day.day == selectedDay!.day;
+        final box = Container(
+          width: cell,
+          height: cell,
+          decoration: BoxDecoration(
+            color: ghost ? Colors.transparent : color,
+            borderRadius: BorderRadius.circular(3),
+            border: selected
+                ? Border.all(color: AppColors.textPrimary, width: 1.6)
+                : null,
+          ),
+        );
+        if (ghost || day == null || onDayTap == null) return box;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onDayTap!(day),
+          child: box,
+        );
+      }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,7 +96,7 @@ class ActivityHeatmap extends StatelessWidget {
                   Builder(builder: (_) {
                     final day = start.add(Duration(days: w * 7 + d));
                     if (day.isAfter(today)) return square(Colors.transparent, ghost: true);
-                    return square(_cellColor(countsByDay[day] ?? 0));
+                    return square(_cellColor(countsByDay[day] ?? 0), day: day);
                   }),
               ],
             ),

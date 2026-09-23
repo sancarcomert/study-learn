@@ -39,6 +39,14 @@ class TopicModel extends HiveObject {
   @HiveField(5)
   DateTime? updatedAt;
 
+  /// Bu konunun durumunu ilerletmiş çalışma OLAYLARININ anahtarları (bkz.
+  /// TopicProgress). Aynı gerçek-dünya olayı ikinci kez geldiğinde (ör. Focus
+  /// seansı + o seansla tamamlanan görev) durum bir daha ilerlemesin diye —
+  /// idempotentlik burada, veride durur; arayüz bayrağında değil. Eski
+  /// kayıtlarda boş liste (hiç olay kaydedilmemiş) — doğru.
+  @HiveField(6, defaultValue: <String>[])
+  List<String> activityKeys;
+
   TopicModel({
     required this.id,
     required this.subjectId,
@@ -46,17 +54,23 @@ class TopicModel extends HiveObject {
     this.status = TopicStatus.notStarted,
     required this.createdAt,
     this.updatedAt,
-  });
+    List<String>? activityKeys,
+  }) : activityKeys = activityKeys ?? [];
+
+  /// Silinmeden önce alınan, HiveObject'ten bağımsız tam kopya ("Geri Al"
+  /// için). Kopyalama TEK yerde durur: alan eklendiğinde (ör. [activityKeys])
+  /// elle yazılmış ayrı kopyalardan biri unutulup veri sessizce kaybolmasın.
+  TopicModel copy() => TopicModel(
+        id: id,
+        subjectId: subjectId,
+        name: name,
+        status: status,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        activityKeys: List.of(activityKeys),
+      );
 
   /// "Bitmiş" sayılır mı — kapsama yüzdesinde pay.
   bool get isCovered =>
       status == TopicStatus.studied || status == TopicStatus.reviewed;
-
-  /// Dokununca bir sonraki duruma geç: başlanmadı → çalışıldı → tekrar →
-  /// başlanmadı.
-  TopicStatus get nextStatus => switch (status) {
-        TopicStatus.notStarted => TopicStatus.studied,
-        TopicStatus.studied => TopicStatus.reviewed,
-        TopicStatus.reviewed => TopicStatus.notStarted,
-      };
 }

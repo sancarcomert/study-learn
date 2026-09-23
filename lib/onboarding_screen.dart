@@ -74,10 +74,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
 
     ref.read(taskProvider.notifier).addTask(
-          title: 'Örnek: Konu tekrarı yap',
+          // Yer tutucu "Örnek" değil — öğrencinin gerçekten yapıp Focus'ta
+          // başlatabileceği, dürüst bir ilk görev (Home'da "Bugünün Odağı"
+          // olarak görünür).
+          title: '$subjectName: ilk çalışma',
           subjectId: createdSubject.id,
           dueDate: DateTime.now(),
-          estimatedMinutes: 30,
+          estimatedMinutes: 25,
         );
 
     _completeOnboarding();

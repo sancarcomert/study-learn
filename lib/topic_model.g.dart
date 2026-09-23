@@ -23,13 +23,14 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       status: fields[3] as TopicStatus,
       createdAt: fields[4] as DateTime,
       updatedAt: fields[5] as DateTime?,
+      activityKeys: (fields[6] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TopicModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(6)
+      ..write(obj.activityKeys);
   }
 
   @override

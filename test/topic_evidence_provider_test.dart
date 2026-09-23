@@ -1,50 +1,22 @@
-import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:study_planner/deneme_model.dart';
 import 'package:study_planner/deneme_provider.dart';
-import 'package:study_planner/hive_boxes.dart';
-import 'package:study_planner/subject_model.dart';
 import 'package:study_planner/subject_provider.dart';
 import 'package:study_planner/topic_evidence.dart';
 import 'package:study_planner/topic_evidence_provider.dart';
 import 'package:study_planner/topic_model.dart';
 import 'package:study_planner/topic_provider.dart';
 
+import 'support/hive_memory.dart';
+
 /// Bölüm 1 — rozet TEK kaynaktan (PlanBuilder/StudyAdvisor/Stats'ın da
 /// okuduğu aynı deneme sinyalleri) türer ve GERÇEK Hive verisiyle otomatik
 /// güncellenir; ayrı/çelişebilecek bir "rozet mantığı" yok.
 void main() {
-  late Directory tempDir;
-
-  setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('pusula_topic_evidence_test');
-    Hive.init(tempDir.path);
-    Hive.registerAdapter(SubjectModelAdapter());
-    Hive.registerAdapter(TopicStatusAdapter());
-    Hive.registerAdapter(TopicModelAdapter());
-    Hive.registerAdapter(DenemeSectionScoreAdapter());
-    Hive.registerAdapter(DenemeEntryAdapter());
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    tempDir.deleteSync(recursive: true);
-  });
-
-  setUp(() async {
-    await Hive.openBox<SubjectModel>(HiveBoxes.subjectsBoxName);
-    await Hive.openBox<TopicModel>(HiveBoxes.topicsBoxName);
-    await Hive.openBox<DenemeEntry>(HiveBoxes.denemelerBoxName);
-  });
-
-  tearDown(() async {
-    await Hive.deleteBoxFromDisk(HiveBoxes.subjectsBoxName);
-    await Hive.deleteBoxFromDisk(HiveBoxes.topicsBoxName);
-    await Hive.deleteBoxFromDisk(HiveBoxes.denemelerBoxName);
-  });
+  setUp(openMemoryBoxes);
+  tearDown(closeMemoryBoxes);
 
   test('deneme yokken hiçbir konunun rozeti yok', () {
     final c = ProviderContainer();

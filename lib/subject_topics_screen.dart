@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 import 'focus_screen.dart';
 import 'stats_provider.dart';
+import 'study_intent.dart';
 import 'topic_catalog.dart';
 import 'topic_evidence.dart';
 import 'topic_evidence_provider.dart';
@@ -15,8 +16,9 @@ import 'widgets/section_header.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
 
-/// Bir dersin konu listesi. Satıra dokun → durum döngüsü
-/// (başlanmadı → çalışıldı → tekrar). Sola kaydır → sil.
+/// Bir dersin konu listesi. Satıra dokun → o konuyu çalışmayı başlat (durum
+/// DEĞİŞMEZ; durum yalnız gerçek çalışma olaylarından ilerler). Sola kaydır →
+/// sil. ⋮ → kaydı elle düzelt.
 class SubjectTopicsScreen extends ConsumerStatefulWidget {
   final String subjectId;
   final String subjectName;
@@ -89,10 +91,26 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
   // de yeşil) satırda hangisinin hangisi olduğu karışır.
   static Color _evidenceColor(TopicEvidenceState s) => switch (s) {
         TopicEvidenceState.weakConfirmed => AppColors.warning,
+        TopicEvidenceState.struggling => AppColors.warning,
+        TopicEvidenceState.strugglingRepeatedly => AppColors.warning,
         TopicEvidenceState.improving => AppColors.success,
         TopicEvidenceState.needsReview => AppColors.info,
         TopicEvidenceState.none => AppColors.textSecondary,
       };
+
+  /// Konuya dokunmak, o konuyu çalışmayı BAŞLATMA niyetidir — durum
+  /// değiştirmez. Konu durumu yalnız gerçek bir çalışma olayından (ölçülmüş
+  /// Focus çalışması, bağlı görevin tamamlanması) ilerler; bkz. TopicProgress.
+  /// Gerekçe (varsa) niyetle Focus'a taşınır.
+  void _startFocus(TopicModel t) {
+    final reason = ref.read(topicEvidenceProvider)[t.id]?.sentence;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            FocusScreen(intent: StudyIntent.forTopic(t, reason: reason)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,18 +243,11 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                               evidence: evidence[t.id] ?? TopicEvidence.none,
                               evidenceColor: _evidenceColor(
                                   (evidence[t.id] ?? TopicEvidence.none).state),
-                              onTap: () => ref
+                              onTap: () => _startFocus(t),
+                              onFocusTap: () => _startFocus(t),
+                              onSetStatus: (st) => ref
                                   .read(topicProvider.notifier)
-                                  .cycleStatus(t.id),
-                              onFocusTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => FocusScreen(
-                                    initialNote: t.name,
-                                    initialSubjectId: widget.subjectId,
-                                    initialTopicId: t.id,
-                                  ),
-                                ),
-                              ),
+                                  .setStatus(t.id, st),
                             ),
                           )),
                       if (showCatalogButton) ...[
@@ -306,6 +317,11 @@ class _TopicRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onFocusTap;
 
+  /// Öğrencinin kendi kaydını ELLE düzeltmesi (kanıt/olay DEĞİL — bkz.
+  /// TopicNotifier.setStatus). Birincil eylem (satıra dokunmak) her zaman
+  /// çalışmayı başlatmaktır.
+  final ValueChanged<TopicStatus> onSetStatus;
+
   const _TopicRow({
     required this.name,
     required this.status,
@@ -316,6 +332,7 @@ class _TopicRow extends StatelessWidget {
     required this.evidenceColor,
     required this.onTap,
     required this.onFocusTap,
+    required this.onSetStatus,
   });
 
   @override
@@ -391,7 +408,28 @@ class _TopicRow extends StatelessWidget {
             style: AppTextStyles.caption
                 .copyWith(color: color, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(width: 10),
+          PopupMenuButton<TopicStatus>(
+            tooltip: 'Kaydı düzelt',
+            padding: EdgeInsets.zero,
+            iconSize: 18,
+            icon: Icon(Icons.more_vert, size: 18, color: AppColors.textMuted),
+            onSelected: onSetStatus,
+            itemBuilder: (_) => [
+              PopupMenuItem<TopicStatus>(
+                enabled: false,
+                height: 32,
+                child: Text('Kaydı elle düzelt',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textMuted)),
+              ),
+              for (final st in TopicStatus.values)
+                CheckedPopupMenuItem<TopicStatus>(
+                  value: st,
+                  checked: st == status,
+                  child: Text(_SubjectTopicsScreenState._statusLabel(st)),
+                ),
+            ],
+          ),
           // Bu konu için doğrudan odak seansı başlat (Plan → Odak Seansı'na
           // çıkıp dersi elle seçmek yerine) — TaskTile'daki ▶ ile aynı dil.
           TapScale(

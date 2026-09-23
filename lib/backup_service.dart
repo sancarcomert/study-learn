@@ -278,6 +278,7 @@ class BackupService {
         'status': t.status.name,
         'createdAt': t.createdAt.toIso8601String(),
         'updatedAt': t.updatedAt?.toIso8601String(),
+        'activityKeys': t.activityKeys,
       };
 
   static TopicModel _topicFromMap(Map<String, dynamic> m) => TopicModel(
@@ -288,6 +289,8 @@ class BackupService {
             TopicStatus.values, m['status'], TopicStatus.notStarted),
         createdAt: _date(m['createdAt']) ?? DateTime.now(),
         updatedAt: _date(m['updatedAt']),
+        activityKeys:
+            (m['activityKeys'] as List?)?.whereType<String>().toList(),
       );
 
   static Map<String, dynamic> _focusToMap(FocusSession f) => {
@@ -298,6 +301,9 @@ class BackupService {
         'subjectId': f.subjectId,
         'topicId': f.topicId,
         'note': f.note,
+        'feeling': f.feeling,
+        'taskId': f.taskId,
+        'runId': f.runId,
       };
 
   static FocusSession _focusFromMap(Map<String, dynamic> m) => FocusSession(
@@ -308,6 +314,9 @@ class BackupService {
         subjectId: m['subjectId'] as String?,
         topicId: m['topicId'] as String?,
         note: m['note'] as String?,
+        feeling: (m['feeling'] as num?)?.toInt(),
+        taskId: m['taskId'] as String?,
+        runId: m['runId'] as String?,
       );
 
   static Map<String, dynamic> _closeoutToMap(DailyCloseout c) => {

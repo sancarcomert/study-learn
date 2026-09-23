@@ -17,11 +17,15 @@ import 'stats_provider.dart';
 import 'task_model.dart';
 import 'task_time_status.dart';
 import 'study_advisor.dart';
+import 'study_intent.dart';
+import 'study_recommendation.dart';
+import 'next_task_picker.dart';
 import 'topic_provider.dart';
-import 'deneme_provider.dart';
 import 'goal_gap_provider.dart';
+import 'focus_anchor.dart';
 import 'focus_session_provider.dart';
 import 'focus_screen.dart';
+import 'add_subject_sheet.dart';
 import 'add_task_screen.dart';
 import 'coach_screen.dart';
 import 'profile_screen.dart';
@@ -704,26 +708,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _startWorking({
-    TaskModel? task,
-    StudySuggestion? suggestion,
-  }) {
-    if (task == null && suggestion == null) {
+  /// Öneri/görev kartından Focus'a geçiş — bağlam ([StudyIntent]) kaynağında
+  /// üretilmiş olarak, OLDUĞU GİBİ taşınır (gerekçe dahil). Niyet yoksa
+  /// (henüz ne çalışılacağı belli değil) Koç'a gider.
+  void _startWorking(StudyIntent? intent) {
+    // Hiç ders yoksa (onboarding atlandı) tek anlamlı eylem ders eklemek —
+    // Koç sohbetine gönderip "Profil'den ekle" demek çıkmaz sokaktı.
+    if (intent == null && ref.read(subjectProvider).isEmpty) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const AddSubjectSheet(),
+      );
+      return;
+    }
+    if (intent == null) {
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const CoachScreen()),
       );
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FocusScreen(
-          initialNote: task?.title,
-          initialTargetMin: task?.estimatedMinutes,
-          initialSubjectId: task?.subjectId ?? suggestion?.subjectId,
-          initialTopicId: task?.topicId,
-          initialTaskId: task?.id,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => FocusScreen(intent: intent)),
     );
   }
 
@@ -736,27 +743,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final stats = ref.watch(statsProvider);
 
     final now = DateTime.now();
-    final scheduledIncomplete = allTasks
-        .where((task) =>
-            task.scheduledTime != null &&
-            !task.isCompleted &&
-            task.scheduledTime!.year == now.year &&
-            task.scheduledTime!.month == now.month &&
-            task.scheduledTime!.day == now.day)
-        .toList()
-      ..sort((a, b) => a.scheduledTime!.compareTo(b.scheduledTime!));
-
-    TaskModel? firstWithStatus(TaskTimeStatus s) {
-      for (final t in scheduledIncomplete) {
-        if (t.timeStatusAt(now) == s) return t;
-      }
-      return null;
-    }
-
-    final activeTask =
-        firstWithStatus(TaskTimeStatus.inProgress) ??
-            firstWithStatus(TaskTimeStatus.upcoming) ??
-            firstWithStatus(TaskTimeStatus.overdue);
+    // "Şimdi ne yapmalıyım?" kartı: zamanlı görevler + (önceden hiç
+    // görünmeyen) saatsiz bugünkü görevler — bkz. next_task_picker.dart.
+    final activeTask = NextTaskPicker.pick(allTasks, now);
+    final remainingTasks =
+        NextTaskPicker.remaining(allTasks, now, exclude: activeTask);
 
     ref.listen<int>(taskCompletionEventProvider, (previous, next) {
       if (previous == null || next <= previous) return;
@@ -858,32 +849,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // (bkz. goal_gap_provider.dart).
     final goalGap = ref.watch(primaryGoalGapProvider);
 
-    final coverage = ref.watch(coverageBySubjectProvider);
-    final suggestions = activeTask == null
-        ? StudyAdvisor.suggest(
-            subjects: subjects,
-            tasks: allTasks,
-            examDate: stats.examDate,
-            limit: 1,
-            coveragePercent: {
-              for (final e in coverage.entries)
-                if (e.value.hasTopics) e.key: e.value.ratio,
-            },
-            weakestDenemeSubjectId: ref.watch(weakestDenemeSubjectIdProvider),
-            focusMinutesBySubject: ref.watch(focusMinutesBySubjectProvider),
-            staleReviewSubjectIds: ref.watch(staleReviewSubjectIdsProvider),
-            worseningDenemeSubjectIds:
-                ref.watch(worseningDenemeSubjectIdsProvider),
-            difficultTopicsBySubject:
-                ref.watch(difficultTopicNamesBySubjectProvider),
-            selfReportedWeakSubjectId:
-                ref.watch(selfReportedWeakSubjectIdProvider),
-            examWeakTopicsBySubject:
-                ref.watch(examWeakTopicNamesBySubjectProvider),
-            goalGapAmplifier: ref.watch(goalGapAmplifierProvider),
-          )
-        : const <StudySuggestion>[];
-    final topSuggestion = suggestions.isEmpty ? null : suggestions.first;
+    // Görev yokken öneri motoru (tek çalıştırıcı — Home/İstatistik/Koç aynı
+    // girdilerle, bkz. study_recommendation.dart).
+    final topSuggestion = activeTask == null
+        ? runStudyAdvisor(ref.watch, limit: 1).firstOrNull
+        : null;
+
+    // Karttaki eylemin niyeti: görev (gerekçesi canlı kanıttan/planlanırken
+    // yazılandan) ya da öneri (gerekçe + işaret ettiği konu). Focus bunu
+    // olduğu gibi alır.
+    final StudyIntent? cardIntent = activeTask != null
+        ? intentForTask(ref.watch, activeTask)
+        : (topSuggestion == null
+            ? null
+            : intentForSuggestion(ref.watch, topSuggestion));
+    final activeTopicName = activeTask?.topicId == null
+        ? null
+        : ref
+            .watch(topicProvider)
+            .where((t) => t.id == activeTask!.topicId)
+            .firstOrNull
+            ?.name;
+    final activeReason = cardIntent?.reason;
 
     SubjectModel? activeSubject;
     final activeSubjectId = activeTask?.subjectId ?? topSuggestion?.subjectId;
@@ -964,13 +951,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
                 const SizedBox(height: 20),
                 const _ActiveFocusBanner(),
-                _PointsStreakCard(
-                  totalXp: ref.watch(rankProvider).xp,
-                  streak: stats.currentStreak,
-                  weeklyCompleted: thisWeekCompleted,
-                  weeklyGoal: stats.dailyGoal * 7,
-                ),
-                const SizedBox(height: 26),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -996,15 +976,89 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   task: activeTask,
                   subject: activeSubject,
                   suggestion: topSuggestion,
+                  topicName: activeTopicName,
+                  reason: activeReason,
+                  nextUpTitle: remainingTasks.firstOrNull?.title,
+                  allDoneToday: todayTotal > 0 && todayCompleted == todayTotal,
                   hasAnySubject: subjects.isNotEmpty,
-                  onStart: () => _startWorking(
-                    task: activeTask,
-                    suggestion: topSuggestion,
-                  ),
+                  onStart: () => _startWorking(cardIntent),
                   onAskCoach: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const CoachScreen()),
                   ),
                 ),
+                const SizedBox(height: 26),
+                // Tek seferlik ipucu şeridi — hasSeenTaskHints alanı zaten
+                // vardı (yedeklemede bile taşınıyordu) ama hiçbir ekran
+                // okumuyordu. Görev listesinden hemen önce, ilk kullanıcı
+                // kaydırma/dokunma jestlerini keşfetmeden önce görsün diye.
+                if (!stats.hasSeenTaskHints && activeTask != null)
+                  const _TaskHintStrip(),
+                if (remainingTasks.isNotEmpty) ...[
+                  SectionHeader(
+                    title: 'Bugün Kalanlar',
+                    trailing: '${remainingTasks.length} görev',
+                  ),
+                  const SizedBox(height: 12),
+                  ...remainingTasks.map((task) {
+                    SubjectModel? subject;
+                    if (task.subjectId != null) {
+                      for (final s in subjects) {
+                        if (s.id == task.subjectId) {
+                          subject = s;
+                          break;
+                        }
+                      }
+                    }
+                    return _AnimatedTaskEntry(
+                      key: ValueKey(task.id),
+                      child: TaskSwipeActions(
+                        task: task,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        borderRadius: BorderRadius.circular(18),
+                        child: _UpcomingSessionRow(
+                          task: task,
+                          subject: subject,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AddTaskScreen(taskToEdit: task),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ] else if (activeTask == null && todayTotal == 0) ...[
+                  const SectionHeader(title: 'Bugün Kalanlar'),
+                  const SizedBox(height: 12),
+                  EmptyStateCard(
+                    icon: Icons.event_available_outlined,
+                    message: todayTotal > 0
+                        ? 'Bugünkü görevlerin tamam.'
+                        : 'Bugün için planlı görev yok.',
+                  ),
+                ],
+                // "Bugünü kapat" — yalnız GERÇEK bir "bugün için bitti"
+                // sinyali varken (günlük hedefe ulaşıldı) ve bugün henüz
+                // kapatılmadıysa. Modal/popup DEĞİL, sessiz tek satır.
+                if (todayCompleted > 0 &&
+                    todayCompleted >= stats.dailyGoal &&
+                    ref.watch(todayCloseoutProvider) == null) ...[
+                  const SizedBox(height: 20),
+                  _DailyCloseoutPrompt(
+                    onTap: () => showDailyCloseoutSheet(context),
+                  ),
+                ],
+                // Puan/seri kartı bilerek eylem kartının ALTINDA: en gürültülü
+                // (koyu, büyük) kart "ne yapmalıyım" sorusunun önüne geçmesin.
+                const SizedBox(height: 26),
+                _PointsStreakCard(
+                  totalXp: ref.watch(rankProvider).xp,
+                  streak: stats.currentStreak,
+                  weeklyCompleted: thisWeekCompleted,
+                  weeklyGoal: stats.dailyGoal * 7,
+                ),
+
                 if (subjects.isNotEmpty) ...[
                   const SizedBox(height: 26),
                   const SectionHeader(title: 'Ders Kısayolları'),
@@ -1048,71 +1102,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 const SizedBox(height: 10),
                 _StreakCard(streak: stats.currentStreak, values: sparkline),
-                const SizedBox(height: 26),
-                // Tek seferlik ipucu şeridi — hasSeenTaskHints alanı zaten
-                // vardı (yedeklemede bile taşınıyordu) ama hiçbir ekran
-                // okumuyordu, şerit hiç yazılmamıştı. Görev listesinden hemen
-                // önce, ilk kullanıcı kaydırma/dokunma jestlerini keşfetmeden
-                // önce görsün diye.
-                if (!stats.hasSeenTaskHints) const _TaskHintStrip(),
-                SectionHeader(
-                  title: 'Sıradaki Oturumlar',
-                  trailing: scheduledIncomplete.isEmpty
-                      ? null
-                      : '${scheduledIncomplete.length} planlandı',
-                ),
-                const SizedBox(height: 12),
-                if (scheduledIncomplete.isEmpty)
-                  const EmptyStateCard(
-                    icon: Icons.event_available_outlined,
-                    message: 'Bugün için planlı oturum yok.',
-                  )
-                else
-                  ...scheduledIncomplete.map((task) {
-                    SubjectModel? subject;
-                    if (task.subjectId != null) {
-                      for (final s in subjects) {
-                        if (s.id == task.subjectId) {
-                          subject = s;
-                          break;
-                        }
-                      }
-                    }
-                    return _AnimatedTaskEntry(
-                      key: ValueKey(task.id),
-                      child: TaskSwipeActions(
-                        task: task,
-                        margin: const EdgeInsets.only(bottom: 10),
-                        borderRadius: BorderRadius.circular(18),
-                        child: _UpcomingSessionRow(
-                          task: task,
-                          subject: subject,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  AddTaskScreen(taskToEdit: task),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                // "Bugünü kapat" (Faz — Ön-beta) — yalnız GERÇEK bir
-                // "bugün için bitti" sinyali varken (günlük hedefe
-                // ulaşıldı) ve bugün henüz kapatılmadıysa. Modal/popup
-                // DEĞİL — sayfanın en altında, sessizce duran tek satırlık
-                // bir sonraki-adım. Zorunlu değil, günde bir kereden fazla
-                // görünmez (kapatılınca kaybolur), hiçbir bildirim
-                // içermez. showDailyCloseoutSheet zaten var olan, test
-                // edilmiş bileşen — ikinci bir uygulama YAZILMADI.
-                if (todayCompleted > 0 &&
-                    todayCompleted >= stats.dailyGoal &&
-                    ref.watch(todayCloseoutProvider) == null) ...[
-                  const SizedBox(height: 20),
-                  _DailyCloseoutPrompt(
-                    onTap: () => showDailyCloseoutSheet(context),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1189,8 +1178,17 @@ class _ActiveFocusBannerState extends ConsumerState<_ActiveFocusBanner> {
         final note = (raw['note'] as String?)?.trim();
 
         final segStart = DateTime.fromMillisecondsSinceEpoch(segStartMs);
-        final elapsedSec =
-            committedSec + DateTime.now().difference(segStart).inSeconds;
+        // Unutulmuş seansın arka planda "sayan" süresi sınırlanır (bkz.
+        // FocusAnchorMath) — banner da Focus'un kaydedeceği süreyi göstersin.
+        final elapsedSec = mode == 'pomodoro'
+            ? committedSec + DateTime.now().difference(segStart).inSeconds
+            : FocusAnchorMath.creditedFreeElapsedSec(
+                committedSec: committedSec,
+                segStartMs: segStartMs,
+                lastActiveMs: raw['lastActiveMs'] as int?,
+                nowMs: DateTime.now().millisecondsSinceEpoch,
+                targetSec: blockMin * 60,
+              );
 
         final isPomodoro = mode == 'pomodoro';
         final remainingSec = isPomodoro ? (blockMin * 60 - elapsedSec) : null;
@@ -1397,17 +1395,21 @@ class _PointsStreakCard extends StatelessWidget {
   }
 }
 
-/// Figma'nın "Bekleyen testler" satır kartıyla aynı dil — Home'un özü olan
-/// "şu an ne çalışmalıyım" cevabı burada. Öncelik: bugüne zamanlanmış
-/// aktif/sıradaki görev > StudyAdvisor önerisi > boş durum. Satırın tamamı
-/// CTA'dır (Odak Seansı başlatır, hiçbir hedef yoksa doğrudan Çalışma
-/// Koçu'nu açar); hasTarget=true iken küçük bir "Koç'a danış" bağlantısı da
-/// her zaman erişilebilir kalır — "bizim AI" Home'dan hiç kaybolmasın
-/// (kullanıcı kararı, 2026-09-16).
+/// Home'un özü: "şimdi ne yapmalıyım, neden, ne kadar" tek kartta. Öncelik:
+/// sürüyor/yaklaşan/geciken zamanlı görev > bugünün saatsiz görevi >
+/// StudyAdvisor önerisi > boş durum. Satırın tamamı CTA'dır (Odak Seansı
+/// başlatır, hiçbir hedef yoksa doğrudan Çalışma Koçu'nu açar); hasTarget=true
+/// iken küçük bir "Koç'a danış" bağlantısı da her zaman erişilebilir kalır.
 class _FocusRowCard extends StatelessWidget {
   final TaskModel? task;
   final SubjectModel? subject;
   final StudySuggestion? suggestion;
+  final String? topicName;
+  final String? reason;
+
+  /// Bittiğinde sırada ne var — "bunu yapınca ne olacak?" sorusunun cevabı.
+  final String? nextUpTitle;
+  final bool allDoneToday;
   final bool hasAnySubject;
   final VoidCallback onStart;
   final VoidCallback onAskCoach;
@@ -1416,6 +1418,10 @@ class _FocusRowCard extends StatelessWidget {
     required this.task,
     required this.subject,
     required this.suggestion,
+    required this.topicName,
+    required this.reason,
+    required this.nextUpTitle,
+    required this.allDoneToday,
     required this.hasAnySubject,
     required this.onStart,
     required this.onAskCoach,
@@ -1427,16 +1433,29 @@ class _FocusRowCard extends StatelessWidget {
     final tint =
         subject != null ? Color(subject!.colorValue) : AppColors.eyebrowRose;
 
-    final title =
-        task?.title ?? suggestion?.subjectName ?? 'Bugün için plan yok';
-    final subtitle = task != null
-        ? (subject?.name ?? 'Derssiz')
+    final title = task?.title ??
+        suggestion?.topicName ??
+        suggestion?.subjectName ??
+        (allDoneToday ? 'Bugünkü planın tamam' : 'Bugün için plan yok');
+
+    // Ne / ne kadar: "Matematik · Türev · 25 dk".
+    final meta = task == null
+        ? (suggestion?.topicName == null ? null : suggestion?.subjectName)
+        : [
+            subject?.name ?? 'Derssiz',
+            if (topicName != null) topicName!,
+            if (task!.estimatedMinutes != null) '${task!.estimatedMinutes} dk',
+          ].join(' · ');
+
+    // Neden: yalnız gerçek bir sinyal varsa; yoksa satır çizilmez.
+    final why = task != null
+        ? reason
         : suggestion?.reason ??
-            (hasAnySubject
-                ? 'Bir görev planlamadın — hadi başlayalım.'
-                : 'Önce bir ders ekle, sonra plan kur.');
-    final minutesLabel =
-        task?.estimatedMinutes != null ? '${task!.estimatedMinutes} dk' : null;
+            (allDoneToday
+                ? 'Bir şey daha eklemek istersen Koç yardım eder.'
+                : (hasAnySubject
+                    ? 'Bir görev planlamadın — hadi başlayalım.'
+                    : 'Önce bir ders ekle, sonra plan kur.'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1453,23 +1472,6 @@ class _FocusRowCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.tonal(tint),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    hasTarget
-                        ? Icons.check_circle_outline
-                        : Icons.auto_awesome_outlined,
-                    color: tint,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1478,29 +1480,62 @@ class _FocusRowCard extends StatelessWidget {
                         title,
                         style: AppTextStyles.body
                             .copyWith(fontWeight: FontWeight.w700),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      if (meta != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          meta,
+                          style: AppTextStyles.caption.copyWith(
+                            color: tint,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (why != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          why,
+                          style: AppTextStyles.caption,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (hasTarget && nextUpTitle != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Sonra: $nextUpTitle',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (minutesLabel != null) ...[
-                  Text(
-                    minutesLabel,
-                    style: AppTextStyles.caption
-                        .copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Icon(Icons.chevron_right, color: AppColors.textMuted),
+                const SizedBox(width: 12),
+                if (hasTarget)
+                  Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [AppColors.glow(AppColors.primary)],
+                    ),
+                    child: Icon(
+                      Icons.play_arrow_rounded,
+                      color: AppColors.onColor(AppColors.primary),
+                      size: 26,
+                    ),
+                  )
+                else
+                  Icon(Icons.chevron_right, color: AppColors.textMuted),
               ],
             ),
           ),

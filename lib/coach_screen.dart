@@ -1,3 +1,7 @@
+import 'study_recommendation.dart';
+import 'study_intent.dart';
+import 'topic_evidence.dart';
+import 'topic_evidence_provider.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,28 +164,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   /// gözlemi (_intro) ve "nasıl gidiyorum" sorusu (_progressSummary) AYNI
   /// motoru kullanır, ikinci bir "akıllılık" icat edilmez.
   StudySuggestion? _topSuggestion() {
-    final subjects = ref.read(subjectProvider);
-    if (subjects.isEmpty) return null;
-    final allTasks = ref.read(taskProvider);
-    final coverage = ref.read(coverageBySubjectProvider);
-    return StudyAdvisor.suggest(
-      subjects: subjects,
-      tasks: allTasks,
-      examDate: ref.read(statsProvider).examDate,
-      limit: 1,
-      coveragePercent: {
-        for (final e in coverage.entries)
-          if (e.value.hasTopics) e.key: e.value.ratio,
-      },
-      weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
-      focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
-      staleReviewSubjectIds: ref.read(staleReviewSubjectIdsProvider),
-      worseningDenemeSubjectIds: ref.read(worseningDenemeSubjectIdsProvider),
-      difficultTopicsBySubject: ref.read(difficultTopicNamesBySubjectProvider),
-      selfReportedWeakSubjectId: ref.read(selfReportedWeakSubjectIdProvider),
-      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
-      goalGapAmplifier: ref.read(goalGapAmplifierProvider),
-    ).firstOrNull;
+    return runStudyAdvisor(ref.read, limit: 1).firstOrNull;
   }
 
   /// "Nasıl gidiyorum" tarzı sorulara GERÇEK veriyle cevap — istatistik
@@ -1830,6 +1813,28 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         'Uygunsa "ekle" yaz, değilse neyi değiştireceğini söyle.');
   }
 
+  /// Plana girecek DOĞRULANMIŞ zorlanma konuları (art arda zorlanma / gerçek süre
+  /// aşımı — tek bir "zorlandım" plan değiştirmez). Deneme kanıtıyla zaten
+  /// "tekrar" olanlar çıkarılır (aynı konu iki kez planlanmasın). Her birinin
+  /// gerekçesi öğrencinin kendi kanıtına dayanır.
+  Map<String, List<ReviewTopic>> _struggledPlanTopics() {
+    final examWeakIds = ref.read(currentWeakTopicIdSetProvider);
+    final repeated = ref.read(repeatedStruggleTopicsBySubjectProvider);
+    return {
+      for (final e in repeated.entries)
+        e.key: [
+          for (final t in e.value)
+            if (!examWeakIds.contains(t.id))
+              (
+                name: t.name,
+                id: t.id,
+                reason:
+                    '${TopicEvidenceEngine.difficultyReason(t.name, DifficultySignal.repeated)}.',
+              ),
+        ],
+    }..removeWhere((_, v) => v.isEmpty);
+  }
+
   void _proposeDay() {
     final subjects = ref.read(subjectProvider);
     final allTasks = ref.read(taskProvider);
@@ -1837,11 +1842,6 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final examDays = examDate == null ? null : daysUntilExam(examDate);
 
     // Konu Takip verisi: kapsama oranları + ders başına boş konular.
-    final coverage = ref.read(coverageBySubjectProvider);
-    final coveragePercent = <String, double>{
-      for (final e in coverage.entries)
-        if (e.value.hasTopics) e.key: e.value.ratio,
-    };
     final uncovered = <String, List<UncoveredTopic>>{};
     for (final t in ref.read(topicProvider)) {
       if (t.status != TopicStatus.reviewed && t.status != TopicStatus.studied) {
@@ -1851,21 +1851,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
-    final advisorResults = StudyAdvisor.suggest(
-      subjects: subjects,
-      tasks: allTasks,
-      examDate: examDate,
-      limit: subjects.length,
-      coveragePercent: coveragePercent,
-      weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
-      focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
-      staleReviewSubjectIds: ref.read(staleReviewSubjectIdsProvider),
-      worseningDenemeSubjectIds: ref.read(worseningDenemeSubjectIdsProvider),
-      difficultTopicsBySubject: ref.read(difficultTopicNamesBySubjectProvider),
-      selfReportedWeakSubjectId: ref.read(selfReportedWeakSubjectIdProvider),
-      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
-      goalGapAmplifier: ref.read(goalGapAmplifierProvider),
-    );
+    final advisorResults = runStudyAdvisor(ref.read, limit: subjects.length);
     final advisorIds = advisorResults.map((s) => s.subjectId).toList();
     // "Neden bu görev?" (Faz 6) — StudyAdvisor'ın dersi seçerkenki AYNI
     // gerekçesi PlanBuilder'a taşınır (jenerik olanlar hariç — somut bir
@@ -1900,6 +1886,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         tasks: allTasks,
       ),
       examWeakTopics: ref.read(examWeakTopicsBySubjectProvider),
+      struggledTopics: _struggledPlanTopics(),
       subjectReasons: subjectReasons,
     );
 
@@ -1929,11 +1916,6 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final examDays = examDate == null ? null : daysUntilExam(examDate);
 
     // Konu Takip: kapsama oranları + ders başına işaretlenmemiş konular.
-    final coverage = ref.read(coverageBySubjectProvider);
-    final coveragePercent = <String, double>{
-      for (final e in coverage.entries)
-        if (e.value.hasTopics) e.key: e.value.ratio,
-    };
     final uncovered = <String, List<UncoveredTopic>>{};
     for (final t in ref.read(topicProvider)) {
       if (t.status != TopicStatus.reviewed && t.status != TopicStatus.studied) {
@@ -1943,21 +1925,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
-    final advisorResults = StudyAdvisor.suggest(
-      subjects: subjects,
-      tasks: allTasks,
-      examDate: examDate,
-      limit: subjects.length,
-      coveragePercent: coveragePercent,
-      weakestDenemeSubjectId: ref.read(weakestDenemeSubjectIdProvider),
-      focusMinutesBySubject: ref.read(focusMinutesBySubjectProvider),
-      staleReviewSubjectIds: ref.read(staleReviewSubjectIdsProvider),
-      worseningDenemeSubjectIds: ref.read(worseningDenemeSubjectIdsProvider),
-      difficultTopicsBySubject: ref.read(difficultTopicNamesBySubjectProvider),
-      selfReportedWeakSubjectId: ref.read(selfReportedWeakSubjectIdProvider),
-      examWeakTopicsBySubject: ref.read(examWeakTopicNamesBySubjectProvider),
-      goalGapAmplifier: ref.read(goalGapAmplifierProvider),
-    );
+    final advisorResults = runStudyAdvisor(ref.read, limit: subjects.length);
     final advisorIds = advisorResults.map((s) => s.subjectId).toList();
     final subjectReasons = <String, String>{
       for (final s in advisorResults)
@@ -1989,6 +1957,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         tasks: allTasks,
       ),
       examWeakTopics: ref.read(examWeakTopicsBySubjectProvider),
+      struggledTopics: _struggledPlanTopics(),
       subjectReasons: subjectReasons,
     );
 
@@ -2124,10 +2093,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) => FocusScreen(
-                  initialSubjectId: task.subjectId,
-                  initialTopicId: task.topicId,
-                  initialTargetMin: task.estimatedMinutes,
-                  initialTaskId: task.id,
+                  intent: intentForTask(ref.read, task),
                 ),
               ),
             );
@@ -2251,7 +2217,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const FocusScreen(
-                          initialTargetMin: 25,
+                          intent: StudyIntent(
+                            source: StudyIntentSource.free,
+                            targetMinutes: 25,
+                          ),
                           initialPomodoro: true,
                         ),
                       ),

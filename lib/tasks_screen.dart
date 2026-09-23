@@ -14,6 +14,7 @@ import 'widgets/app_buttons.dart';
 import 'widgets/section_header.dart';
 import 'widgets/task_tile.dart';
 import 'task_time_status.dart';
+import 'day_summary.dart';
 import 'tap_scale.dart';
 import 'stats_provider.dart';
 import 'rank_provider.dart';
@@ -62,6 +63,20 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   void _jumpToToday() {
     final now = DateTime.now();
     _selectDay(DateTime(now.year, now.month, now.day));
+  }
+
+  /// "3 görev · 1 sa 35 dk · 1/3 tamam" — o günün yükü ve ilerlemesi tek satırda.
+  static String _daySummaryLine(DayPlanSummary s) {
+    final parts = <String>['${s.total} görev'];
+    if (s.plannedMinutes > 0) {
+      final h = s.plannedMinutes ~/ 60;
+      final m = s.plannedMinutes % 60;
+      parts.add(h == 0
+          ? '$m dk'
+          : (m == 0 ? '$h sa' : '$h sa $m dk'));
+    }
+    parts.add('${s.completed}/${s.total} tamam');
+    return parts.join(' · ');
   }
 
   @override
@@ -127,7 +142,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             weekAnchor: _weekAnchor,
             selectedDate: _selectedDate,
             onDaySelected: _selectDay,
+            tasks: allTasks,
           ),
+          if (dayTasks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _daySummaryLine(DaySummaries.plan(allTasks, _selectedDate)),
+                  style: AppTextStyles.caption,
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           Expanded(
             child: dayTasks.isEmpty
@@ -255,11 +282,13 @@ class _DaySelectorStrip extends StatelessWidget {
   final DateTime weekAnchor;
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDaySelected;
+  final List<TaskModel> tasks;
 
   const _DaySelectorStrip({
     required this.weekAnchor,
     required this.selectedDate,
     required this.onDaySelected,
+    required this.tasks,
   });
 
   @override
@@ -269,7 +298,7 @@ class _DaySelectorStrip extends StatelessWidget {
     final dayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
     return SizedBox(
-      height: 72,
+      height: 82,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(7, (index) {
@@ -315,6 +344,24 @@ class _DaySelectorStrip extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  // O günün durumu: nokta yok = görev yok; dolu mor = bekleyen
+                  // görev var; yeşil = hepsi bitti. "Bu hafta nerede yük var?"
+                  // sorusuna bir bakışta cevap.
+                  Builder(builder: (_) {
+                    final plan = DaySummaries.plan(tasks, day);
+                    if (plan.isEmpty) return const SizedBox(height: 6);
+                    return Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: plan.allDone
+                            ? AppColors.success
+                            : AppColors.primary,
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -426,7 +473,7 @@ class _TimelineRow extends ConsumerWidget {
                                 TapScale(
                                   onTap: () => ref
                                       .read(taskProvider.notifier)
-                                      .toggleTaskCompletion(task.id, ref),
+                                      .toggleTaskCompletion(task.id),
                                   child: Container(
                                     width: 26,
                                     height: 26,

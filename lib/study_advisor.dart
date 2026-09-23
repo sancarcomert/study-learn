@@ -1,5 +1,6 @@
 import 'subject_model.dart';
 import 'task_model.dart';
+import 'topic_evidence.dart';
 
 /// "Bugün ne çalışsam?" için YEREL öneri motoru. LLM yok — mevcut Hive
 /// verisi (dersler + görevler + sınav tarihi) üzerinde kural tabanlı puanlama.
@@ -47,6 +48,16 @@ class StudyAdvisor {
     // eder (bkz. hasRealWeaknessSignal) — güçlü/nötr bir dersi hedef farkı
     // yüzünden yapay olarak öne çıkarmaz.
     double goalGapAmplifier = 0.0,
+    // ÇALIŞMA kaynaklı sinyal: öğrencinin bir odak seansı sonunda "zorlandım"
+    // dediği konular (bkz. TopicEvidenceEngine.struggledTopicIds). examWeak
+    // (gerçek sınav) kadar ağır DEĞİL ama süre-farkından (difficultTopic)
+    // güçlü: öğrenci bunu açıkça söyledi. subjectId → konu adları.
+    Map<String, List<String>> struggledTopicsBySubject = const {},
+    // Aynı sinyalin DOĞRULANMIŞ hâli: art arda zorlanma ya da zorlanma + gerçek
+    // sürenin tahmini aşması (bkz. DifficultySignal.repeated). Tek bir
+    // "zorlandım" konuyu zayıf ilan etmez (yukarıdaki hafif sinyal); ancak
+    // birbirini doğrulayan kanıt somut bir gerekçe ve daha ağır bir puan olur.
+    Map<String, List<String>> repeatedStruggleTopicsBySubject = const {},
   }) {
     if (subjects.isEmpty) return const [];
 
@@ -125,6 +136,19 @@ class StudyAdvisor {
               ? examWeakTopics.first
               : null;
 
+      final repeatedTopics = repeatedStruggleTopicsBySubject[s.id];
+      final repeatedTopic = (repeatedTopics != null && repeatedTopics.isNotEmpty)
+          ? repeatedTopics.first
+          : null;
+      final struggledTopics = struggledTopicsBySubject[s.id];
+      final struggledTopic =
+          (struggledTopics != null && struggledTopics.isNotEmpty)
+              ? struggledTopics.first
+              : null;
+      // Öneriyi yönlendiren zorlanma sinyali: doğrulanmış olan önce.
+      final difficultyTopic = repeatedTopic ?? struggledTopic;
+      final difficultyIsRepeated = repeatedTopic != null;
+
       // --- Puan (0..~2.7) ---
       var score = 0.0;
       score += (daysSinceTouch.clamp(0, 21) / 21) * 0.50; // ihmal
@@ -149,13 +173,22 @@ class StudyAdvisor {
       // En yüksek ağırlık — tahmin/ortalama değil, öğrencinin GERÇEK bir
       // sınavda somut bir konudan yanlış yaptığının kanıtı.
       if (examWeakTopic != null) score += 0.28;
+      // Öğrencinin kendi çalışma anında söylediği "zorlandım". TEK cevap yalnız
+      // hafif bir dürtme (0.08); birbirini doğrulayan kanıt (art arda ya da
+      // gerçek süre aşımıyla) ağır (0.20) — sınav kanıtının (0.28) altında.
+      if (difficultyTopic != null) {
+        score += difficultyIsRepeated ? 0.20 : 0.08;
+      }
 
       // GOAL → GAP bağlamsal amplifikatörü (Faz 3) — YALNIZ ders zaten
       // kanıta dayalı bir zayıflık taşıyorsa devreye girer. examWeakTopic'in
       // (0.28) ve isAvoided'ın (0.25+) altında bir tavan (0.15) — hedef
       // farkı ASLA tek başına bir dersi öne çıkarmaz, yalnız var olan bir
       // sinyali güçlendirir.
+      // Yalnız DOĞRULANMIŞ zorlanma "gerçek zayıflık kanıtı" sayılır — tek bir
+      // "zorlandım" hedef-açık çarpanını tetiklemez.
       final hasRealWeaknessSignal = examWeakTopic != null ||
+          repeatedTopic != null ||
           isWorsening ||
           isWeakestDeneme ||
           needsReview ||
@@ -167,26 +200,32 @@ class StudyAdvisor {
 
       if (score <= 0.05) continue;
 
+      final why = _reason(
+        total: total,
+        completionRate: completionRate,
+        daysSinceTouch: daysSinceTouch,
+        hasPendingPriority: hasPendingPriority,
+        examDays: examDays,
+        coverage: coverage,
+        isWeakestDeneme: isWeakestDeneme,
+        neverFocused: neverFocused,
+        maxPostpone: isAvoided ? maxPostpone : 0,
+        needsReview: needsReview,
+        isWorsening: isWorsening,
+        difficultTopic: difficultTopic,
+        isSelfReportedWeak: isSelfReportedWeak,
+        examWeakTopic: examWeakTopic,
+        struggledTopic: difficultyTopic,
+        struggleIsRepeated: difficultyIsRepeated,
+      );
       results.add(StudySuggestion(
         subjectId: s.id,
         subjectName: s.name,
         score: score,
-        reason: _reason(
-          total: total,
-          completionRate: completionRate,
-          daysSinceTouch: daysSinceTouch,
-          hasPendingPriority: hasPendingPriority,
-          examDays: examDays,
-          coverage: coverage,
-          isWeakestDeneme: isWeakestDeneme,
-          neverFocused: neverFocused,
-          maxPostpone: isAvoided ? maxPostpone : 0,
-          needsReview: needsReview,
-          isWorsening: isWorsening,
-          difficultTopic: difficultTopic,
-          isSelfReportedWeak: isSelfReportedWeak,
-          examWeakTopic: examWeakTopic,
-        ),
+        reason: why.text,
+        // Öneri belirli bir KONUYA işaret ediyorsa (gerekçe o konuyu anıyorsa)
+        // Home "Başla"da o konuyu Focus'a taşır.
+        topicName: why.topic,
       ));
     }
 
@@ -199,7 +238,10 @@ class StudyAdvisor {
     return results.take(limit).toList();
   }
 
-  static String _reason({
+  /// Gerekçe + (gerekçe belirli bir KONUYU anıyorsa) o konunun adı. İkisi TEK
+  /// yerden çıkar: öneri "X konusunda…" diyorsa Home "Başla"da o konuyu Focus'a
+  /// taşıyabilsin — gerekçe ve eylem ayrışmasın.
+  static ({String text, String? topic}) _reason({
     required int total,
     required double completionRate,
     required int daysSinceTouch,
@@ -214,57 +256,83 @@ class StudyAdvisor {
     String? difficultTopic,
     bool isSelfReportedWeak = false,
     String? examWeakTopic,
+    String? struggledTopic,
+    bool struggleIsRepeated = false,
   }) {
+    ({String text, String? topic}) plain(String t) => (text: t, topic: null);
+
     // Kaçınma sinyali en açık/en erken gösterilen gerekçe — "N kez ertelendi"
     // öğrenciye kaçırdığı şeyin ne olduğunu net söylüyor, suçlamadan.
     if (maxPostpone >= 2) {
-      return '$maxPostpone kez ertelendi — bugün küçük bir adım atalım mı?';
+      return plain('$maxPostpone kez ertelendi — bugün küçük bir adım atalım mı?');
     }
     // Somut bir GERÇEK sınav kanıtı — tahmine/ortalamaya dayalı diğer tüm
     // sinyallerden (gerileme, kapsama, davranışsal zorluk) daha güçlü:
     // "hangi konudan" sorusuna kesin cevap veriyor.
     if (examWeakTopic != null) {
-      return '"$examWeakTopic" konusunda denemede yanlış yapmıştın';
+      return (
+        text: '"$examWeakTopic" konusunda denemede yanlış yapmıştın',
+        topic: examWeakTopic,
+      );
+    }
+    // DOĞRULANMIŞ zorlanma (art arda / gerçek süre aşımıyla): somut bir konu
+    // adı taşır, kendi ortalama/gerileme tahminlerinden önce gelir.
+    if (struggledTopic != null && struggleIsRepeated) {
+      return (
+        text: TopicEvidenceEngine.difficultyReason(
+            struggledTopic, DifficultySignal.repeated),
+        topic: struggledTopic,
+      );
     }
     // Gerileme, sabit zayıflıktan daha acil — "hep zayıftın" değil "kötüye
     // gidiyorsun" mesajı erken müdahaleyi hak ediyor.
     if (isWorsening) {
-      return 'Deneme netlerin bu derste geriliyor';
+      return plain('Deneme netlerin bu derste geriliyor');
     }
     if (coverage != null && coverage < 0.6) {
-      return 'Konuların %${(coverage * 100).round()}\'i işaretli — geride';
+      return plain("Konuların %${(coverage * 100).round()}'i işaretli — geride");
     }
     if (total == 0) {
-      return 'Henüz hiç görev eklemedin';
+      return plain('Henüz hiç görev eklemedin');
     }
     if (hasPendingPriority) {
-      return 'Bekleyen öncelikli görevin var';
+      return plain('Bekleyen öncelikli görevin var');
     }
     if (isWeakestDeneme) {
-      return 'Deneme netlerinde en zayıf olduğun ders';
+      return plain('Deneme netlerinde en zayıf olduğun ders');
     }
     if (neverFocused) {
-      return 'Bu derse hiç odak seansı ayırmadın';
+      return plain('Bu derse hiç odak seansı ayırmadın');
     }
     if (needsReview) {
-      return 'Tekrar ettiğin bir konunun üstünden uzun süre geçti';
+      return plain('Tekrar ettiğin bir konunun üstünden uzun süre geçti');
+    }
+    // TEK bir "zorlandım" cevabı: hafif bir sinyal — yukarıdaki daha somut/
+    // doğrulanmış nedenlerin ARDINDAN, genel gerekçelerin önünde. Konuyu
+    // "zayıf" ilan etmez, yalnız öğrencinin kendi sözünü hatırlatır.
+    if (struggledTopic != null) {
+      return (
+        text: TopicEvidenceEngine.difficultyReason(
+            struggledTopic, DifficultySignal.recent),
+        topic: struggledTopic,
+      );
     }
     if (difficultTopic != null) {
-      return '"$difficultTopic" konusu tahmininden çok daha uzun sürdü';
+      return plain('"$difficultTopic" konusu tahmininden çok daha uzun sürdü');
     }
     if (daysSinceTouch >= 7) {
-      return '$daysSinceTouch gündür dokunmadın';
+      return plain('$daysSinceTouch gündür dokunmadın');
     }
     if (completionRate < 0.5 && total >= 3) {
-      return 'Tamamlama oranın düşük (%${(completionRate * 100).round()})';
+      return plain('Tamamlama oranın düşük (%${(completionRate * 100).round()})');
     }
     if (examDays != null && examDays >= 0 && examDays <= 30) {
-      return 'Sınav yaklaşıyor — tekrar için iyi zaman';
+      return plain('Sınav yaklaşıyor — tekrar için iyi zaman');
     }
     if (isSelfReportedWeak) {
-      return 'Kendin de bu derste zorlandığını söylemiştin';
+      return plain('Kendin de bu derste zorlandığını söylemiştin');
     }
-    return genericReason;
+    return plain(genericReason);
   }
 
   /// "Planlanan kapasite ≠ gerçekleşen kapasite" — bir dersin GEÇMİŞTE
@@ -328,11 +396,16 @@ class StudySuggestion {
   /// Sıralama için ham puan (~0..1.1). UI'da gösterilmez.
   final double score;
 
+  /// Gerekçe belirli bir konuyu anıyorsa (sınavda yanlış / çalışırken
+  /// zorlandı) o konunun adı — yoksa null, öneri yalnız derse işaret eder.
+  final String? topicName;
+
   const StudySuggestion({
     required this.subjectId,
     required this.subjectName,
     required this.reason,
     required this.score,
+    this.topicName,
   });
 
   @override

@@ -1,3 +1,4 @@
+import '../study_recommendation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -330,10 +331,9 @@ class TaskTile extends ConsumerWidget {
                       return TapScale(
                         onTap: () {
                           final wasCompleted = task.isCompleted;
-                          ref.read(taskProvider.notifier).toggleTaskCompletion(
-                                task.id,
-                                ref,
-                              );
+                          ref
+                              .read(taskProvider.notifier)
+                              .toggleTaskCompletion(task.id);
                           if (!wasCompleted) {
                             final box = checkboxContext.findRenderObject()
                                 as RenderBox?;
@@ -479,7 +479,12 @@ class TaskTile extends ConsumerWidget {
                                   if (task.estimatedMinutes != null)
                                     _InfoChip(
                                       icon: Icons.timer_outlined,
-                                      text: '${task.estimatedMinutes} dk',
+                                      // Tamamlanmış ve gerçek süresi ölçülmüşse
+                                      // plan ↔ gerçek yan yana: "25/30 dk".
+                                      text: task.isCompleted &&
+                                              task.actualMinutes != null
+                                          ? '${task.actualMinutes}/${task.estimatedMinutes} dk'
+                                          : '${task.estimatedMinutes} dk',
                                     ),
 
                                   // Bu görevin bir tekrar serisinin
@@ -515,11 +520,7 @@ class TaskTile extends ConsumerWidget {
                             context,
                             MaterialPageRoute(
                               builder: (_) => FocusScreen(
-                                initialNote: task.title,
-                                initialTargetMin: task.estimatedMinutes,
-                                initialSubjectId: task.subjectId,
-                                initialTopicId: task.topicId,
-                                initialTaskId: task.id,
+                                intent: intentForTask(ref.read, task),
                               ),
                             ),
                           );

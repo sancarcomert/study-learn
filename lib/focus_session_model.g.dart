@@ -24,13 +24,16 @@ class FocusSessionAdapter extends TypeAdapter<FocusSession> {
       subjectId: fields[4] as String?,
       topicId: fields[5] as String?,
       note: fields[6] as String?,
+      feeling: fields[7] as int?,
+      taskId: fields[8] as String?,
+      runId: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, FocusSession obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +47,13 @@ class FocusSessionAdapter extends TypeAdapter<FocusSession> {
       ..writeByte(5)
       ..write(obj.topicId)
       ..writeByte(6)
-      ..write(obj.note);
+      ..write(obj.note)
+      ..writeByte(7)
+      ..write(obj.feeling)
+      ..writeByte(8)
+      ..write(obj.taskId)
+      ..writeByte(9)
+      ..write(obj.runId);
   }
 
   @override

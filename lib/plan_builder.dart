@@ -67,6 +67,10 @@ class PlanBuilder {
     Set<String> reducedCapacitySubjectIds = const {},
     Map<String, double> subjectCompletionRates = const {},
     Map<String, List<UncoveredTopic>> examWeakTopics = const {},
+    // Öğrencinin kendi söylediği, DOĞRULANMIŞ zorlanma konuları (art arda
+    // "zorlandım" / gerçek süre aşımıyla — bkz. DifficultySignal.repeated).
+    // Deneme kanıtından sonra gelir; her biri kendi gerçek gerekçesini taşır.
+    Map<String, List<ReviewTopic>> struggledTopics = const {},
     // "Neden bu görev?" (Faz 6/7) — StudyAdvisor.suggest()'in dersi SEÇERKEN
     // ürettiği gerekçe (jenerik olanlar HARİÇ, bkz. çağıran taraf). Somut bir
     // examWeakTopics gerekçesi varsa o KAZANIR (daha spesifik) — bu yalnız
@@ -124,7 +128,9 @@ class PlanBuilder {
     // zayıf çıkan konu imleci (ayrı, öncelikli — bkz. examWeakTopics).
     final topicCursor = <String, int>{};
     final examWeakCursor = <String, int>{};
+    final struggledCursor = <String, int>{};
     var anyExamReview = false;
+    var anyStruggleReview = false;
     ({String title, String? topicId, TopicDifficulty difficulty, String? reason})
         titleFor(SubjectModel subject, int i) {
       if (topics.isNotEmpty) {
@@ -158,6 +164,21 @@ class PlanBuilder {
             // En somut gerekçe — dersin genel StudyAdvisor gerekçesinden
             // (subjectReasons) daha spesifik, bu yüzden onu EZER.
             reason: 'Son denemende "${t.name}" konusundan yanlış yapmıştın.',
+          );
+        }
+      }
+      final struggledPool = struggledTopics[subject.id];
+      if (struggledPool != null && struggledPool.isNotEmpty) {
+        final sidx = struggledCursor[subject.id] ?? 0;
+        if (sidx < struggledPool.length) {
+          struggledCursor[subject.id] = sidx + 1;
+          anyStruggleReview = true;
+          final t = struggledPool[sidx];
+          return (
+            title: '${subject.name}: ${t.name} (tekrar)',
+            topicId: t.id,
+            difficulty: TopicDifficulty.medium,
+            reason: t.reason,
           );
         }
       }
@@ -236,10 +257,14 @@ class PlanBuilder {
     // Deneme sonucundan gelen tekrar önerisi, hangi enerji/kapasite
     // gerekçesi geçerli olursa olsun her zaman EN ÖNE eklenir — bu,
     // "neden bu konu programda" sorusunun en somut cevabı.
-    final reason = anyExamReview
-        ? 'Son denemende yanlış yaptığın konu(lar) tekrar programa alındı. '
-            '$baseReason'
-        : baseReason;
+    final reviewNote = [
+      if (anyExamReview)
+        'Son denemende yanlış yaptığın konu(lar) tekrar programa alındı.',
+      if (anyStruggleReview)
+        'Üst üste zorlandığını söylediğin konu(lar) programa alındı.',
+    ].join(' ');
+    final reason =
+        reviewNote.isEmpty ? baseReason : '$reviewNote $baseReason';
 
     return PlanResult(blocks: blocks, unfitTitles: unfit, reason: reason);
   }
@@ -263,6 +288,7 @@ class PlanBuilder {
     Map<String, double> subjectCompletionRates = const {},
     Map<String, List<UncoveredTopic>> examWeakTopics = const {},
     // Bkz. build()'daki aynı parametre notu.
+    Map<String, List<ReviewTopic>> struggledTopics = const {},
     Map<String, String> subjectReasons = const {},
   }) {
     final subjectsPool = List<SubjectModel>.from(orderedSubjects);
@@ -282,7 +308,9 @@ class PlanBuilder {
     // yine ÖNCELİKLİ ve ayrı bir imleçle tüketilir.
     final topicCursor = <String, int>{};
     final examWeakCursor = <String, int>{};
+    final struggledCursor = <String, int>{};
     var anyExamReview = false;
+    var anyStruggleReview = false;
     ({String title, String? topicId, TopicDifficulty difficulty, String? reason})
         titleFor(SubjectModel s) {
       final weakPool = examWeakTopics[s.id];
@@ -297,6 +325,21 @@ class PlanBuilder {
             topicId: t.id,
             difficulty: TopicDifficulty.hard,
             reason: 'Son denemende "${t.name}" konusundan yanlış yapmıştın.',
+          );
+        }
+      }
+      final struggledPool = struggledTopics[s.id];
+      if (struggledPool != null && struggledPool.isNotEmpty) {
+        final sidx = struggledCursor[s.id] ?? 0;
+        if (sidx < struggledPool.length) {
+          struggledCursor[s.id] = sidx + 1;
+          anyStruggleReview = true;
+          final t = struggledPool[sidx];
+          return (
+            title: '${s.name}: ${t.name} (tekrar)',
+            topicId: t.id,
+            difficulty: TopicDifficulty.medium,
+            reason: t.reason,
           );
         }
       }
@@ -376,10 +419,14 @@ class PlanBuilder {
             ? 'Bazı derslerde tamamlama oranın düşüktü — o bloklar daha '
                 'küçük tutuldu. Önümüzdeki ${dayPlans.length} güne yayıldı.'
             : 'Önümüzdeki ${dayPlans.length} güne dengeli bir program.';
-    final reason = anyExamReview
-        ? 'Son denemende yanlış yaptığın konu(lar) tekrar programa alındı. '
-            '$baseReason'
-        : baseReason;
+    final reviewNote = [
+      if (anyExamReview)
+        'Son denemende yanlış yaptığın konu(lar) tekrar programa alındı.',
+      if (anyStruggleReview)
+        'Üst üste zorlandığını söylediğin konu(lar) programa alındı.',
+    ].join(' ');
+    final reason =
+        reviewNote.isEmpty ? baseReason : '$reviewNote $baseReason';
 
     return WeekPlanResult(
       days: dayPlans,
@@ -393,6 +440,10 @@ class PlanBuilder {
 /// [PlanBuilder]'a yalnızca ad değil id de geçilir ki üretilen [PlanBlock]
 /// tamamlanınca ilgili [TopicModel]'i otomatik işaretleyebilsin.
 typedef UncoveredTopic = ({String name, String id});
+
+/// Yeniden ele alınacak bir konu + ona ÖZGÜ gerçek gerekçe (ör. öğrencinin
+/// "üst üste zorlandım" demesi). Gerekçe görevin sourceReason'ına birebir gider.
+typedef ReviewTopic = ({String name, String id, String reason});
 
 class PlanBlock {
   final String title;
