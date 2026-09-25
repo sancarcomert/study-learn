@@ -200,6 +200,15 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     return runStudyAdvisor(ref.read, limit: 1).firstOrNull;
   }
 
+  /// StudyAdvisor gerekçesini cümle içine gömerken sonuna nokta ekler —
+  /// AMA gerekçe zaten "?"/"!" ile bitiyorsa (ör. kaçınma nudge'ı: "...bugün
+  /// küçük bir adım atalım mı?") üstüne nokta eklemez ("?." gibi çift
+  /// noktalama olmasın).
+  static String _asSentence(String reason) {
+    final t = reason.trim();
+    return RegExp(r'[.!?]$').hasMatch(t) ? t : '$t.';
+  }
+
   /// "Nasıl gidiyorum" tarzı sorulara GERÇEK veriyle cevap — istatistik
   /// ekranındaki aynı iki motoru (StatsInsightEngine + StudyAdvisor) sohbete
   /// taşır. Önceden bu tür sorular yanlışlıkla `_wellbeingCheckPhrases`e
@@ -244,7 +253,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final top = _topSuggestion();
     if (top != null && top.reason != StudyAdvisor.genericReason) {
-      parts.add('Sırada: ${top.subjectName} — ${top.reason}.');
+      parts.add('Sırada: ${top.subjectName} — ${_asSentence(top.reason)}');
     }
 
     return parts.join(' ');
@@ -1901,7 +1910,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           final extra = withReason.length > 1
               ? ' (Plandaki diğer bazı görevlerin de somut bir gerekçesi var.)'
               : '';
-          _say('${r.title}: ${r.reason}.$extra');
+          _say('${r.title}: ${_asSentence(r.reason!)}$extra');
         } else {
           _say('Bu plan belirli bir ders/konu zayıflığına değil, dengeli '
               'ilerlemene dayanıyor — kapsama açığı olan dersleri sırayla '
@@ -1913,7 +1922,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       final gapSentence = _goalGapSentence();
       if (top != null && top.reason != StudyAdvisor.genericReason) {
         final suffix = gapSentence != null ? ' $gapSentence' : '';
-        _say('${top.subjectName}: ${top.reason}.$suffix');
+        _say('${top.subjectName}: ${_asSentence(top.reason)}$suffix');
       } else if (gapSentence != null) {
         _say(gapSentence);
       } else {
@@ -1929,7 +1938,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       if (top != null) {
         final reasonText = top.reason == StudyAdvisor.genericReason
             ? top.reason
-            : '${top.reason}.';
+            : _asSentence(top.reason);
         _say('${top.subjectName} — $reasonText İstersen bunu planına '
             'ekleyeyim, ya da başka bir ders söyle.');
       } else {
