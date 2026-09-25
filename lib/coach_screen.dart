@@ -25,6 +25,12 @@ import 'deneme_provider.dart';
 import 'goal_gap_provider.dart';
 import 'focus_session_provider.dart';
 import 'subject_ai.dart';
+import 'subject_topics_screen.dart';
+import 'nlu/nlu_context.dart';
+import 'nlu/nlu_engine.dart';
+import 'nlu/nlu_entities.dart';
+import 'nlu/nlu_models.dart';
+import 'nlu/nlu_responder.dart';
 import 'rank_provider.dart';
 import 'profile_screen.dart';
 import 'rank_ladder_screen.dart';
@@ -71,6 +77,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
   bool _hasInput = false;
 
+  // Offline NLU: son cümlede geçen ders/konu — "bu konu" gibi işaretlere bağlam.
+  NluSlots? _lastNluSlots;
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +88,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       if (has != _hasInput) setState(() => _hasInput = has);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _intro());
+    // Offline NLU sözlüğünü ilk mesajdan ÖNCE hazırla (ilk cümlede takılma yok).
+    Future<void>.delayed(const Duration(milliseconds: 400), CoachNlu.warmUp);
   }
 
   @override
@@ -193,7 +204,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       // AYNI motor, ikinci bir hesap icat edilmiyor.
       goalGap: ref.read(primaryGoalGapProvider),
       weakestSubjectName: ref.read(weakestDenemeSubjectNameProvider),
-      resolvedWeakTopicsBySubject: ref.read(resolvedWeakTopicsBySubjectProvider),
+      resolvedWeakTopicsBySubject:
+          ref.read(resolvedWeakTopicsBySubjectProvider),
     );
 
     final parts = <String>[];
@@ -1186,6 +1198,149 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     return SubjectAI.predict(raw);
   }
 
+  // --- Offline NLU entegrasyonu -----------------------------------------
+
+  /// NLU'nun eski zincire BIRAKTIĞI cümleler (katlanmış metinde aranır): rica
+  /// edilen anlatım/video, "hiçbirine" gibi burnout sorusuna cevaplar, açık
+  /// dinlenme talebi ("mola vereyim", "bugün çalışmayacağım"), baştan/iptal.
+  static final _nluSkipRe = RegExp(
+      r'\b(anlat|acikla|video)\w*|nasil cozul|hic ?bir(ine|i|\s?derse)\b|'
+      r'dinlen\w*|\bmola\b|\bara ver\w*|calismayacag|bos ver');
+
+  NluResult _analyzeNlu(String raw) {
+    final index = NluEntityIndex.build(
+      subjects: ref.read(subjectProvider),
+      topics: ref.read(topicProvider),
+    );
+    final r = CoachNlu.analyze(raw, index: index, previous: _lastNluSlots);
+    if (r.slots.subject != null || r.slots.topic != null) {
+      _lastNluSlots = r.slots;
+    }
+    return r;
+  }
+
+  bool get _midFlow => _pending != null || _delegate || !_draft.isEmpty;
+
+  /// Güvenli (orta/yüksek) ve NLU'nun sahip olduğu bir niyetse cevabı verir.
+  bool _tryNlu(NluResult r, String low) {
+    if (!r.isConfident || r.intent.isLegacyOwned) return false;
+    if (_pending != null && _confirm.hasMatch(low)) return false;
+    if (_restart.hasMatch(low) || _nluSkipRe.hasMatch(r.normalized)) {
+      return false;
+    }
+    // Plan akışının ortasındayken (koç bir şey sormuşken) yalnız açık bir
+    // SORUN cümlesi akışı böler; "2 saat" gibi cevaplar akışta kalır.
+    if (_midFlow &&
+        !(r.confidence == NluConfidence.high && r.intent.isProblem)) {
+      return false;
+    }
+
+    final ctx = NluContext.fromReader(
+      ref.read,
+      goalGapSentence: _goalGapSentence(),
+      progressSummary:
+          r.intent == CoachIntent.progressConcern ? _progressSummary() : null,
+    );
+    final reply = NluResponder.reply(r, ctx);
+    if (reply == null) return false;
+    _applyNluReply(reply);
+    return true;
+  }
+
+  void _applyNluReply(NluReply reply) {
+    final action = reply.action;
+    if (action?.kind == NluActionKind.planDay) {
+      // Koç'un mevcut plan akışını (PlanBuilder) devral — süre/bugün-hafta
+      // NLU'dan hazır gelir, eksik olanı koç sorar.
+      _draft.reset();
+      _pending = null;
+      _pendingWeek = null;
+      _delegate = true;
+      _askedRecurrence = false;
+      _regenerateOffset = 0;
+      _wantsWeek =
+          action!.week ? true : (action.minutes != null ? false : null);
+      if (action.minutes != null) _draft.minutes = action.minutes;
+      _advance();
+      return;
+    }
+
+    VoidCallback? onAction;
+    if (action != null && action.kind == NluActionKind.startFocus) {
+      final intent = action.intent!;
+      onAction = () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FocusScreen(
+                intent: intent,
+                autoStart: true, // "Başla" açık bir başlatma jesti
+              ),
+            ),
+          );
+    } else if (action != null && action.kind == NluActionKind.openTopics) {
+      onAction = () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SubjectTopicsScreen(
+                subjectId: action.subjectId!,
+                subjectName: action.subjectName!,
+              ),
+            ),
+          );
+    }
+    _say(reply.text,
+        actionLabel: onAction == null ? null : action!.label,
+        onAction: onAction);
+  }
+
+  static final _dismissRe =
+      RegExp(r'\b(bosver|neyse|vazgectim|farketmez|bos ver|onemli degil)\b');
+
+  /// Klavye rastgeleliği ("asdfgh", "kjhgf", "asdasd") — Türkçede ≥4 ardışık
+  /// ünsüz ya da yarı yarıya tekrar eden sözcük olmaz.
+  bool _looksLikeGibberish(String folded) {
+    for (final t in folded.split(' ')) {
+      if (t.length < 4) continue;
+      if (RegExp(r'[^aeiou0-9_]{4,}').hasMatch(t)) return true;
+      if (t.length >= 6 &&
+          t.length.isEven &&
+          t.substring(0, t.length ~/ 2) == t.substring(t.length ~/ 2)) {
+        return true;
+      }
+      if (t.length >= 6 && !RegExp(r'[aeiou]').hasMatch(t)) return true;
+    }
+    return false;
+  }
+
+  /// Eski zincir bir şey yakalamadıysa VE bir plan akışının ortasında
+  /// değilsek: anlamsız/geçiştirme cümlelerini konu sanıp plana çevirmek yerine
+  /// nazikçe yönlendir; düşük güvenli bir SORUN cümlesinde kesin konuşmadan
+  /// açıklama iste.
+  bool _nluFallback(NluResult r, String raw) {
+    if (_midFlow) return false;
+    final hasPlanSignal =
+        PlanParser.parse(raw, subjects: ref.read(subjectProvider)).hasSignal;
+    if (hasPlanSignal) return false;
+
+    final unknownish = r.isUnknown || r.confidence == NluConfidence.none;
+    if (unknownish &&
+        (_looksLikeGibberish(r.normalized) ||
+            _dismissRe.hasMatch(r.normalized))) {
+      _say(_pick([
+        'Tam anlayamadım. "matematikte zorlanıyorum", "bugün 30 dakikam '
+            'var ne çalışayım" ya da "plan yap" gibi yazabilirsin.',
+        'Bunu çıkaramadım. Ders, süre ya da derdini yaz — örneğin '
+            '"paragrafta yanlış yapıyorum" ya da "nereden başlayayım".',
+      ]));
+      return true;
+    }
+    if (r.confidence == NluConfidence.low && r.intent.isProblem) {
+      _say(NluResponder.clarify(r));
+      return true;
+    }
+    return false;
+  }
+
   void _onSend() {
     final raw = _input.text.trim();
     if (raw.isEmpty) return;
@@ -1194,6 +1349,13 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _say(raw, coach: false);
 
     final low = raw.toLowerCase().replaceAll('̇', '');
+
+    // Offline doğal dil anlama (bkz. lib/nlu): cümleyi niyet + slot'lara
+    // çözer; yüksek/orta güvenli ve NLU'nun sahip olduğu niyetlerde MEVCUT
+    // Dodom verisiyle (plan, konu kanıtı, StudyAdvisor) cevap verir. Düşük
+    // güvende eski zincir aynen çalışır.
+    final nlu = _analyzeNlu(raw);
+    if (_tryNlu(nlu, low)) return;
 
     if (_matchesAny(low, _burnoutPhrases)) {
       _say(_pick([
@@ -1469,6 +1631,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _say(_pick(['Kolay gelsin.', 'İyi çalışmalar.', 'Hadi kolay gelsin.']));
       return;
     }
+
+    if (_nluFallback(nlu, raw)) return;
 
     if (_delegateRe.hasMatch(low)) _delegate = true;
 
@@ -2261,8 +2425,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                     children: [
                       Expanded(
                         child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 18),
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(999),
@@ -2634,8 +2797,8 @@ class _Bubble extends StatelessWidget {
               TapScale(
                 onTap: turn.onAction,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(999),
@@ -2645,7 +2808,8 @@ class _Bubble extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.timer_outlined,
-                          size: 16, color: AppColors.onColor(AppColors.primary)),
+                          size: 16,
+                          color: AppColors.onColor(AppColors.primary)),
                       const SizedBox(width: 6),
                       Text(
                         turn.actionLabel!,
