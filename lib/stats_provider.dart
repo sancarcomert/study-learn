@@ -276,6 +276,14 @@ final statsProvider =
   return StatsNotifier(stats);
 });
 
+/// 7/30/100 günlük seri "kilometre taşları" (P0-3, docs/pusula_buyume_plani_2026.md).
+/// Günlük hedef kutlamasından AYRI bir an: seri sayısı bu eşiklerden birine
+/// denk geldiğinde bir kez tetiklenir (bkz. home_screen.dart rankProvider
+/// listener ile aynı desen — `previous < next` artışında).
+const List<int> streakMilestoneDays = [7, 30, 100];
+
+bool isStreakMilestone(int days) => streakMilestoneDays.contains(days);
+
 /// [UserStatsModel.selfReportedWeakSubjectName]'ı kullanıcının GERÇEK
 /// ders listesindeki bir [SubjectModel.id]'sine eşler — deneme_provider.dart
 /// içindeki weakestDenemeSubjectIdProvider ile birebir aynı isim-eşleme

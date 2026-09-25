@@ -55,7 +55,7 @@ kapat", erişilebilirlik geçişi.
 |---|---|---|---|
 | P0-1 | **Sınıf seçimi + kişiselleştirme** — onboarding'e 9/10/11/12/Mezun. Ton, günlük hedef varsayılanı, sınav dürtmesi, önerilen dersler buna göre. | "Her kullanıcı kendine göre" — kullanıcı isteği. 9 ≠ 12. | Küçük (`UserStatsModel` nullable alan) |
 | P0-2 | **Seviye / rütbe merdiveni** — seri günü + tamamlanan görev + konu kapsamasıyla yükselen seviye (Yolcu → Çırak → Kalfa → Usta → Pusula). Home + Profil'de "sonrakine N görev". | "Tırmanacak hedef" ihtiyacı — rekabetin faydası, zararı yok. Herkes tırmanır. Hacme değil **sürekliliğe** bağlı → sahte saatle şişirilemez. | Orta (yeni izole modül, `user_progress` audit'te silinmişti, typeId 3 boşta) |
-| P0-3 | **Seri draması** — "serin bugün kırılabilir, 1 görev yeter" bildirimi · 7/30/100 gün kilometre taşı kutlaması · widget'ta seri. | En güçlü retention mekaniği (Duolingo). Zaten seri + dondurma var, canlandır. | Küçük–orta |
+| P0-3 | **Seri draması** — "serin bugün kırılabilir, 1 görev yeter" bildirimi ✅ · 7/30/100 gün kilometre taşı kutlaması ✅ (2026-09-25, `home_screen._showStreakMilestoneCelebration`) · widget'ta seri ⬜. | En güçlü retention mekaniği (Duolingo). Zaten seri + dondurma var, canlandır. | Küçük–orta |
 | P0-4 | **"Bu hafta geçen haftandan öndesin"** satırı (Home + İstatistik). | "Şunu geçtim" hissi, kendine karşı. | Küçük |
 | P0-5 | **Odak kronometresi arka planda + kalıcı bildirim.** | Rakiplerin #1 övgüsü ("uygulama kapalıyken de sayıyor"). Şu an ekran kapanınca kontrol edilmeli. | Orta (foreground service) |
 | P0-6 | **Odak seansı: duraklat + geçmişi düzenle/sil.** | Rakiplerin #1 eksik-özellik şikayeti. `focus_sessions` box var, ekran yok. | Orta |

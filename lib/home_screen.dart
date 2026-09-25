@@ -602,6 +602,118 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  static String _streakMilestoneLine(int days) {
+    switch (days) {
+      case 7:
+        return 'Bir hafta boyunca her gün geldin.';
+      case 30:
+        return 'Bir ay kesintisiz. Artık bu bir alışkanlık.';
+      case 100:
+        return 'Yüz gün. Nadir görülen bir kararlılık.';
+      default:
+        return '$days gün kesintisiz.';
+    }
+  }
+
+  /// Seri kilometre taşı (7/30/100 gün, P0-3) — günlük hedef kutlamasından
+  /// AYRI bir an: yalnız serinin kendisi bir eşiğe denk geldiğinde bir kez
+  /// gösterilir (bkz. stats_provider.isStreakMilestone + aşağıdaki
+  /// ref.listen). Görsel dil diğer kutlamalarla aynı (konfeti + kart); CTA
+  /// paylaşım — bu an paylaşılmaya değer, zaten var olan paylaşım kartını
+  /// (P0-10) yeniden kullanıyor.
+  void _showStreakMilestoneCelebration(int days) {
+    final weekTasks = ref.read(tasksCompletedThisWeekProvider);
+    showDialog(
+      context: context,
+      barrierColor: Colors.black26,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _goalConfetti.play();
+        });
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: -40,
+                child: ConfettiWidget(
+                  confettiController: _goalConfetti,
+                  blastDirectionality: BlastDirectionality.explosive,
+                  shouldLoop: false,
+                  numberOfParticles: 24,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('🔥',
+                        style: AppTextStyles.heading1.copyWith(fontSize: 40)),
+                    const SizedBox(height: 12),
+                    Text(
+                      '$days günlük seri!',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.heading3,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _streakMilestoneLine(days),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    TapScale(
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        showShareCardSheet(
+                          context,
+                          streak: days,
+                          weekTasks: weekTasks,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.tonal(AppColors.primary),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.ios_share_outlined,
+                                size: 16, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Paylaş',
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// Rütbe atlama anı — önceden bu HİÇ olmuyordu, rütbe sessizce güncellenen
   /// bir sayıydı. Artık günlük hedef kutlamasıyla aynı görsel dil (konfeti +
   /// kart) ama rütbenin kendi rengiyle + doğrudan merdivene giden bir CTA
@@ -844,6 +956,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final today = DateTime(t.year, t.month, t.day);
         if (_celebratedOn == today) return;
         _celebratedOn = today;
+        // Seri, tam bu tamamlamayla bir kilometre taşına (7/30/100)
+        // denk geliyorsa o kutlama zaten "bugünü tamamladın"ı içeriyor —
+        // ikisi AYNI paylaşılan konfeti controller'ını kullandığı için
+        // üst üste açmak (iki Dialog + iki ConfettiWidget) hem sakin
+        // tasarım dilini bozar hem de ekrandan ayrılırken "ConfettiController
+        // was used after being disposed" hatasına yol açabilir. Bu, o
+        // tamamlamanın streakProvider listener'ında zaten yakalanan
+        // GERÇEK artışla aynı olay olduğu için burada `next` beklemeye
+        // gerek yok — statsProvider zaten güncel (markGoalCompletedToday
+        // bu event'ten ÖNCE çalışır, bkz. task_provider.dart).
+        if (isStreakMilestone(ref.read(statsProvider).currentStreak)) return;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showGoalCelebration();
         });
@@ -860,6 +983,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (previous != null && next.rank > previous.rank) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showRankUpCelebration(next);
+        });
+      }
+    });
+
+    // Seri kilometre taşı (7/30/100 gün) — günlük hedef kutlamasından ayrı,
+    // yalnız GERÇEK bir artışta (previous != null) ve tam eşiğe denk
+    // geldiğinde. `select` ile yalnız currentStreak değiştiğinde tetiklenir.
+    ref.listen<int>(statsProvider.select((s) => s.currentStreak),
+        (previous, next) {
+      if (previous != null && next > previous && isStreakMilestone(next)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showStreakMilestoneCelebration(next);
         });
       }
     });
