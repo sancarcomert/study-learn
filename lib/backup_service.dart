@@ -343,6 +343,9 @@ class BackupService {
         'correct': s.correct,
         'wrong': s.wrong,
         'blank': s.blank,
+        // Denemede "zayıf" işaretlenen konular — konu kanıtının (TopicEvidence)
+        // kaynağı; yedekte yoksa geri yüklemede sessizce kayboluyordu.
+        'weakTopicIds': s.weakTopicIds,
       };
 
   static DenemeSectionScore _denemeSectionFromMap(Map<String, dynamic> m) =>
@@ -351,6 +354,9 @@ class BackupService {
         correct: (m['correct'] as num?)?.toInt() ?? 0,
         wrong: (m['wrong'] as num?)?.toInt() ?? 0,
         blank: (m['blank'] as num?)?.toInt() ?? 0,
+        weakTopicIds:
+            (m['weakTopicIds'] as List?)?.whereType<String>().toList() ??
+                <String>[],
       );
 
   static Map<String, dynamic> _denemeToMap(DenemeEntry e) => {
@@ -390,6 +396,10 @@ class BackupService {
         'targetNetAYT': s.targetNetAYT,
         'lastCarryOverPromptDate': s.lastCarryOverPromptDate?.toIso8601String(),
         'themeMode': s.themeMode,
+        // Rütbeyi belirleyen XP bonusu ve onboarding'deki zayıf ders beyanı
+        // önceden yedeklenmiyordu — geri yükleme rütbeyi düşürüyordu.
+        'bonusXp': s.bonusXp,
+        'selfReportedWeakSubjectName': s.selfReportedWeakSubjectName,
       };
 
   static UserStatsModel _statsFromMap(Map<String, dynamic> m) => UserStatsModel(
@@ -419,6 +429,8 @@ class BackupService {
         targetNetAYT: (m['targetNetAYT'] as num?)?.toDouble(),
         lastCarryOverPromptDate: _date(m['lastCarryOverPromptDate']),
         themeMode: (m['themeMode'] as String?) ?? 'light',
+        bonusXp: (m['bonusXp'] as num?)?.toInt() ?? 0,
+        selfReportedWeakSubjectName: m['selfReportedWeakSubjectName'] as String?,
       );
 
   // ------------------------------------------------------------------ UTIL

@@ -181,7 +181,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           Expanded(
             child: dayTasks.isEmpty
                 ? Center(
-                    child: Padding(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
                       child: EmptyStateCard(
                         icon: Icons.event_available,
@@ -278,19 +278,29 @@ class _WeekNavRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          TapScale(
-            onTap: () => onShift(-7),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Icon(Icons.chevron_left, color: AppColors.textSecondary),
+          Semantics(
+            button: true,
+            label: 'Önceki hafta',
+            child: TapScale(
+              onTap: () => onShift(-7),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child:
+                    Icon(Icons.chevron_left, color: AppColors.textSecondary),
+              ),
             ),
           ),
           Text(label, style: AppTextStyles.bodySecondary),
-          TapScale(
-            onTap: () => onShift(7),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          Semantics(
+            button: true,
+            label: 'Sonraki hafta',
+            child: TapScale(
+              onTap: () => onShift(7),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child:
+                    Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              ),
             ),
           ),
         ],
@@ -322,7 +332,9 @@ class _DaySelectorStrip extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final dayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-    return SizedBox(
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.2,
+      child: SizedBox(
       height: 82,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -392,6 +404,7 @@ class _DaySelectorStrip extends StatelessWidget {
             ),
           );
         }),
+      ),
       ),
     );
   }
@@ -582,7 +595,7 @@ class _TimelineRow extends ConsumerWidget {
                                             : AppColors.textSecondary),
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
+                                  Flexible(child: Text(
                                     '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')} - ${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}'
                                     '${overdue ? ' · gecikti' : (inProgress ? ' · şimdi' : '')}',
                                     style: AppTextStyles.caption.copyWith(
@@ -595,7 +608,7 @@ class _TimelineRow extends ConsumerWidget {
                                           ? FontWeight.w700
                                           : null,
                                     ),
-                                  ),
+                                  )),
                                 ],
                               ),
                             ),

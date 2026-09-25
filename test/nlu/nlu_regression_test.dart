@@ -86,6 +86,20 @@ const heldOut = <String, String>{
   'ders çalışmayı sevmiyorum': 'lowMotivation',
   'çalışmaya başlayamıyorum': 'lowProgress|lowMotivation|studySessionRequest',
   'hiçbir şey öğrenemiyorum': 'strugglingSubject|lowProgress|progressConcern',
+  // --- Final QA turu: gerçek öğrenci dili ---
+  // Soru olan "verimli" cümlesi başarı raporu DEĞİL.
+  'nasıl daha verimli çalışırım':
+      'topicGuidance|subjectGuidance|needRecommendation|whatToDoNow|unknown',
+  'bugün çok verimliydi': 'positiveProgress',
+  'matematik bitmiyo': 'behindSchedule|tooMuchWork',
+  'konular bitmiyor': 'behindSchedule|tooMuchWork',
+  'bugün kafam almıyor': 'lowProgress|lowMotivation',
+  'fiziği anlamıyorum': 'strugglingSubject',
+  'olasılığı anlamıyorum': 'strugglingTopic',
+  'telefonu bırakamıyorum': 'unknown|lowProgress|lowMotivation',
+  'ne yapcam': 'needRecommendation|whatToDoNow',
+  'çalışasım yok': 'lowMotivation',
+  'sıkıldım': 'lowMotivation',
 };
 
 void main() {

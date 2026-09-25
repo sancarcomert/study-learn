@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'day_rollover.dart';
 
 import 'deneme_provider.dart';
 import 'focus_session_provider.dart';
@@ -69,6 +70,7 @@ final repeatedStruggleTopicNamesBySubjectProvider =
 /// topic_provider.dart'a bağımlı — döngüsel import olmasın diye burada
 /// birleştirilir (bkz. goal_gap_provider.dart ile aynı desen).
 final topicEvidenceProvider = Provider<Map<String, TopicEvidence>>((ref) {
+  ref.watch(dayRolloverProvider);
   final topics = ref.watch(topicProvider);
   final weakIds = ref.watch(currentWeakTopicIdSetProvider);
   final resolvedIds = ref.watch(resolvedWeakTopicIdSetProvider);

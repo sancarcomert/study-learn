@@ -762,9 +762,13 @@ class _SubjectChip extends StatelessWidget {
               Icon(icon, size: 16, color: fgColor),
               const SizedBox(width: 5),
             ],
-            Text(
-              label,
-              style: TextStyle(color: fgColor, fontWeight: FontWeight.w600),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: fgColor, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),

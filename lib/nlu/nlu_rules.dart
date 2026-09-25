@@ -212,6 +212,14 @@ final List<NluRule> nluRules = [
               r'\bhic ?bir (sey|konu)\w* (bil|anla)\w*|\bhic bil\w*|\bhicbir sey bilmiyor\w*')) ||
           (c.hasSubject && c.has(_r(r'\bbilmiyor\w*')))),
   NluRule(
+      'ağır/zor geliyor',
+      CoachIntent.strugglingSubject,
+      0.84,
+      (c) =>
+          c.hasSubject &&
+          c.has(_r(r'\b(agir|zor|yorucu|bunaltici)\b')) &&
+          c.has(_r(r'\bgel(iyor|iyo|ir|di|mis)\b'))),
+  NluRule(
       'yapamıyorum+ders',
       CoachIntent.strugglingSubject,
       0.74,
@@ -369,6 +377,20 @@ final List<NluRule> nluRules = [
       (c) =>
           c.has(_r(r'\bodaklanam\w*|\bkonsantre olam\w*|\bdikkatim dagil\w*'))),
 
+  NluRule(
+      'kafam almıyor',
+      CoachIntent.lowProgress,
+      0.82,
+      (c) => c.has(_r(
+          r'\bkafa(m)? almiyor|\bkafam yerinde degil|\bkafam basimda degil|\baklim (yok|baska yerde)|\bdaginik\w*'))),
+  NluRule(
+      'bitmiyor',
+      CoachIntent.behindSchedule,
+      0.78,
+      (c) =>
+          c.has(_r(r'\bbitmiyo(r)?\b|\bbitmedi\b|\bbitmeyecek\b')) &&
+          (c.hasSubject || c.has(_r(r'\b(konu|is|ders|gorev|plan)\w*')))),
+
   // --- Motivasyon ---------------------------------------------------------------------
   NluRule('motivasyon', CoachIntent.lowMotivation, 0.86,
       (c) => c.has(_r(r'\bmotivasyon\w*|\bmotive (ol|et|ed)\w*'))),
@@ -449,9 +471,9 @@ final List<NluRule> nluRules = [
       0.82,
       (c) =>
           c.has(_r(
-              r'\biyi (gidiyor|calistim|gecti|gidiyorum)\b|\bverimli\b|\bbasardim\b|\bbitirdim\b|\btamamladim\b|\bharika\b|\bsuper\b|\bmemnun\w*|\bmutluyum\b|\bnet\w* (artti|yukseldi|iyi)\b|\bhedefimi (tamamladim|astim)\b|\byukseldi\b')) &&
+              r'\biyi (gidiyor|calistim|gecti|gidiyorum)\b|\bverimliydi\b|\bcok verimli (gecti|calistim)\b|\bbasardim\b|\bbitirdim\b|\btamamladim\b|\bharika\b|\bsuper\b|\bmemnun\w*|\bmutluyum\b|\bnet\w* (artti|yukseldi|iyi)\b|\bhedefimi (tamamladim|astim)\b|\byukseldi\b')) &&
           !c.has(_r(
-              r'\b(iyi|verimli) (gitmiyor|degil)\w*|\bverimli (calisam|degil)\w*'))),
+              r'\b(iyi|verimli) (gitmiyor|degil)\w*|\bverimli (calisam|degil)\w*|\bnasil\b|\bmi\b|\bmu\b'))),
   NluRule(
       'anladım/öğrendim',
       CoachIntent.positiveProgress,

@@ -105,6 +105,12 @@ class GradientFab extends StatelessWidget {
       ),
     );
 
-    return tooltip != null ? Tooltip(message: tooltip!, child: button) : button;
+    if (tooltip == null) return button;
+    return Semantics(
+      button: true,
+      label: tooltip,
+      excludeSemantics: true,
+      child: Tooltip(message: tooltip!, child: button),
+    );
   }
 }

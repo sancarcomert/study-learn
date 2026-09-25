@@ -335,8 +335,8 @@ class StatsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           const SectionHeader(
             title: 'Hangi Derse Çalıştın',
-            subtitle: 'Seçili dönemde her derste kaç görev bitirdin. En kısa '
-                'çubuk = en az vakit ayırdığın ders.',
+            subtitle: 'Seçili dönemde her derste kaç GÖREV bitirdin (süre değil, '
+                'görev sayısı). En kısa çubuk = en az görev bitirdiğin ders.',
           ),
           const SizedBox(height: 12),
           _SubjectDistribution(tasks: completedTasks, subjects: subjects),
@@ -1036,10 +1036,17 @@ class _ExamDateCard extends StatelessWidget {
             if (date == null)
               Icon(Icons.add, size: 20, color: AppColors.textSecondary)
             else
-              TapScale(
-                onTap: onClear,
-                child: Icon(Icons.close,
-                    size: 18, color: AppColors.textMuted),
+              Semantics(
+                button: true,
+                label: 'Tarihi kaldır',
+                child: TapScale(
+                  onTap: onClear,
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Icon(Icons.close,
+                        size: 18, color: AppColors.textMuted),
+                  ),
+                ),
               ),
           ],
         ),

@@ -59,8 +59,13 @@ class MetricTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value,
-                  style: AppTextStyles.heading2.copyWith(letterSpacing: -0.3)),
+              Flexible(
+                child: Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        AppTextStyles.heading2.copyWith(letterSpacing: -0.3)),
+              ),
               if (unit != null) ...[
                 const SizedBox(width: 6),
                 Text(unit!,

@@ -30,6 +30,8 @@ import 'nlu/nlu_context.dart';
 import 'nlu/nlu_engine.dart';
 import 'nlu/nlu_entities.dart';
 import 'nlu/nlu_models.dart';
+import 'nlu/nlu_modifier.dart';
+import 'nlu/tr_text.dart';
 import 'nlu/nlu_responder.dart';
 import 'rank_provider.dart';
 import 'profile_screen.dart';
@@ -79,6 +81,26 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
   // Offline NLU: son cümlede geçen ders/konu — "bu konu" gibi işaretlere bağlam.
   NluSlots? _lastNluSlots;
+  NluEntityIndex? _nluIndex;
+
+  // Düzeltme ("biraz ağır yap", "artır", "1 saat daha ekle") için OTURUM İÇİ
+  // bağlam: son anlamlı Coach sonucu neydi? Kalıcı değil, yalnız bu ekran açıkken.
+  _CoachRef _ref = _CoachRef.none;
+  // Bağlam TAZELİĞİ: [_ref] verisi durur ama yalnız [_refActive] iken kısa
+  // düzeltmeler ("artır") ona bağlanır. Yeni bir ana konuya geçilince pasifleşir;
+  // açık referans ("az önceki planı artır") yeniden kullanabilir.
+  bool _refActive = false;
+  int _turn = 0; // kullanıcı mesajı sayacı
+  int _refTurn = 0; // bağlamın son tazelendiği mesaj
+  String _committedEnergy = 'orta';
+  bool _committedWeek = false;
+  bool _committedDay = false;
+  NluResult? _lastNlu;
+  int? _lastNluMinutes;
+  int? _committedMinutes;
+
+  // Plan yoğunluğu = PlanBuilder'ın mevcut "energy" ayarı (düşük/orta/yüksek).
+  String _energy = 'orta';
 
   @override
   void initState() {
@@ -1212,6 +1234,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       subjects: ref.read(subjectProvider),
       topics: ref.read(topicProvider),
     );
+    _nluIndex = index;
     final r = CoachNlu.analyze(raw, index: index, previous: _lastNluSlots);
     if (r.slots.subject != null || r.slots.topic != null) {
       _lastNluSlots = r.slots;
@@ -1230,7 +1253,13 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
     // Plan akışının ortasındayken (koç bir şey sormuşken) yalnız açık bir
     // SORUN cümlesi akışı böler; "2 saat" gibi cevaplar akışta kalır.
+    // Onay bekleyen bir plan varken AÇIK yeni bir plan isteği ("yarın için plan
+    // yap") eskisinin yerini alır (bağlam da yeni plana geçer).
+    final newPlanOverPending = _pending != null &&
+        r.intent == CoachIntent.needPlan &&
+        r.confidence == NluConfidence.high;
     if (_midFlow &&
+        !newPlanOverPending &&
         !(r.confidence == NluConfidence.high && r.intent.isProblem)) {
       return false;
     }
@@ -1244,7 +1273,332 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final reply = NluResponder.reply(r, ctx);
     if (reply == null) return false;
     _applyNluReply(reply);
+    _rememberNluReply(r, reply);
     return true;
+  }
+
+  // --- Düzeltme (refinement) ----------------------------------------------
+
+  void _rememberNluReply(NluResult r, NluReply reply) {
+    final action = reply.action;
+    if (action != null && action.kind == NluActionKind.startFocus) {
+      final minutes = r.slots.timeMinutes ?? action.intent?.targetMinutes;
+      if (minutes != null) {
+        _activate(_CoachRef.nluReply);
+        _lastNlu = r;
+        _lastNluMinutes = minutes;
+        return;
+      }
+    }
+  }
+
+  /// "Biraz ağır yap", "artır", "1 saat daha ekle", "2 saat yerine 3 saat yap":
+  /// önceki plana/öneriye referans veren kısa düzeltmeler. Neyi değiştireceği
+  /// belli değilse UYDURMAZ, açıklama ister.
+  bool _tryRefine(String raw, String low) {
+    if (_pending != null && _confirm.hasMatch(low)) return false;
+    if (_restart.hasMatch(low)) return false;
+    final mod = NluModifierParser.parse(raw, index: _nluIndex);
+    if (mod == null) return false;
+    // "X yerine Y" (sayısız) → eski değiştirme akışı.
+    if (mod.type == NluModifierType.replace && !mod.absolute) return false;
+
+    // Bağlam kullanılabilir mi: taze (aktif) ya da açıkça anılmış ("az önceki
+    // planı artır"). Veri hâlâ duruyor mu (plan bekliyor / öneri / eklenmiş plan)?
+    final usable = _refActive || mod.explicitReference;
+    final hasProposal = _ref == _CoachRef.proposal && _pending != null;
+    final hasNlu = _ref == _CoachRef.nluReply && _lastNlu != null;
+    final hasCommitted = _ref == _CoachRef.committed;
+
+    if (usable && hasProposal) {
+      _refineProposal(mod);
+      return true;
+    }
+    // Koç bir soru sormuşken ("günde kaç saat?") "3 saat yap" o sorunun
+    // cevabıdır — düzeltme değil.
+    if (_pending == null && (_delegate || !_draft.isEmpty)) {
+      // Eski ayrıştırıcı "yap"ı konu sanmasın diye süreyi doğrudan taslağa yaz.
+      if (mod.absolute && mod.minutes != null) {
+        _draft.minutes = mod.minutes;
+        _say('Not aldım — ${_fmtMinutes(mod.minutes!)}.');
+        _advance();
+        return true;
+      }
+      return false;
+    }
+    if (usable && hasNlu) {
+      _refineNluReply(mod);
+      return true;
+    }
+    if (usable && hasCommitted) {
+      _refineCommitted(mod);
+      return true;
+    }
+
+    // Referans yok / bayat: UYDURMA, sor.
+    final stale = hasProposal || hasNlu || hasCommitted;
+    _say(stale
+        ? _pick([
+            'Neyi değiştirmemi istersin? Az önceki planı/öneriyi kastediyorsan '
+                '"az önceki planı biraz artır" de; yeni bir şey için "bugün için '
+                'plan yap" diyebilirsin.',
+            'Buna hangi plan için uygulayayım? Az önceki planı kastediyorsan '
+                '"o planı biraz hafiflet" gibi söyle.',
+          ])
+        : _pick([
+            'Neyi değiştirmemi istersin? Önce bir plan ya da öneri isteyelim '
+                '(ör. "bugün için 1 saatlik plan yap"), sonra "biraz artır" ya da '
+                '"hafiflet" dersen ona uygularım.',
+            'Şu an değiştirecek bir plan/öneri görmüyorum. Önce "bugün için plan '
+                'yap" de, sonra "biraz ağır yap" ya da "azalt" diyebilirsin.',
+          ]));
+    return true;
+  }
+
+  // --- Bağlam tazeliği ---------------------------------------------------
+
+  /// Bir plan/öneri sunuldu ya da düzeltildi: bağlam taze ve aktif.
+  void _activate(_CoachRef kind) {
+    _ref = kind;
+    _refActive = true;
+    _refTurn = _turn;
+  }
+
+  /// Kısa onay / teşekkür kelimeleri: yeni konu DEĞİL, akışın devamı.
+  static const _continuationWords = {
+    'tamam',
+    'tmm',
+    'olur',
+    'evet',
+    'evt',
+    'hadi',
+    'peki',
+    'basla',
+    'aynen',
+    'tabii',
+    'tabi',
+    'ok',
+    'okey',
+    'olsun',
+    'anladim',
+    'sag',
+    'ol',
+    'saol',
+    'tesekkurler',
+    'tesekkur',
+    'ederim',
+    'eyvallah',
+  };
+
+  /// Sürekli "tamam" diyerek bile bağlamın sonsuza dek yaşamaması için güvenli
+  /// üst sınır (mesaj sayısı) — asıl kural alaka/konu değişimidir.
+  static const _refMaxIdleTurns = 6;
+
+  bool _isContinuation(NluResult nlu, String low) {
+    if (nlu.intent == CoachIntent.thanks ||
+        nlu.intent == CoachIntent.confirmation) {
+      return true;
+    }
+    final t = nlu.normalized.split(' ').where((w) => w.isNotEmpty).toList();
+    return t.isNotEmpty &&
+        t.length <= 3 &&
+        t.every(_continuationWords.contains);
+  }
+
+  /// Bu mesaj düzeltme değilse: yeni bir ana konuya mı geçti? Öyleyse eski
+  /// düzeltme bağlamını PASİFLEŞTİR (veri durur; yalnız açık referansla dönülür).
+  /// Kısa onaylar ve planın kendisi hakkındaki "neden" soruları akışın devamıdır.
+  void _expireRefinement(NluResult nlu, String low) {
+    if (!_refActive) return;
+    final related =
+        _isContinuation(nlu, low) || _matchesAny(low, _reasonWhyPhrases);
+    if (related && _turn - _refTurn < _refMaxIdleTurns) return;
+    _refActive = false;
+  }
+
+  /// Plan ZATEN eklenmişken ("tamam"dan sonra) "biraz ağır yap": eklenen plana
+  /// dokunma; aynı ayarlarla, düzeltmeyi uygulayan YENİ bir öneri hazırla.
+  void _refineCommitted(NluModifier mod) {
+    final minutes = _committedMinutes;
+    if (minutes == null ||
+        !_committedDay ||
+        mod.type == NluModifierType.remove) {
+      _say('Az önce eklediğim plan listende duruyor; onu bu sohbetten '
+          'değiştirmiyorum — Görevler ekranından düzenleyebilirsin. Yeni bir '
+          'plan için "bugün için plan yap" de.');
+      return;
+    }
+    _draft.minutes = minutes;
+    _energy = _committedEnergy;
+    _delegate = true;
+    _wantsWeek = _committedWeek;
+    _pendingWeek = null;
+    _pendingIsDay = true;
+    _say('Az önce eklediğim plan listende duruyor; aynı ayarlarla yeni bir '
+        'öneri hazırlıyorum — onaylarsan ona eklenir (öncekini Görevler '
+        'ekranından silebilirsin).');
+    _refineProposal(mod, fromCommitted: true);
+  }
+
+  static const _energyLevels = ['düşük', 'orta', 'yüksek'];
+
+  void _refineProposal(NluModifier mod, {bool fromCommitted = false}) {
+    if (mod.type == NluModifierType.remove) {
+      _removeFromProposal(mod);
+      return;
+    }
+    final isWeek = fromCommitted ? _committedWeek : _pendingWeek != null;
+    final dir = mod.direction;
+    final intensity = mod.type == NluModifierType.intensityUp ||
+        mod.type == NluModifierType.intensityDown ||
+        mod.type == NluModifierType.harder ||
+        mod.type == NluModifierType.easier;
+
+    var note = '';
+    // Yoğunluk = planlayıcının mevcut "energy" ayarı (blok uzunluğu + öncelik).
+    if (intensity && !isWeek && _pendingIsDay) {
+      final i = _energyLevels.indexOf(_energy);
+      final steps = mod.amount == NluAmount.large ? 2 : 1;
+      final j = (i + dir * steps).clamp(0, 2);
+      if (j != i) {
+        final old = _energy;
+        _energy = _energyLevels[j];
+        _say('Yoğunluğu $old → $_energy yaptım (blok '
+            '${PlanBuilder.durationFor(old)} → '
+            '${PlanBuilder.durationFor(_energy)} dk).');
+        _proposeDay();
+        return;
+      }
+      note = dir > 0
+          ? ' Yoğunluk zaten en yüksekte, o yüzden süreyi büyüttüm.'
+          : ' Yoğunluk zaten en düşükte, o yüzden süreyi kıstım.';
+    } else if (intensity && isWeek) {
+      note = ' Haftalık programda ayrı bir yoğunluk ayarı yok; günlük süreyi '
+          'değiştirdim.';
+    }
+
+    final cur = _draft.minutes ??
+        (_pending ?? const <PlanBlock>[]).fold<int>(0, (s, b) => s + b.minutes);
+    final maxMinutes = isWeek ? 8 * 60 : 12 * 60;
+    final target = (mod.apply(cur) ?? cur).clamp(15, maxMinutes);
+    if (target == cur) {
+      _say(dir > 0
+          ? 'Süre zaten ${_fmtMinutes(cur)} — bunun üstüne çıkmayacağım.'
+          : 'Süre zaten ${_fmtMinutes(cur)} — bunun altına inmeyeceğim.');
+      return;
+    }
+    _draft.minutes = target;
+    _say('${isWeek ? 'Günlük süreyi' : 'Süreyi'} ${_fmtMinutes(cur)} → '
+        '${_fmtMinutes(target)} yaptım.$note');
+
+    // Yeni öneri çıkmazsa (süre en küçük bloğa bile yetmiyorsa) eski öneri
+    // geçerli kalır; çıktı aynıysa bunu SÖYLERİZ (sessizce "yaptım" demeyiz).
+    final before = _pending;
+    final beforeSig = _planSignature(before);
+    final beforeWeek = _pendingWeek;
+    _pending = null;
+    if (isWeek) {
+      _proposeWeek();
+    } else if (_pendingIsDay) {
+      _proposeDay();
+    } else {
+      _proposeSingle();
+    }
+    if (_pending == null) {
+      _pending = before;
+      _pendingWeek = beforeWeek;
+      _draft.minutes = cur;
+      _activate(_CoachRef.proposal);
+      _say('Önceki öneri geçerli — "ekle" dersen onu eklerim.');
+    } else if (_planSignature(_pending) == beforeSig) {
+      _say('Plan blokları aynı kaldı: bu süre için planlayıcı aynı görevleri '
+          'üretiyor. Blokları büyütmek ya da küçültmek için "biraz ağır yap" / '
+          '"hafiflet" de.');
+    }
+  }
+
+  String _planSignature(List<PlanBlock>? blocks) =>
+      (blocks ?? const <PlanBlock>[])
+          .map((b) => '${b.title}|${b.minutes}')
+          .join(',');
+
+  bool _blockIsSubject(PlanBlock b, NluModifier mod) {
+    if (mod.targetSubjectId != null && b.subjectId == mod.targetSubjectId) {
+      return true;
+    }
+    final name = mod.targetSubjectName;
+    if (name == null) return false;
+    return TrText.fold(b.title).contains(TrText.fold(name));
+  }
+
+  /// "Fizik çıkar" / "şunu çıkar" — onay bekleyen GÜN planından bir görev.
+  void _removeFromProposal(NluModifier mod) {
+    final blocks = _pending!;
+    if (_pendingWeek != null) {
+      _say('Haftalık programdan tek görev çıkarmayı burada yapmıyorum — '
+          'ekledikten sonra Görevler ekranından silebilir ya da "günlük süreyi '
+          'azalt" diyebilirsin.');
+      return;
+    }
+    if (mod.targetSubjectName == null) {
+      final names = blocks.map((b) => b.title).take(4).join(', ');
+      _say(
+          'Hangisini çıkarayım? ($names) — ders adını yaz, ör. "fizik çıkar".');
+      return;
+    }
+    final keep = blocks.where((b) => !_blockIsSubject(b, mod)).toList();
+    if (keep.length == blocks.length) {
+      _say('${mod.targetSubjectName} bu önerinin içinde görünmüyor.');
+      return;
+    }
+    if (keep.isEmpty) {
+      _pending = null;
+      _ref = _CoachRef.none;
+      _refActive = false;
+      _say('Hepsini çıkarınca plan kalmadı. Baştan kuralım mı — kaç dakika?');
+      return;
+    }
+    _pending = keep;
+    final lines = keep.map((b) => '•  ${b.title} · ${b.minutes} dk').join('\n');
+    final total = keep.fold<int>(0, (sum, b) => sum + b.minutes);
+    _say('${mod.targetSubjectName} çıktı.\n\n$lines\n\n'
+        'Toplam ${_fmtMinutes(total)} · ${keep.length} görev.\n\n'
+        'Uygunsa "ekle" de.');
+  }
+
+  /// Bir öneri cevabından sonra ("30 dk'ya göre daralttım") süreyi değiştir:
+  /// aynı NLU sonucunu yeni süreyle mevcut veriye yeniden sor.
+  void _refineNluReply(NluModifier mod) {
+    final last = _lastNlu!;
+    if (mod.type == NluModifierType.remove) {
+      _say('Bu öneriden çıkarılacak ayrı bir parça yok; bir plan istersen '
+          '"plan yap" de, ondan çıkarabiliriz.');
+      return;
+    }
+    final cur = _lastNluMinutes ?? kDefaultFocusMinutes;
+    final target = (mod.apply(cur) ?? cur).clamp(5, 240);
+    if (target == cur) {
+      _say(mod.direction > 0
+          ? 'Süre zaten ${_fmtMinutes(cur)} — bunun üstüne çıkmayacağım.'
+          : 'Süre zaten ${_fmtMinutes(cur)} — bunun altına inmeyeceğim.');
+      return;
+    }
+    final intent = (last.intent.isRecommendationFamily || last.intent.isProblem)
+        ? last.intent
+        : CoachIntent.needRecommendation;
+    final r2 = last.copyWith(
+      intent: intent,
+      slots: last.slots.copyWith(timeMinutes: target, timeIsTarget: true),
+    );
+    final ctx = NluContext.fromReader(
+      ref.read,
+      goalGapSentence: _goalGapSentence(),
+    );
+    final reply = NluResponder.reply(r2, ctx);
+    if (reply == null) return;
+    _say('Süreyi ${_fmtMinutes(cur)} → ${_fmtMinutes(target)} yaptım.');
+    _applyNluReply(reply);
+    _rememberNluReply(r2, reply);
   }
 
   void _applyNluReply(NluReply reply) {
@@ -1258,6 +1612,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _delegate = true;
       _askedRecurrence = false;
       _regenerateOffset = 0;
+      _energy = 'orta';
       _wantsWeek =
           action!.week ? true : (action.minutes != null ? false : null);
       if (action.minutes != null) _draft.minutes = action.minutes;
@@ -1323,8 +1678,22 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (hasPlanSignal) return false;
 
     final unknownish = r.isUnknown || r.confidence == NluConfidence.none;
+    // Çalışma sözlüğünden HİÇBİR şey tanımayan, ders/konu içermeyen tam bir cümle
+    // ("telefonu bırakamıyorum") konu adı DEĞİLdir: eskiden konu sanılıp "Buna ne
+    // kadar zaman ayıralım?" diye soruluyordu. Kısa/konu benzeri girdiler
+    // ("deneme analizi") eski akışta kalır.
+    final sentenceWithoutVocabulary = unknownish &&
+        r.slots.subject == null &&
+        r.slots.topic == null &&
+        r.knownTokenRatio < 0.5 &&
+        (r.normalized.split(' ').length >= 3 ||
+            // İki sözcükse: çekimli fiille bitiyorsa cümledir ("telefonu
+            // bırakamıyorum"), isim tamlaması ("deneme analizi") konudur.
+            RegExp(r'(yorum|yor|dim|dum|tim|tum|acagim|ecegim|irim|urum)$')
+                .hasMatch(r.normalized));
     if (unknownish &&
-        (_looksLikeGibberish(r.normalized) ||
+        (sentenceWithoutVocabulary ||
+            _looksLikeGibberish(r.normalized) ||
             _dismissRe.hasMatch(r.normalized))) {
       _say(_pick([
         'Tam anlayamadım. "matematikte zorlanıyorum", "bugün 30 dakikam '
@@ -1347,6 +1716,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _input.clear();
     FocusScope.of(context).unfocus();
     _say(raw, coach: false);
+    _turn++;
 
     final low = raw.toLowerCase().replaceAll('̇', '');
 
@@ -1355,6 +1725,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     // Dodom verisiyle (plan, konu kanıtı, StudyAdvisor) cevap verir. Düşük
     // güvende eski zincir aynen çalışır.
     final nlu = _analyzeNlu(raw);
+    if (_tryRefine(raw, low)) return;
+    _expireRefinement(nlu, low);
     if (_tryNlu(nlu, low)) return;
 
     if (_matchesAny(low, _burnoutPhrases)) {
@@ -1614,6 +1986,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       return;
     }
     if (_restart.hasMatch(low)) {
+      _ref = _CoachRef.none;
+      _refActive = false;
       _draft.reset();
       _pending = null;
       _pendingWeek = null;
@@ -1621,6 +1995,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _wantsWeek = null;
       _askedRecurrence = false;
       _regenerateOffset = 0;
+      _energy = 'orta';
       _say(_pick([
         'Tamam, temizledim. Baştan anlat bakalım.',
         'Sildim gitti. Yeniden başlayalım — ne çalışacaksın?',
@@ -1962,6 +2337,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     ];
     _pendingRecurrence = _draft.recurrence;
     _pendingIsDay = false;
+    _activate(_CoachRef.proposal);
 
     final timePart = _draft.hour != null
         ? ' · ${_hhmm(_draft.hour!, _draft.minute ?? 0)}'
@@ -2037,7 +2413,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final result = PlanBuilder.build(
       orderedSubjects: ordered,
       capacityMinutes: capacityMinutes,
-      energy: 'orta',
+      energy: _energy,
       examDays: examDays,
       uncoveredTopics: uncovered,
       fillToCapacity: uncovered.isNotEmpty,
@@ -2064,6 +2440,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _pending = result.blocks;
     _pendingRecurrence = 'none';
     _pendingIsDay = true;
+    _activate(_CoachRef.proposal);
 
     final lines =
         result.blocks.map((b) => '•  ${b.title} · ${b.minutes} dk').join('\n');
@@ -2134,6 +2511,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _pendingWeek = week;
     _pending = week.allBlocks;
     _pendingIsDay = true;
+    _activate(_CoachRef.proposal);
     _pendingRecurrence = 'none';
 
     final buf = StringBuffer()
@@ -2151,6 +2529,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   }
 
   void _commit() {
+    _committedMinutes = _draft.minutes;
+    _committedEnergy = _energy;
+    _committedWeek = _pendingWeek != null;
+    _committedDay = _pendingIsDay;
+    _activate(_CoachRef.committed);
     final isFirstTaskEver = !ref.read(statsProvider).hasAddedFirstTask;
 
     // Haftalık program: her bloğu kendi gününün dueDate'iyle yaz.
@@ -2180,6 +2563,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       _wantsWeek = null;
       _askedRecurrence = false;
       _regenerateOffset = 0;
+      _energy = 'orta';
       if (isFirstTaskEver) {
         ref.read(statsProvider.notifier).markFirstTaskAdded();
         _say('İlk görevlerini ekledin. $count görev ${week.days.length} '
@@ -2272,6 +2656,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _wantsWeek = null;
     _askedRecurrence = false;
     _regenerateOffset = 0;
+    _energy = 'orta';
     if (isFirstTaskEver) {
       ref.read(statsProvider.notifier).markFirstTaskAdded();
       _say(
@@ -2449,7 +2834,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      TapScale(
+                      Semantics(
+                        button: true,
+                        enabled: _hasInput,
+                        label: 'Gönder',
+                        child: TapScale(
                         onTap: _hasInput ? _onSend : null,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
@@ -2473,6 +2862,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                                 : AppColors.textMuted,
                           ),
                         ),
+                      ),
                       ),
                     ],
                   ),
@@ -2875,11 +3265,13 @@ class _QuickActionPill extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: tint),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                color: tint,
-                fontWeight: FontWeight.w700,
+            Flexible(
+              child: Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  color: tint,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -2888,3 +3280,6 @@ class _QuickActionPill extends StatelessWidget {
     );
   }
 }
+
+/// Düzeltme cümlelerinin ("artır", "biraz ağır yap") neye referans verdiği.
+enum _CoachRef { none, proposal, nluReply, committed }

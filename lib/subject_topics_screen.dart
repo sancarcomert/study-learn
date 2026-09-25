@@ -157,7 +157,7 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
           Expanded(
             child: topics.isEmpty
                 ? Center(
-                    child: Padding(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
                       child: EmptyStateCard(
                         icon: Icons.checklist_outlined,
@@ -289,6 +289,7 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed: _add,
+                    tooltip: 'Konu ekle',
                     icon: const Icon(Icons.add, size: 20),
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -403,10 +404,14 @@ class _TopicRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: AppTextStyles.caption
-                .copyWith(color: color, fontWeight: FontWeight.w700),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.caption
+                  .copyWith(color: color, fontWeight: FontWeight.w700),
+            ),
           ),
           PopupMenuButton<TopicStatus>(
             tooltip: 'Kaydı düzelt',
@@ -432,20 +437,28 @@ class _TopicRow extends StatelessWidget {
           ),
           // Bu konu için doğrudan odak seansı başlat (Plan → Odak Seansı'na
           // çıkıp dersi elle seçmek yerine) — TaskTile'daki ▶ ile aynı dil.
-          TapScale(
-            onTap: onFocusTap,
-            child: Container(
-              width: 30,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.play_arrow,
-                size: 16,
-                color: AppColors.primary,
+          Semantics(
+            button: true,
+            label: 'Bu konuda odak başlat',
+            child: TapScale(
+              onTap: onFocusTap,
+              // Görsel daire 30dp; dokunma alanı 48dp'ye tamamlanır.
+              child: Padding(
+                padding: const EdgeInsets.all(9),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
             ),
           ),
@@ -476,11 +489,13 @@ class _CatalogButton extends StatelessWidget {
             Icon(Icons.playlist_add_outlined,
                 size: 18, color: AppColors.vibrantViolet),
             const SizedBox(width: 10),
-            Text(
-              'Yaygın konuları ekle',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.vibrantViolet,
-                fontWeight: FontWeight.w700,
+            Flexible(
+              child: Text(
+                'Yaygın konuları ekle',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.vibrantViolet,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],

@@ -102,21 +102,21 @@ class _KonuTakipScreenState extends ConsumerState<KonuTakipScreen> {
             // "Genel Kapsama" özet kartı Figma'da yok (kendi eklediğimiz bir
             // değer) — pillerin ALTINA, kart listesinin üstüne alınarak
             // Figma'nın kendi akışı bozulmadan ek bir bonus olarak duruyor.
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _FilterPill(
                   label: 'Tümü',
                   selected: _filter == _CoverageFilter.all,
                   onTap: () => setState(() => _filter = _CoverageFilter.all),
                 ),
-                const SizedBox(width: 8),
                 _FilterPill(
                   label: 'Devam eden',
                   selected: _filter == _CoverageFilter.inProgress,
                   onTap: () => setState(
                       () => _filter = _CoverageFilter.inProgress),
                 ),
-                const SizedBox(width: 8),
                 _FilterPill(
                   label: 'Tamamlanan',
                   selected: _filter == _CoverageFilter.done,

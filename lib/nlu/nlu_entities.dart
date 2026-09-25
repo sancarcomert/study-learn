@@ -21,7 +21,7 @@ const List<_SubjectAlias> _aliases = [
   _SubjectAlias(
       'Matematik', 'matematik', ['matematik', 'matemat'], {'mat', 'matem'}),
   _SubjectAlias('Geometri', 'geometri', ['geometri'], {'geo', 'geom'}),
-  _SubjectAlias('Fizik', 'fizik', ['fizik'], {'fiz'}),
+  _SubjectAlias('Fizik', 'fizik', ['fizik', 'fizig'], {'fiz'}),
   _SubjectAlias('Kimya', 'kimya', ['kimya'], {'kimy'}),
   _SubjectAlias('Biyoloji', 'biyoloji', ['biyoloji'], {'biyo', 'biy', 'bio'}),
   _SubjectAlias('Türkçe', 'turkce', ['turkce'], {'trkc'}),
@@ -186,6 +186,15 @@ class NluEntityIndex {
 
   static bool _tokenHitsStem(String token, String stem) {
     if (token.length >= stem.length && token.startsWith(stem)) return true;
+    // Ünsüz yumuşaması: olasılık → olasılığı, kitap → kitabı.
+    if (stem.length >= 5) {
+      final last = stem[stem.length - 1];
+      final soft = last == 'k' ? 'g' : (last == 'p' ? 'b' : null);
+      if (soft != null &&
+          token.startsWith('${stem.substring(0, stem.length - 1)}$soft')) {
+        return true;
+      }
+    }
     // Yazım hatası: uzunlukları en fazla 1 farklı ve tek harf farkı. (Girdi
     // jetonu konu adının ÖNEKİ olamaz: "surekli" ≠ "süreklilik".)
     if (token.length >= 6 &&

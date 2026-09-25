@@ -1257,7 +1257,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                           icon: Icons.stop_rounded,
                           onTap: _exit,
                         ),
-                        const SizedBox(width: 26),
+                        const SizedBox(width: 12),
                         _RoundControlButton(
                           // Aksiyona göre renk — başlat=yeşil, duraklat=turuncu
                           // (kullanıcı isteğiyle, referans uygulamalardaki gibi).
@@ -1269,7 +1269,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                           label: _running ? 'Duraklat' : 'Başlat',
                           onTap: _toggleRun,
                         ),
-                        const SizedBox(width: 26),
+                        const SizedBox(width: 12),
                         _RoundControlButton(
                           label: 'Geçmiş',
                           icon: Icons.history_rounded,
@@ -1465,7 +1465,11 @@ class _TimerRingState extends State<_TimerRing>
                   valueColor: AlwaysStoppedAnimation(widget.accent),
                 ),
               ),
-              Column(
+              // Halka içindeki metin sabit boyutlu daireye sığmalı: yazı ölçeği
+              // sınırlanır (46pt saat 2x'te halkayı taşırıyordu).
+              MediaQuery.withClampedTextScaling(
+                maxScaleFactor: 1.3,
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
@@ -1495,6 +1499,7 @@ class _TimerRingState extends State<_TimerRing>
                     ),
                   ],
                 ],
+              ),
               ),
             ],
           );

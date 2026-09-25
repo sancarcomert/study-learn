@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
 import 'app_colors.dart';
+import 'day_rollover.dart';
 import 'app_text_styles.dart';
 import 'task_provider.dart';
 import 'carry_over_planner.dart';
@@ -758,6 +759,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final remainingTasks = NextTaskPicker.remaining(allTasks, now,
         exclude: activeTask, evidenceByTopic: evidence);
 
+    // Gün değişti (gece yarısı / ertesi gün öne gelme): açılıştaki günlük
+    // rutinler yeni gün için yeniden çalışır — dünkü "bir kez sorduk" bayrakları
+    // yeni günü engellemesin.
+    ref.listen<int>(dayRolloverProvider, (previous, next) {
+      if (previous == null || next <= previous) return;
+      _carryOverPrompted = false;
+      _celebratedOn = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        if (widget.isActive) await _maybeShowCarryOverPrompt();
+        if (mounted) await _maybeScheduleStreakRisk();
+      });
+    });
+
     ref.listen<int>(taskCompletionEventProvider, (previous, next) {
       if (previous == null || next <= previous) return;
       // Düz "Görev tamamlandı!" yerine gerçek bağlam — öğrenci neyi
@@ -991,22 +1006,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text('Bugünün Odağı', style: AppTextStyles.heading3),
+                    Flexible(
+                      child: Text('Bugünün Odağı', style: AppTextStyles.heading3),
+                    ),
+                    const SizedBox(width: 12),
                     TapScale(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const TasksScreen()),
                       ),
-                      child: Text(
-                        'Tümünü gör',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700,
+                      // Metin bağlantısı: dokunma alanı 48dp'ye tamamlanır.
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: Text(
+                          'Tümünü gör',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
                 _FocusRowCard(
                   task: activeTask,
                   subject: activeSubject,
@@ -1592,11 +1614,10 @@ class _FocusRowCard extends StatelessWidget {
           ),
         ),
         if (hasTarget) ...[
-          const SizedBox(height: 10),
           TapScale(
             onTap: onAskCoach,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1972,11 +1993,16 @@ class _UpcomingSessionRow extends StatelessWidget {
                 color: tint.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text(
-                subject?.name ?? 'Genel',
-                style: AppTextStyles.caption.copyWith(
-                  color: tint,
-                  fontWeight: FontWeight.w700,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 110),
+                child: Text(
+                  subject?.name ?? 'Genel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: tint,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

@@ -76,6 +76,17 @@ class _AddSubjectSheetState extends ConsumerState<AddSubjectSheet> {
       return;
     } // boş isimle ders eklenmesin
 
+    // Aynı adlı ikinci bir ders (elle yazılınca) deneme/öneri eşlemesini ve
+    // konu listelerini çiftler — hazır-ders çipleri zaten buna izin vermiyor.
+    final lower = name.toLowerCase();
+    final duplicate = ref.read(subjectProvider).any((s) =>
+        s.name.trim().toLowerCase() == lower &&
+        s.id != widget.subjectToEdit?.id);
+    if (duplicate) {
+      AppSnackBar.error(context, '"$name" zaten var');
+      return;
+    }
+
     if (_isEditing) {
       ref.read(subjectProvider.notifier).updateSubject(
             widget.subjectToEdit!.id,

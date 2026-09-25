@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'day_rollover.dart';
 
 import 'daily_closeout_model.dart';
 import 'hive_boxes.dart';
@@ -62,6 +63,7 @@ final dailyCloseoutProvider =
 
 /// Bugün kapatıldıysa o kayıt, aksi halde null.
 final todayCloseoutProvider = Provider<DailyCloseout?>((ref) {
+  ref.watch(dayRolloverProvider);
   final all = ref.watch(dailyCloseoutProvider);
   final now = DateTime.now();
   final key = DailyCloseout.dayKey(DateTime(now.year, now.month, now.day));
@@ -73,6 +75,7 @@ final todayCloseoutProvider = Provider<DailyCloseout?>((ref) {
 
 /// Dün yazılmış niyet (varsa) — sabah Home'da nazik hatırlatma için.
 final yesterdayIntentProvider = Provider<String?>((ref) {
+  ref.watch(dayRolloverProvider);
   final all = ref.watch(dailyCloseoutProvider);
   final now = DateTime.now();
   final yesterday = DateTime(now.year, now.month, now.day)

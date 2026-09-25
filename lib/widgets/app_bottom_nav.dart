@@ -54,10 +54,14 @@ class AppBottomNav extends StatelessWidget {
           // BY 2-4 PIXELS" — her ekranda tekrarlanıyordu, MainShell'in
           // paylaşılan alt navı olduğu için). Tasarım oranlarına dokunmadan
           // nefes payı eklendi.
-          height: 88,
+          height: 92,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-            child: Row(
+            // Sistem yazısı büyütüldüğünde (1.3x+) sabit yükseklikli çubuk taşıyordu;
+            // Material'ın NavigationBar'ı gibi etiket ölçeği sınırlanır.
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.15,
+              child: Row(
               children: List.generate(items.length, (index) {
                 final item = items[index];
                 final isSelected = index == currentIndex;
@@ -90,14 +94,21 @@ class AppBottomNav extends StatelessWidget {
                             size: 23,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            item.label,
-                            style: AppTextStyles.caption.copyWith(
-                              color:
-                                  isSelected ? item.color : AppColors.textMuted,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
+                          // Dar ekranda ("İstatistik") etiket ikinci satıra
+                          // kayıp çubuğu taşırmasın diye tek satıra sığdırılır.
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              style: AppTextStyles.caption.copyWith(
+                                color: isSelected
+                                    ? item.color
+                                    : AppColors.textMuted,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -118,6 +129,7 @@ class AppBottomNav extends StatelessWidget {
                   ),
                 );
               }),
+            ),
             ),
           ),
         ),

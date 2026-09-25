@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'day_rollover.dart';
 
 import 'task_model.dart';
 import 'task_repository.dart';
@@ -51,20 +52,26 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
         ? '$minutes dakikalık vaktin geldi. Hazır mısın?'
         : 'Vaktin geldi. Hazır mısın?';
 
-    await NotificationService.instance.scheduleNotification(
-      id: task.id,
-      category: NotificationCategory.taskReminder,
-      title: task.title,
-      body: body,
-      dateTime: task.scheduledTime!,
-    );
+    // Hatırlatma "en iyi çaba": zamanlayıcı hata verirse görev yine kaydedilmiş
+    // kalır ve hata yakalanmamış bir asenkron istisnaya dönüşmez.
+    try {
+      await NotificationService.instance.scheduleNotification(
+        id: task.id,
+        category: NotificationCategory.taskReminder,
+        title: task.title,
+        body: body,
+        dateTime: task.scheduledTime!,
+      );
+    } catch (_) {}
   }
 
   Future<void> _cancelReminder(String taskId) async {
-    await NotificationService.instance.cancelNotification(
-      taskId,
-      NotificationCategory.taskReminder,
-    );
+    try {
+      await NotificationService.instance.cancelNotification(
+        taskId,
+        NotificationCategory.taskReminder,
+      );
+    } catch (_) {}
   }
 
 
@@ -208,7 +215,9 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
   /// Focus seanslarının toplamı (tek doğruluk kaynağı FocusSession'dır); hiç
   /// Focus yoksa null kalır.
   Future<void> toggleTaskCompletion(String id) async {
-    final taskBefore = state.firstWhere((task) => task.id == id);
+    // Hızlı art arda dokunuşta görev arada silinmiş olabilir — çökmek yerine yok say.
+    final taskBefore = state.where((task) => task.id == id).firstOrNull;
+    if (taskBefore == null) return;
 
     final wasCompleted = taskBefore.isCompleted;
 
@@ -216,7 +225,8 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
     state = [..._repository.getAllTasks()];
 
-    final taskAfter = state.firstWhere((task) => task.id == id);
+    final taskAfter = state.where((task) => task.id == id).firstOrNull;
+    if (taskAfter == null) return;
 
     if (!wasCompleted && taskAfter.isCompleted) {
       final linkedSessions = _ref
@@ -372,7 +382,8 @@ class TaskNotifier extends StateNotifier<List<TaskModel>> {
 
   // Görevi bir sonraki güne taşır — TaskTile'da sola kaydırma aksiyonu.
   void postponeTask(String id) {
-    final task = state.firstWhere((t) => t.id == id);
+    final task = state.where((t) => t.id == id).firstOrNull;
+    if (task == null) return;
     // updateTask bu alana dokunmuyor, bu yüzden çağrıdan ÖNCE elle
     // artırıyoruz — StudyAdvisor'ın "kronik erteleme" sinyali buradan
     // besleniyor (bkz. study_advisor.dart).
@@ -518,6 +529,7 @@ final taskProvider =
 
 final todayTasksProvider =
     Provider<List<TaskModel>>((ref) {
+  ref.watch(dayRolloverProvider);
 
   final allTasks =
       ref.watch(taskProvider);
@@ -616,6 +628,7 @@ final overranTopicIdsProvider = Provider<Set<String>>((ref) {
 
 /// Bu haftanın (Pazartesi–bugün) tamamlanan görev sayısı.
 final tasksCompletedThisWeekProvider = Provider<int>((ref) {
+  ref.watch(dayRolloverProvider);
   final byDay = ref.watch(tasksCompletedByDayProvider);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -626,6 +639,7 @@ final tasksCompletedThisWeekProvider = Provider<int>((ref) {
 
 /// Geçen haftanın (Pazartesi–Pazar) tamamlanan görev sayısı.
 final tasksCompletedLastWeekProvider = Provider<int>((ref) {
+  ref.watch(dayRolloverProvider);
   final byDay = ref.watch(tasksCompletedByDayProvider);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);

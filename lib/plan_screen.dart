@@ -249,7 +249,7 @@ class _PlanBentoCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Eyebrow(text: title.toUpperCase(), color: tint),
+                Flexible(child: Eyebrow(text: title.toUpperCase(), color: tint)),
                 Container(
                   width: 30,
                   height: 30,

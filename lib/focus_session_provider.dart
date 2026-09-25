@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'day_rollover.dart';
 import 'package:uuid/uuid.dart';
 
 import 'focus_session_model.dart';
@@ -137,6 +138,7 @@ final focusMinutesBySubjectProvider = Provider<Map<String, int>>((ref) {
 
 /// Bu haftanın (Pazartesi–bugün) toplam odak dakikası.
 final focusThisWeekMinutesProvider = Provider<int>((ref) {
+  ref.watch(dayRolloverProvider);
   final byDay = ref.watch(focusMinutesByDayProvider);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -153,6 +155,7 @@ final focusThisWeekMinutesProvider = Provider<int>((ref) {
 /// (bkz. stats_insight_engine.dart). `tasksCompletedLastWeekProvider` ile
 /// aynı hafta sınırı deseni (task_provider.dart).
 final focusLastWeekMinutesProvider = Provider<int>((ref) {
+  ref.watch(dayRolloverProvider);
   final byDay = ref.watch(focusMinutesByDayProvider);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -170,6 +173,7 @@ final focusLastWeekMinutesProvider = Provider<int>((ref) {
 /// canlı seansın saniyelerini içermez; ekran kendi canlı süresini ayrıca
 /// ekleyip gösterir.
 final focusTodayMinutesProvider = Provider<int>((ref) {
+  ref.watch(dayRolloverProvider);
   final byDay = ref.watch(focusMinutesByDayProvider);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);

@@ -241,4 +241,65 @@ void main() {
     expect(find.textContaining('15 dk'), findsOneWidget);
     expect(find.text('Başla'), findsOneWidget);
   });
+
+  testWidgets(
+      'QA: sözlük dışı tam cümle ("telefonu bırakamıyorum") konu sanılıp plana '
+      'çevrilmez', (tester) async {
+    await pumpCoach(tester);
+    await say(tester, 'telefonu bırakamıyorum');
+    expect(find.textContaining('ne kadar zaman ayıralım'), findsNothing,
+        reason: chat(tester));
+    expect(find.textContaining('Not aldım'), findsNothing);
+    expect(
+        find.byWidgetPredicate((w) =>
+            w is Text &&
+            RegExp('anlayamadım|çıkaramadım').hasMatch(w.data ?? '')),
+        findsOneWidget,
+        reason: chat(tester));
+  });
+
+  testWidgets('QA: kısa konu benzeri cevap ("deneme analizi") eski akışta kalır',
+      (tester) async {
+    await pumpCoach(tester);
+    await say(tester, 'deneme analizi');
+    // Konu olarak alınıp süre sorulur (eski plan akışı).
+    expect(find.textContaining('anlayamadım'), findsNothing,
+        reason: chat(tester));
+  });
+
+  testWidgets('QA: "matematik bitmiyo" → geride kalma cevabı, konu sanılmaz',
+      (tester) async {
+    await pumpCoach(tester, tasks: [task('Matematik: Türev', minutes: 25)]);
+    await say(tester, 'matematik bitmiyo');
+    expect(find.textContaining('ne kadar zaman ayıralım'), findsNothing,
+        reason: chat(tester));
+    expect(find.text('Başla'), findsOneWidget, reason: chat(tester));
+  });
+
+  testWidgets('QA: tuhaf/uç girdiler ve hızlı art arda mesajlar çökertmez',
+      (tester) async {
+    await pumpCoach(tester, tasks: [task('Matematik: Türev')]);
+    final inputs = <String>[
+      '99999999999999999999 saat',
+      '😀😀😀',
+      'a' * 3000,
+      '???',
+      "'; DROP TABLE tasks; --",
+      '0 dakika',
+      'yarın 25:99 de çalış',
+      'artır',
+      'ekle',
+      'tamam',
+      'bana plan yap',
+      '1e9 saat yap',
+    ];
+    for (final t in inputs) {
+      await tester.enterText(find.byType(TextField), t);
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      // Hızlı art arda: bazı mesajlar arasında kare beklenmez.
+      if (t.length % 2 == 0) await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.takeException(), isNull);
+  });
 }

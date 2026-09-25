@@ -40,7 +40,14 @@ void main() async {
   // Ana ekran widget'ını güncel tut (best-effort). docs/rakip_analizi §6 B1.
   unawaited(WidgetService.sync());
 
-  await NotificationService.instance.initialize();
+  // Bildirim kurulumu başarısız olsa bile uygulama AÇILMALI (yalnız hatırlatma
+  // çalışmaz) — bu satır önceden korumasızdı, bir platform hatası beyaz ekran
+  // demekti.
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e, st) {
+    debugPrint('Bildirim kurulumu başarısız (devam ediliyor): $e\n$st');
+  }
   await initializeDateFormatting('tr_TR', null);
   runApp(
     const ProviderScope(

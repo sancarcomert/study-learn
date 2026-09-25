@@ -217,9 +217,9 @@ class NotificationService {
       case NotificationCategory.dailyGoal:
         return 'Günlük Hedef';
       case NotificationCategory.streakWarning:
-        return 'Streak Uyarıları';
+        return 'Seri Uyarıları';
       case NotificationCategory.aiSuggestion:
-        return 'AI Önerileri';
+        return 'Öneriler';
       case NotificationCategory.focusSession:
         return 'Odak Seansı';
     }

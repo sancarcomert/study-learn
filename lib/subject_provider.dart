@@ -61,7 +61,8 @@ class SubjectNotifier extends StateNotifier<List<SubjectModel>> {
   // değişmediği için, bu dersle ilişkili tüm görevler otomatik olarak
   // yeni ad/rengi yansıtır — ayrıca bir taşıma işlemi gerekmez.
   void updateSubject(String id, String name, int colorValue) {
-    final subject = state.firstWhere((s) => s.id == id);
+    final subject = state.where((s) => s.id == id).firstOrNull;
+    if (subject == null) return;
     subject.name = name;
     subject.colorValue = colorValue;
     _repository.updateSubject(subject);

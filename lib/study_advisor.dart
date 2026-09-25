@@ -321,7 +321,11 @@ class StudyAdvisor {
       return plain('"$difficultTopic" konusu tahmininden çok daha uzun sürdü');
     }
     if (daysSinceTouch >= 7) {
-      return plain('$daysSinceTouch gündür dokunmadın');
+      // 60 üst sınırdır (hesap orada kırpılıyor) — gerçek gün sayısını
+      // bilmeden "60 gündür" demek yanlış olurdu.
+      return plain(daysSinceTouch >= 60
+          ? '2 aydan uzun süredir dokunmadın'
+          : '$daysSinceTouch gündür dokunmadın');
     }
     if (completionRate < 0.5 && total >= 3) {
       return plain('Tamamlama oranın düşük (%${(completionRate * 100).round()})');

@@ -30,6 +30,10 @@ class NluSlotExtractor {
 
   /// "otuz dakika", "kırk beş dk", "iki saat", "yarım saat", "1,5 saat",
   /// "1 saat 30 dk", "bi saat" → dakika. Süre yoksa ya da mantıksızsa null.
+  /// Çok uzun rakam dizileri ("99999999999999999999 saat") int'e sığmaz —
+  /// çökmek yerine "mantıksız büyük" sayılır ve aralık kontrolünde elenir.
+  static int _n(String digits) => int.tryParse(digits) ?? 1 << 30;
+
   static int? minutes(String raw) {
     final pre =
         raw.replaceAllMapped(RegExp(r'(\d)[.,](\d)'), (m) => '${m[1]}p${m[2]}');
@@ -71,14 +75,14 @@ class NluSlotExtractor {
     // "1p5 saat" (1,5 saat)
     final dec = RegExp(r'(\d+)p(\d+)\s*(?:saat|sa)\b').firstMatch(text);
     if (dec != null) {
-      final h = double.parse('${dec[1]}.${dec[2]}');
+      final h = (double.tryParse('${dec[1]}.${dec[2]}') ?? 0);
       total = (h * 60).round();
     }
 
     // "1 bucuk saat"
     final half = RegExp(r'(\d+)\s*bucuk\s*(?:saat|sa)\b').firstMatch(text);
     if (total == null && half != null) {
-      total = int.parse(half[1]!) * 60 + 30;
+      total = _n(half[1]!) * 60 + 30;
     }
 
     // "yarim saat"
@@ -93,14 +97,14 @@ class NluSlotExtractor {
           .firstMatch(text);
       if (hm != null) {
         total =
-            int.parse(hm[1]!) * 60 + (hm[2] == null ? 0 : int.parse(hm[2]!));
+            _n(hm[1]!) * 60 + (hm[2] == null ? 0 : _n(hm[2]!));
       }
     }
 
     // "30 dakika"
     if (total == null) {
       final mm = RegExp(r'(\d+)\s*(?:dakika|dk|dak)\w*').firstMatch(text);
-      if (mm != null) total = int.parse(mm[1]!);
+      if (mm != null) total = _n(mm[1]!);
     }
 
     if (total == null || total < 5 || total > 720) return null;
@@ -120,7 +124,7 @@ class NluSlotExtractor {
     if (RegExp(r'\byarin\b').hasMatch(f)) return NluUrgency.tomorrow;
     final days = RegExp(r'\b(\d+) gun\b').firstMatch(f);
     if (days != null) {
-      return int.parse(days[1]!) <= 7 ? NluUrgency.thisWeek : NluUrgency.none;
+      return _n(days[1]!) <= 7 ? NluUrgency.thisWeek : NluUrgency.none;
     }
     if (RegExp(r'\b(haftaya|bu hafta|hafta sonu|birkac gun|az kaldi|yaklasti|'
             r'cok yakin|yakinda)\b')

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_colors.dart';
+import 'day_rollover.dart';
+import 'stats_provider.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
 import 'plan_screen.dart';
@@ -41,14 +45,35 @@ class _MainShellState extends ConsumerState<MainShell>
         const ProfileScreen(),
       ];
 
+  // Bellekte açık kalan uygulama gece yarısını geçince ("bugün" hâlâ dünün
+  // görevlerini gösteriyordu, seri/taşıma sorusu yenilenmiyordu) günün
+  // değiştiği fark edilir: hem öne gelirken hem açıkken dakikada bir kontrol.
+  late DateTime _lastDay = _dateOnly(DateTime.now());
+  Timer? _dayTicker;
+
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  void _checkDayRollover() {
+    final today = _dateOnly(DateTime.now());
+    if (today == _lastDay) return;
+    _lastDay = today;
+    ref.read(statsProvider.notifier).checkStreakBroken();
+    ref.read(dayRolloverProvider.notifier).state++;
+    WidgetService.sync();
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _dayTicker =
+        Timer.periodic(const Duration(minutes: 1), (_) => _checkDayRollover());
   }
 
   @override
   void dispose() {
+    _dayTicker?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -59,6 +84,7 @@ class _MainShellState extends ConsumerState<MainShell>
     // döndüğünde widget doğru görünsün) ve öne geldiğinde (gün değiştiyse
     // geri sayım yenilensin) ana ekran widget'ını tazele.
     // docs/rakip_analizi §6 B1.
+    if (state == AppLifecycleState.resumed) _checkDayRollover();
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.resumed) {

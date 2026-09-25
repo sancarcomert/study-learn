@@ -144,7 +144,48 @@ class _AddDenemeScreenState extends ConsumerState<AddDenemeScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  /// Resmî YKS soru sayıları — bir bölümde doğru+yanlış+boş bundan fazla
+  /// olamaz. Listede olmayan (özel) bölümler için genel tavan 120 (TYT'nin
+  /// tamamı). Aşırı bir yazım hatası ("400 doğru") net ortalamalarını, trendi
+  /// ve zayıf-ders sinyalini sessizce bozardı.
+  static const Map<String, int> _questionCounts = {
+    'Türkçe': 40,
+    'Sosyal Bilimler': 20,
+    'Matematik': 40,
+    'Fen Bilimleri': 20,
+    'Fizik': 14,
+    'Kimya': 13,
+    'Biyoloji': 13,
+    'Türk Dili ve Edebiyatı': 24,
+    'Tarih-1': 10,
+    'Coğrafya-1': 6,
+    'Tarih-2': 11,
+    'Coğrafya-2': 11,
+    'Felsefe Grubu': 12,
+    'Din Kültürü': 6,
+    'Yabancı Dil': 80,
+  };
+
+  String? _validateCounts() {
+    for (final s in _sections) {
+      final name = s.name.text.trim();
+      if (name.isEmpty) continue;
+      final total = s._n(s.correct) + s._n(s.wrong) + s._n(s.blank);
+      final max = _questionCounts[name] ?? 120;
+      if (total > max) {
+        return '$name bölümünde doğru + yanlış + boş en fazla $max olabilir '
+            '(şu an $total).';
+      }
+    }
+    return null;
+  }
+
   void _save() {
+    final countError = _validateCounts();
+    if (countError != null) {
+      AppSnackBar.error(context, countError);
+      return;
+    }
     final validSections = _sections
         .where((s) => s.name.text.trim().isNotEmpty)
         .map((s) => DenemeSectionScore(

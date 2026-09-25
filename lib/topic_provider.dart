@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'day_rollover.dart';
 
 import 'topic_model.dart';
 import 'topic_progress.dart';
@@ -89,7 +90,8 @@ class TopicNotifier extends StateNotifier<List<TopicModel>> {
   /// bir konu). Bu bir kanıt/olay DEĞİL: olay anahtarı üretmez, rozetleri ya da
   /// zayıf-konu sinyallerini beslemez; yalnız kapsama gösterimini düzeltir.
   void setStatus(String id, TopicStatus status) {
-    final topic = state.firstWhere((t) => t.id == id);
+    final topic = state.where((t) => t.id == id).firstOrNull;
+    if (topic == null) return;
     topic.status = status;
     topic.updatedAt = DateTime.now();
     _repository.update(topic);
@@ -170,6 +172,7 @@ final coverageBySubjectProvider =
 /// eşit ağırlık) — bu, StudyAdvisor'a "tekrar zamanı geldi" sinyali veren
 /// ilk gerçek kullanım alanı.
 final staleReviewSubjectIdsProvider = Provider<Set<String>>((ref) {
+  ref.watch(dayRolloverProvider);
   final all = ref.watch(topicProvider);
   final now = DateTime.now();
   final result = <String>{};

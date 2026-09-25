@@ -375,6 +375,9 @@ class NluResponder {
   static int _minutes(NluResult r, _Pick? p, {int? fallback, int? cap}) {
     final asked = r.slots.timeMinutes;
     final planned = p?.task?.estimatedMinutes;
+    // Düzeltme ("1 saat daha ekle") süreyi HEDEF yapar; kısıt ("30 dk var")
+    // ise üst sınırdır.
+    if (asked != null && r.slots.timeIsTarget) return asked.clamp(5, 240);
     int m;
     if (asked != null && planned != null) {
       m = asked < planned ? asked : planned;

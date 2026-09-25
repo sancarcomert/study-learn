@@ -169,6 +169,10 @@ class NluSlots {
   final NluSubjectMention? subject;
   final NluTopicMention? topic;
   final int? timeMinutes;
+
+  /// [timeMinutes] bir SINIR değil HEDEF süre ("1 saat daha ekle" gibi bir
+  /// düzeltmeden geldi): cevap görev tahmininin altına sıkıştırmaz.
+  final bool timeIsTarget;
   final NluUrgency urgency;
   final NluState state;
   final NluExamKind exam;
@@ -178,6 +182,7 @@ class NluSlots {
     this.subject,
     this.topic,
     this.timeMinutes,
+    this.timeIsTarget = false,
     this.urgency = NluUrgency.none,
     this.state = NluState.none,
     this.exam = NluExamKind.none,
@@ -190,11 +195,14 @@ class NluSlots {
     NluSubjectMention? subject,
     NluTopicMention? topic,
     NluRequestType? request,
+    int? timeMinutes,
+    bool? timeIsTarget,
   }) =>
       NluSlots(
         subject: subject ?? this.subject,
         topic: topic ?? this.topic,
-        timeMinutes: timeMinutes,
+        timeMinutes: timeMinutes ?? this.timeMinutes,
+        timeIsTarget: timeIsTarget ?? this.timeIsTarget,
         urgency: urgency,
         state: state,
         exam: exam,
@@ -260,6 +268,19 @@ class NluResult {
     required this.candidates,
     required this.knownTokenRatio,
   });
+
+  /// Aynı sonuç, başka niyet/slot'larla (düzeltme sonrası yeniden cevap için).
+  NluResult copyWith({CoachIntent? intent, NluSlots? slots}) => NluResult(
+        raw: raw,
+        normalized: normalized,
+        intent: intent ?? this.intent,
+        confidence: confidence,
+        score: score,
+        secondary: secondary,
+        slots: slots ?? this.slots,
+        candidates: candidates,
+        knownTokenRatio: knownTokenRatio,
+      );
 
   bool get isConfident =>
       confidence == NluConfidence.high || confidence == NluConfidence.medium;
