@@ -72,15 +72,22 @@ class NluSlotExtractor {
 
     int? total;
 
-    // "1p5 saat" (1,5 saat)
-    final dec = RegExp(r'(\d+)p(\d+)\s*(?:saat|sa)\b').firstMatch(text);
+    // "1p5 saat" (1,5 saat) — "saat\w*" (yalnız "saat\b" değil) "1.5
+    // SAATLİK plan yap" gibi ekli biçimi de kapsar. Bug: eskiden "\b" yalnız
+    // "saat" hemen ardından geldiği için "saatlik"te hiç eşleşmiyordu; bu
+    // regex sessizce hiç eşleşmeyince akış SATIR 96'daki genel "N saat"
+    // regex'ine düşüyordu, o da ONDALIK KISMI ("1p5"teki "5") ayrı bir saat
+    // sayısı sanıp "1.5 saatlik" → 5 saat (300 dk) gibi çarpık bir sonuç
+    // üretiyordu.
+    final dec = RegExp(r'(\d+)p(\d+)\s*(?:saat\w*|sa\b)').firstMatch(text);
     if (dec != null) {
       final h = (double.tryParse('${dec[1]}.${dec[2]}') ?? 0);
       total = (h * 60).round();
     }
 
-    // "1 bucuk saat"
-    final half = RegExp(r'(\d+)\s*bucuk\s*(?:saat|sa)\b').firstMatch(text);
+    // "1 bucuk saat" (ve "1 buçuk saatlik")
+    final half =
+        RegExp(r'(\d+)\s*bucuk\s*(?:saat\w*|sa\b)').firstMatch(text);
     if (total == null && half != null) {
       total = _n(half[1]!) * 60 + 30;
     }

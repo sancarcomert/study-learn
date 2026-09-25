@@ -75,6 +75,46 @@ void main() {
       final p = PlanParser.parse('fizik 1.5s', subjects: subjects, now: now);
       expect(p.durationMinutes, 90);
     });
+
+    // "saatlik"/"dakikalık" — çekim eki almış hâl, "2 saat" kadar (belki
+    // daha) doğal, günlük konuşma dili ("2 saatlik plan yap" gibi). Bug:
+    // \b, "saat" hemen ardından "l" geldiği için eşleşmiyordu — bu grup o
+    // kök nedeni regresyona karşı sabitliyor.
+    test('"2 saatlik" (ek almış) → 120', () {
+      final p = PlanParser.parse('2 saatlik matematik planı yap',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 120);
+    });
+
+    test('"1.5 saatlik" (ek almış, ondalık) → 90', () {
+      final p = PlanParser.parse('1.5 saatlik plan yap',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 90);
+    });
+
+    test('"45 dakikalık" (ek almış) → 45', () {
+      final p = PlanParser.parse('45 dakikalık paragraf çalışması',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 45);
+    });
+
+    test('"iki saatlik" (yazıyla, ek almış) → 120', () {
+      final p = PlanParser.parse('iki saatlik matematik planı',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 120);
+    });
+
+    test('"yarım saatlik" (ek almış) → 30', () {
+      final p = PlanParser.parse('yarım saatlik fizik molası',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 30);
+    });
+
+    test('"1 saat 30 dakikalık" bileşik + ek → 90', () {
+      final p = PlanParser.parse('1 saat 30 dakikalık kimya çalışması',
+          subjects: subjects, now: now);
+      expect(p.durationMinutes, 90);
+    });
   });
 
   group('tarih', () {
@@ -207,6 +247,15 @@ void main() {
           PlanParser.parse('1.5 saat fizik', subjects: subjects, now: now);
       expect(p.hour, isNull);
       expect(p.durationMinutes, 90);
+    });
+
+    // "1.30 saatlik" — nokta biçimli ondalık süre exclusion'ı ("saat sanılmaz"
+    // korumasıyla aynı gerekçe) ek almış hâlde de geçerli kalmalı, yoksa
+    // "1.30" "01:30" saati sanılıp süre hiç okunmazdı.
+    test('"1.30 saatlik" saat sanılmaz (ek almış)', () {
+      final p = PlanParser.parse('1.30 saatlik fizik çalışması',
+          subjects: subjects, now: now);
+      expect(p.hour, isNull);
     });
   });
 

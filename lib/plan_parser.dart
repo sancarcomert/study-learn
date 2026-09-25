@@ -57,9 +57,11 @@ class PlanParser {
   // --- Saat ---------------------------------------------------------------
 
   static final RegExp _clock = RegExp(r'(\d{1,2}):(\d{2})');
-  // Nokta biçimli saat, ama "1.30 saat" gibi ondalık süreyi DIŞLAR.
+  // Nokta biçimli saat, ama "1.30 saat"/"1.30 saatlik" gibi ondalık süreyi
+  // DIŞLAR (bkz. _saatWord — aşağıdaki "Süre" bölümünde tanımlı, ekli
+  // biçimi de kapsıyor).
   static final RegExp _clockDot =
-      RegExp(r'(\d{1,2})\.(\d{2})(?![\d\s]*(saat|sa)\b)');
+      RegExp('(\\d{1,2})\\.(\\d{2})(?![\\d\\s]*($_saatWord|sa)\\b)');
   // "saat 3" → 03:00; ama "3 saat 15" (bileşik süre) yakalanmaz.
   static final RegExp _saatN = RegExp(r'(?<!\d\s)saat\s*(\d{1,2})');
   static final RegExp _nGibi =
@@ -174,31 +176,42 @@ class PlanParser {
 
   // --- Süre -----------------------------------------------------------------
 
+  // "saat"/"dakika" çekim eki almış hâlde de gelir ("2 SAATLİK plan yap",
+  // "45 DAKİKALIK ara") — son derece doğal, günlük Türkçe. `\b`, "saat"
+  // hemen ardından "l" geldiği için ("saatlik") eşleşmiyordu, bu da bu
+  // kadar sık kullanılan bir cümle kalıbının süreyi HİÇ yakalamamasına
+  // (sessizce varsayılan süreye düşmesine) yol açıyordu. Ek biçim burada
+  // TEK yerde tanımlanıp aşağıdaki tüm süre örüntülerinde paylaşılıyor.
+  static const String _saatWord = r'(?:saatlik|saat)';
+  static const String _dakikaWord = r'(?:dakikalık|dakika)';
+
   // "s" de kabul edilir ("2s") — sırayla denendiği için (Dart regex'i
   // alternatifleri soldan sağa dener) "saat"/"sa" önce denenir, "s" yalnız
   // ikisi de eşleşmezse devreye girer; "2 saat" hâlâ "saat" ile eşleşir.
   static final RegExp _hoursDecimal =
-      RegExp(r'(\d+)(?:[.,](\d+))?\s*(saat|sa|s)\b');
-  static final RegExp _minutes = RegExp(r'(\d+)\s*(dakika|dk|dak)\b');
-  static final RegExp _halfHour = RegExp(r'\byarım\s+saat\b');
+      RegExp('(\\d+)(?:[.,](\\d+))?\\s*($_saatWord|sa|s)\\b');
+  static final RegExp _minutes =
+      RegExp('(\\d+)\\s*($_dakikaWord|dk|dak)\\b');
+  static final RegExp _halfHour = RegExp('\\byarım\\s+$_saatWord\\b');
   // "üç çeyrek saat" (45 dk), "çeyrek saat" (15 dk) — sıra önemli, uzun
   // ifade önce denenmeli yoksa "çeyrek saat" kısmı erken eşleşir. NOT: Dart
   // regex'inde `\b` Türkçe baş harflerde (ç, ü, ö, ı, ğ, ş) güvenilmez —
   // "\bçeyrek" gibi bir örüntü ASCII olmayan 'ç' önünde HİÇ eşleşmiyor
   // (bkz. _containsWord/_stripWord'deki aynı uyarı). Baştaki \b bilerek
   // yok; sondaki \b "saat" ASCII olduğu için güvenli.
-  static final RegExp _threeQuarterHour = RegExp(r'üç\s+çeyrek\s+saat\b');
-  static final RegExp _quarterHour = RegExp(r'çeyrek\s+saat\b');
+  static final RegExp _threeQuarterHour =
+      RegExp('üç\\s+çeyrek\\s+$_saatWord\\b');
+  static final RegExp _quarterHour = RegExp('çeyrek\\s+$_saatWord\\b');
   // "1 saat 30 dakika" gibi bileşik süre — tek başına _hoursDecimal yalnız
   // "1 saat"i yakalayıp 30 dakikayı sessizce yutuyordu.
-  static final RegExp _hourMinuteCompound =
-      RegExp(r'(\d{1,2})\s*(saat|sa|s)\s*(\d{1,2})\s*(dakika|dk|dak)\b');
+  static final RegExp _hourMinuteCompound = RegExp(
+      '(\\d{1,2})\\s*($_saatWord|sa|s)\\s*(\\d{1,2})\\s*($_dakikaWord|dk|dak)\\b');
   // "üç" gibi ASCII-olmayan baş harfli kelimelerde baştaki \b kasıtlı yok
   // (yukarıdaki not) — yanlış pozitif riski düşük, çünkü hemen ardından
   // boşluk + "saat" gerekiyor ("üçgen saat" gibi bitişik bir kelime bu
   // boşluk şartını sağlamaz).
   static final RegExp _wordHours = RegExp(
-      r'(bir|iki|üç|uc|dört|dort|beş|bes|altı|alti|yedi|sekiz|dokuz|\bon)\s+(buçuk\s+)?saat\b');
+      '(bir|iki|üç|uc|dört|dort|beş|bes|altı|alti|yedi|sekiz|dokuz|\\bon)\\s+(buçuk\\s+)?$_saatWord\\b');
 
   static const Map<String, int> _numberWords = {
     'bir': 1,

@@ -2474,9 +2474,22 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final lines =
         result.blocks.map((b) => '•  ${b.title} · ${b.minutes} dk').join('\n');
+    // "1.5 saatlik plan yap" deyip 45 dk'lık bir plan almak — kullanıcı
+    // fark etmeden sessizce kırpılan bir istekten daha kötüsü yok. Tek
+    // ders/konu varken fillToCapacity=false, standart bir blok üretip
+    // kalan süreyi kullanmadan bırakabiliyor (bkz. plan_builder.dart —
+    // bu GENEL API için bilerek böyle, çoklu ders isteğinde her derse
+    // aynı sabit bloğu vermek doğru). Delegate modunda ("plan yap") bunun
+    // NEDENİNİ söylemezsek istek sessizce yarım karşılanmış gibi görünür.
+    final gap = capacityMinutes - result.plannedMinutes;
+    final shortfallNote = gap >= 10 && result.unfitTitles.isEmpty
+        ? '\n\n(${_fmtMinutes(capacityMinutes)} istemiştin — şu an elimde '
+            'bunu dolduracak kadar ders/konu yok, ${_fmtMinutes(result.plannedMinutes)} '
+            'ile sınırlı kaldı. Ders eklersen kalanını da doldururum.)'
+        : '';
     _say('${result.reason}\n\n$lines\n\n'
         'Toplam ${_fmtMinutes(result.plannedMinutes)} · '
-        '${result.blocks.length} görev.\n\n'
+        '${result.blocks.length} görev.$shortfallNote\n\n'
         'Uygunsa "ekle" de, dokunmak istediğin bir şey varsa söyle.');
   }
 

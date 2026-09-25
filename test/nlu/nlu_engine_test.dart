@@ -245,6 +245,19 @@ void main() {
       expect(m('otuz dakika'), 30);
       expect(m('iki saat'), 120);
     });
+    // "saatlik"/"dakikalık" (ek almış hâl) — "1 saatlik plan yap" nlu_modifier
+    // içinde plan isteği olarak zaten tanınıyordu ama süre hep yanlış
+    // okunuyordu. Kök neden: "1,5 saatlik" içindeki "1,5 saat" regex'i
+    // "saat\b" arıyordu, "saatlik"teki "l" yüzünden HİÇ eşleşmiyordu — akış
+    // sessizce genel "N saat" regex'ine düşüp ondalık kısmı ("1,5"teki "5")
+    // ayrı bir saat sayısı sanıp "1,5 saatlik" → 300 dk (5 saat!) üretiyordu.
+    test('"saatlik"/"dakikalık" (ek almış hâl) doğru dakika verir', () {
+      expect(m('1,5 saatlik plan yap'), 90);
+      expect(m('2 saatlik plan yap'), 120);
+      expect(m('45 dakikalık plan yap'), 45);
+      expect(m('bir buçuk saatlik plan yap'), 90);
+      expect(m('iki saatlik plan yap'), 120);
+    });
     test('süre olmayan sayılar süre sayılmaz', () {
       expect(m('10 sayfa okudum'), isNull);
       expect(m('saat 5te başlayacağım'), isNull);
