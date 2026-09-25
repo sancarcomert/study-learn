@@ -35,6 +35,7 @@ import 'profile_screen.dart';
 import 'subject_topics_screen.dart';
 import 'tasks_screen.dart';
 import 'rank_provider.dart';
+import 'stats_screen.dart';
 import 'rank_system.dart';
 import 'rank_ladder_screen.dart';
 import 'tap_scale.dart';
@@ -997,6 +998,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ExamCountdownChip(examDate: stats.examDate!),
                       if (goalGap != null) GoalGapChip(goalGap: goalGap),
                     ],
+                  ),
+                ] else if (subjects.isNotEmpty) ...[
+                  // İkisi de yok: sınav tarihi/hedef net İstatistik ve Deneme
+                  // Takip'te gömülü duruyor, hiçbir yerden işaret edilmiyordu
+                  // — GoalGapEngine ve StudyAdvisor'ın en güçlü kişiselleştirme
+                  // sinyali bu yüzden çoğu öğrenci için hiç devreye girmiyordu.
+                  // Yeni bir ekran/form değil, var olan İstatistik ekranına
+                  // (sınav tarihi + Deneme Takip'e giden yol) tek satırlık bir
+                  // işaret.
+                  const SizedBox(height: 12),
+                  TapScale(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const StatsScreen()),
+                    ),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.tonal(AppColors.primary),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.flag_outlined,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Sınav tarihini ve hedefini gir',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 20),

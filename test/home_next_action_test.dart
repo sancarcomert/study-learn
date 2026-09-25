@@ -131,6 +131,13 @@ void main() {
     expect(find.textContaining('Bir görev planlamadın'), findsNothing);
   });
 
+  testWidgets(
+      'sınav tarihi/hedef net YOKSA Home bunu işaret eder (İstatistik/Deneme '
+      'Takip\'e gömülü kalıp hiç bulunamaması yerine)', (tester) async {
+    await pumpHome(tester, tasks: [task('Matematik: ilk çalışma', minutes: 25)]);
+    expect(find.text('Sınav tarihini ve hedefini gir'), findsOneWidget);
+  });
+
   testWidgets('Coach planından gelen görev: gerekçesi kartta görünür',
       (tester) async {
     await pumpHome(tester, tasks: [
