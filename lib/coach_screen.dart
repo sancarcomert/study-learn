@@ -244,7 +244,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     final top = _topSuggestion();
     if (top != null && top.reason != StudyAdvisor.genericReason) {
-      parts.add('Sırada: ${top.subjectName} — ${top.reason}');
+      parts.add('Sırada: ${top.subjectName} — ${top.reason}.');
     }
 
     return parts.join(' ');
@@ -1888,6 +1888,27 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
 
     if (_matchesAny(low, _reasonWhyPhrases)) {
+      // Ekranda hâlâ duran bir GÜNLÜK plan önerisi varsa "neden bunu
+      // çalışıyorum" O plana dairdir — StudyAdvisor'ın alakasız, genel bir
+      // önerisine (ör. planda hiç olmayan bir ders) atlamak bağlamı
+      // kaybediyordu. PlanBlock.reason zaten üretiliyor (bkz.
+      // plan_builder.dart), sadece sohbette hiç gösterilmiyordu.
+      if (_pending != null && _pendingIsDay) {
+        final withReason =
+            _pending!.where((b) => b.reason != null).toList();
+        if (withReason.isNotEmpty) {
+          final r = withReason.first;
+          final extra = withReason.length > 1
+              ? ' (Plandaki diğer bazı görevlerin de somut bir gerekçesi var.)'
+              : '';
+          _say('${r.title}: ${r.reason}.$extra');
+        } else {
+          _say('Bu plan belirli bir ders/konu zayıflığına değil, dengeli '
+              'ilerlemene dayanıyor — kapsama açığı olan dersleri sırayla '
+              'kapatıyor.');
+        }
+        return;
+      }
       final top = _topSuggestion();
       final gapSentence = _goalGapSentence();
       if (top != null && top.reason != StudyAdvisor.genericReason) {
@@ -2772,6 +2793,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                             targetMinutes: 25,
                           ),
                           initialPomodoro: true,
+                          // Buton zaten "... Başlat" diyor — ikinci bir
+                          // "Başlat"a basmak zorunda bırakmıyoruz.
+                          autoStart: true,
                         ),
                       ),
                     ),

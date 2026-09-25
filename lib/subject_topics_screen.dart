@@ -106,8 +106,10 @@ class _SubjectTopicsScreenState extends ConsumerState<SubjectTopicsScreen> {
     final reason = ref.read(topicEvidenceProvider)[t.id]?.sentence;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            FocusScreen(intent: StudyIntent.forTopic(t, reason: reason)),
+        builder: (_) => FocusScreen(
+          intent: StudyIntent.forTopic(t, reason: reason),
+          autoStart: true, // dokunmak zaten başlatma niyeti (yukarıdaki not)
+        ),
       ),
     );
   }

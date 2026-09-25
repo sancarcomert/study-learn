@@ -456,6 +456,39 @@ void main() {
       expect(reply.text, contains('3 günlük serin var.'));
     });
 
+    test(
+        'progressSummary hedef bilgisini ZATEN içeriyorsa goalGapSentence '
+        'tekrar eklenmez (aynı bilgi iki farklı cümleyle, noktasız '
+        'bitişik tekrar etmesin)', () {
+      final c = boot();
+      addSubject(c, 'Matematik');
+      final reply = ask(
+        c,
+        'yerimde sayıyorum',
+        progressSummary:
+            'TYT için hedefin 90 net. Henüz deneme eklemedin — ilk '
+            'sonucunu girince hedefine olan mesafeni burada göreceksin.',
+        goalGap: 'TYT hedefin 90 net — henüz deneme eklemedin, ilk '
+            'sonucunu girince mesafeni söyleyebilirim.',
+      ).reply!;
+      expect(
+        reply.text,
+        'TYT için hedefin 90 net. Henüz deneme eklemedin — ilk sonucunu '
+        'girince hedefine olan mesafeni burada göreceksin.',
+      );
+    });
+
+    test(
+        'progressSummary YOKSA (kıyaslanacak veri yok) goalGapSentence tek '
+        'kaynak olarak eklenir', () {
+      final c = boot();
+      addSubject(c, 'Matematik');
+      final reply = ask(c, 'yerimde sayıyorum',
+              goalGap: 'TYT hedefin 90 net — henüz deneme eklemedin.')
+          .reply!;
+      expect(reply.text, contains('TYT hedefin 90 net'));
+    });
+
     test('deterministik: aynı veri + aynı cümle → aynı cevap', () {
       final c = boot();
       final mat = addSubject(c, 'Matematik');

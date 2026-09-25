@@ -278,5 +278,25 @@ void main() {
           reason: '$titles');
       expect(titles, isNotEmpty);
     });
+
+    testWidgets(
+        '"neden bunu çalışıyorum" bekleyen PLANA dair cevap verir, '
+        'alakasız bir öneriye atlamaz', (tester) async {
+      await pumpCoach(tester);
+      await say(tester, 'bana 2 saatlik plan yap');
+      expect(said(r'Fizik · '), findsOneWidget, reason: chat(tester));
+
+      await say(tester, 'neden bunu çalışıyorum?');
+      // Ekrandaki plandan bir ders adı geçmeli — StudyAdvisor'ın plana hiç
+      // girmeyen bambaşka bir önerisine/genel hedef cümlesine atlanmamalı
+      // (önceki bug: bağlam kaybolup ilgisiz bir gerekçe dönüyordu). Açılış
+      // selamlaması da benzer bir cümle söylemiş olabilir (findsWidgets) —
+      // önemli olan son cevabın da bu kalıba uyması, hiç uymaması değil.
+      expect(said(r'(Matematik|Fizik):'), findsWidgets, reason: chat(tester));
+      // "Şu an elimde somut bir gerekçe yok" eski genel fallback ASLA
+      // çıkmamalı — bu, bağlamın (yanlışlıkla) kaybolduğunun kanıtı olurdu.
+      expect(said('elimde somut bir gerekçe yok'), findsNothing,
+          reason: chat(tester));
+    });
   });
 }

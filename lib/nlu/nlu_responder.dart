@@ -840,8 +840,13 @@ class NluResponder {
     final buf = StringBuffer(summary ??
         'Şu an ilerlemeni yorumlayacak kadar veri yok — birkaç gün daha '
             'çalışıp deneme eklersen gerçek bir tablo çıkarabilirim.');
-    if (c.goalGapSentence != null &&
-        (summary == null || !summary.contains(c.goalGapSentence!))) {
+    // [summary] (StatsInsightEngine) hedef varsa hedef-fark hikayesini ZATEN
+    // en başa koyuyor (bkz. stats_insight_engine.dart _goalGapInsight) —
+    // AYNI kaynaktan (primaryGoalGapProvider) beslenen [goalGapSentence]'ı
+    // burada da eklemek, aynı bilgiyi farklı bir cümleyle tekrarlayıp
+    // (bazen noktasız/bitişik) okunmaz bir metin üretiyordu. [summary] yoksa
+    // (kıyaslanacak veri yok) hedef bilgisi tek kaynak burasıdır, eklenir.
+    if (c.goalGapSentence != null && summary == null) {
       buf.write(' ${c.goalGapSentence}');
     }
     return NluReply(buf.toString(), source: 'progress');
