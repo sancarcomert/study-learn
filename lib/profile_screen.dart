@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'about_screen.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'format_minutes.dart';
 import 'notification_service.dart';
 import 'rank_ladder_screen.dart';
 import 'rank_provider.dart';
@@ -795,7 +796,7 @@ class _StudyTimeRow extends StatelessWidget {
             child: Text(label, style: AppTextStyles.bodySecondary),
           ),
           Text(
-            '${minutes ~/ 60}s ${minutes % 60}dk',
+            formatMinutes(minutes),
             style: AppTextStyles.heading3,
           ),
         ],

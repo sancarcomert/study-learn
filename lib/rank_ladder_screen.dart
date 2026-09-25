@@ -89,7 +89,7 @@ class RankLadderScreen extends ConsumerWidget {
                     Expanded(
                       child: _CharStat(
                         icon: Icons.timer_outlined,
-                        value: '${focusHours.toStringAsFixed(0)}sa',
+                        value: '${focusHours.toStringAsFixed(0)} sa',
                         label: 'ODAK',
                       ),
                     ),
