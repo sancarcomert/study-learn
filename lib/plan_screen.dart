@@ -262,11 +262,13 @@ class _PlanBentoCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  value,
-                  style: AppTextStyles.heading2,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Flexible(
+                  child: Text(
+                    value,
+                    style: AppTextStyles.heading2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 if (fullWidth) ...[
                   const SizedBox(width: 8),

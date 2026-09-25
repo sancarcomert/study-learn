@@ -417,4 +417,23 @@ void main() {
     expect(CoachNlu.intentCount, 23);
     expect(CoachNlu.phraseCount, greaterThanOrEqualTo(700));
   });
+
+  group('konu tespiti: yazım hatası toleransı yanlış pozitif üretmemeli', () {
+    // "değilim" gibi çok yaygın olumsuzlama çekimleri, katalogdaki bir konu
+    // adına (ör. "Değişim") tek harf farkıyla tesadüfen benzeyebiliyordu —
+    // yanlışlıkla o konuyu "anılmış" sayıp sonraki "bu konu" referansını
+    // bozuyordu (bkz. nlu_entities.dart _fuzzyMatchExcluded).
+    test('"iyi değilim" konu UYDURMAZ', () {
+      final r = CoachNlu.analyze('iyi değilim');
+      expect(r.slots.topic, isNull);
+    });
+    test('"bugün hazır değilim" konu UYDURMAZ', () {
+      final r = CoachNlu.analyze('bugün hazır değilim');
+      expect(r.slots.topic, isNull);
+    });
+    test('"yorgunum ama iyi değilim bugün" konu UYDURMAZ', () {
+      final r = CoachNlu.analyze('yorgunum ama iyi değilim bugün');
+      expect(r.slots.topic, isNull);
+    });
+  });
 }

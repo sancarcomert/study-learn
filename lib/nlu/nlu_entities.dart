@@ -184,6 +184,16 @@ class NluEntityIndex {
     return out;
   }
 
+  // "değilim/değilsin/değildir/..." gibi çok yaygın olumsuzlama çekimleri —
+  // yazım hatası ESNEKLİĞİ (tek harf farkı, ör. "degilim"↔"degisim") bunları
+  // tesadüfen bir konu köküyle eşleştirebiliyordu ("iyi değilim" → "Değişim"
+  // konusu gibi). Anlamca konu adlarıyla hiçbir ilgisi olmayan, çok sık geçen
+  // bir gramer kalıbı olduğu için bulanık eşleşmeden bilerek hariç tutulur.
+  static const Set<String> _fuzzyMatchExcluded = {
+    'degilim', 'degilsin', 'degildir', 'degiliz', 'degilsiniz', 'degiller',
+    'degildim', 'degildin', 'degildik', 'degildiniz', 'degillerdi',
+  };
+
   static bool _tokenHitsStem(String token, String stem) {
     if (token.length >= stem.length && token.startsWith(stem)) return true;
     // Ünsüz yumuşaması: olasılık → olasılığı, kitap → kitabı.
@@ -200,7 +210,8 @@ class NluEntityIndex {
     if (token.length >= 6 &&
         stem.length >= 6 &&
         (token.length - stem.length).abs() <= 1 &&
-        !stem.startsWith(token)) {
+        !stem.startsWith(token) &&
+        !_fuzzyMatchExcluded.contains(token)) {
       return TrText.tokenSimilarity(token, stem) >= 0.85;
     }
     return false;
