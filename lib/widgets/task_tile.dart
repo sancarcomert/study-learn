@@ -73,8 +73,31 @@ class TaskSwipeActions extends ConsumerWidget {
 
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-          ref.read(taskProvider.notifier).postponeTask(task.id);
-          AppSnackBar.success(context, '"${task.title}" yarına ertelendi');
+          // postponeTask task'ı YERİNDE mutate eder (bkz. task_provider.dart)
+          // — widget'ın kendi `task` referansı da aynı nesne olduğu için
+          // orijinal tarihi/erteleme sayısını çağrıdan ÖNCE yakalıyoruz.
+          final originalDueDate = task.dueDate;
+          final originalScheduledTime = task.scheduledTime;
+          final originalPostponeCount = task.postponeCount;
+          final notifier = ref.read(taskProvider.notifier);
+          notifier.postponeTask(task.id);
+          AppSnackBar.undo(
+            context,
+            '"${task.title}" yarına ertelendi',
+            onUndo: () {
+              task.postponeCount = originalPostponeCount;
+              notifier.updateTask(
+                task,
+                title: task.title,
+                subjectId: task.subjectId,
+                dueDate: originalDueDate,
+                priority: task.priority,
+                scheduledTime: originalScheduledTime,
+                estimatedMinutes: task.estimatedMinutes,
+                difficulty: task.difficulty,
+              );
+            },
+          );
           // false: kart listede kalır, sadece dueDate değişti — bir
           // sonraki state güncellemesinde ait olduğu güne göre zaten
           // doğru yerde görünür/kaybolur.

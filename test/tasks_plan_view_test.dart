@@ -6,6 +6,7 @@ import 'package:study_planner/focus_session_model.dart';
 import 'package:study_planner/hive_boxes.dart';
 import 'package:study_planner/subject_model.dart';
 import 'package:study_planner/task_model.dart';
+import 'package:study_planner/task_provider.dart';
 import 'package:study_planner/tasks_screen.dart';
 import 'package:study_planner/topic_model.dart';
 import 'package:study_planner/user_stats_model.dart';
@@ -80,5 +81,64 @@ void main() {
     // Plan (tahmini) ↔ gerçek (ölçülmüş) AYRI etiketli.
     expect(find.text('2 görev · plan 1 sa · gerçek 20 dk · 0/2 tamam'),
         findsOneWidget);
+  });
+
+  testWidgets('sağa kaydırarak ertele: GERİ AL orijinal tarihi/erteleme '
+      'sayısını geri getirir', (tester) async {
+    tester.view.physicalSize = const Size(900, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final n = DateTime.now();
+    final day = DateTime(n.year, n.month, n.day);
+    await HiveBoxes.stats.put('main', UserStatsModel(hasSeenExactAlarmPrompt: true));
+    await HiveBoxes.subjects.put(
+      's',
+      SubjectModel(id: 's', name: 'Matematik', colorValue: 0xFF6750A4, createdAt: DateTime(2026, 1, 1)),
+    );
+    await HiveBoxes.tasks.put(
+      'tek-gorev',
+      TaskModel(
+        id: 'tek-gorev',
+        title: 'Tek görev',
+        subjectId: 's',
+        dueDate: day,
+        estimatedMinutes: 30,
+        createdAt: DateTime(2026, 9, 1),
+      ),
+    );
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TasksScreen()),
+    ));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Sağa kaydır (startToEnd) = ertele. Eşiği (%40) net geçen bir mesafe.
+    // Dismissible sürükleme bitince kendi "forward" animasyonuyla
+    // confirmDismiss'i tetikliyor — tek büyük pump() bu animasyonun
+    // ticker'ını başlatmaya yetmiyor, art arda birden çok kare gerekiyor.
+    await tester.drag(find.byType(Dismissible).first, const Offset(400, 0));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    final postponed = container.read(taskProvider).single;
+    expect(postponed.dueDate, day.add(const Duration(days: 1)),
+        reason: 'ertelendi');
+    expect(postponed.postponeCount, 1);
+    expect(find.text('GERİ AL'), findsOneWidget,
+        reason: 'ertelemede de silmedeki gibi geri alma sunulmalı');
+
+    await tester.tap(find.text('GERİ AL'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final restored = container.read(taskProvider).single;
+    expect(restored.dueDate, day, reason: 'orijinal tarihe dönmeli');
+    expect(restored.postponeCount, 0,
+        reason: 'geri alınca erteleme sayacı da geri gitmeli');
   });
 }
