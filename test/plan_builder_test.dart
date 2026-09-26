@@ -35,14 +35,45 @@ void main() {
     expect(r.plannedMinutes, 135);
   });
 
-  test('kapasite dolunca kalanlar unfit', () {
+  test('kapasite dolunca kalan anlamlı bir seansa (>= 15 dk) küçültülür, '
+      'gerçekten sığmayan unfit kalır', () {
+    // 60 dk: 1. ders tam blok (45 dk) alır, 15 dk kalır — bu, "bir blok
+    // bile çıkmaz" denip atılmak yerine 2. derse tam 15 dk'lık (taban
+    // değer) bir blok olarak veriliyor; 3. dersin payına hiç kalan
+    // olmadığı için o gerçekten unfit kalıyor.
     final r = PlanBuilder.build(
       orderedSubjects: subjects,
-      capacityMinutes: 60, // 60 dk → yalnız 1 blok (45 dk) sığar
+      capacityMinutes: 60,
+      energy: 'orta',
+    );
+    expect(r.blocks.length, 2);
+    expect(r.blocks[0].minutes, 45);
+    expect(r.blocks[1].minutes, 15);
+    expect(r.unfitTitles.length, 1);
+  });
+
+  test('kalan süre anlamlı bir seans için bile yetmiyorsa (< 15 dk) unfit '
+      'kalır', () {
+    final r = PlanBuilder.build(
+      orderedSubjects: subjects,
+      capacityMinutes: 50, // 45 tam blok + yalnız 5 dk kalır (< 15 taban)
       energy: 'orta',
     );
     expect(r.blocks.length, 1);
     expect(r.unfitTitles.length, 2);
+  });
+
+  test('standart bloktan kısa istenen süre REDDEDİLMEZ, tam o süreye '
+      'küçültülür (canlı testte bulunan bug: "30 dakikalık plan yap" hiç '
+      'blok üretmiyordu)', () {
+    final r = PlanBuilder.build(
+      orderedSubjects: [subjects.first],
+      capacityMinutes: 30,
+      energy: 'orta', // standart blok 45 dk > 30 dk istenen
+    );
+    expect(r.blocks.length, 1);
+    expect(r.blocks.single.minutes, 30);
+    expect(r.unfitTitles, isEmpty);
   });
 
   test('bloklara saat atanmaz, sıra order ile taşınır', () {

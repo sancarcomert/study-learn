@@ -220,7 +220,17 @@ class PlanBuilder {
           (duration * factor).round().clamp(15, duration);
       if (subjectDuration < duration) anyReduced = true;
 
-      if (subjectDuration > remaining) {
+      // Standart blok (45/25/60 dk) kalan süreye sığmıyor. Önceden bu
+      // durumda blok DOĞRUDAN reddediliyordu — "30 dakikalık plan yap"
+      // diyen bir öğrenci "bir blok bile çıkmadı, biraz daha vakit yazar
+      // mısın?" cevabı alıyordu, oysa 30 dk tek başına gayet anlamlı bir
+      // seans. Kalan süre hâlâ anlamlı bir seans için yeterliyse (>= 15
+      // dk, dosyadaki aynı taban) bloğu TAM OLARAK kalan süreye küçültüp
+      // isteneni birebir karşılıyoruz; yalnız 15 dk'nın altında kalan bir
+      // artık gerçekten "blok bile çıkmaz" sayılır.
+      final effectiveDuration =
+          subjectDuration > remaining ? remaining : subjectDuration;
+      if (effectiveDuration < 15) {
         unfit.add(
             topics.isNotEmpty ? '${subject.name}: ${topics[i]}' : subject.name);
         continue;
@@ -231,14 +241,14 @@ class PlanBuilder {
         title: t.title,
         subjectId: subject.id,
         topicId: t.topicId,
-        minutes: subjectDuration,
+        minutes: effectiveDuration,
         order: blocks.length,
         priority: priority,
         difficulty: t.difficulty,
         reason: t.reason,
       ));
 
-      remaining -= subjectDuration;
+      remaining -= effectiveDuration;
     }
 
     final String baseReason;

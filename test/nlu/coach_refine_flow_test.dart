@@ -171,9 +171,15 @@ void main() {
       await say(tester, '30 dakika azalt');
       expect(said(r'Süreyi 1 saat → 30 dk yaptım'), findsOneWidget,
           reason: chat(tester));
-      // 30 dk hiçbir bloğa yetmiyor: eski öneri geçerli kalır, söylenir.
-      expect(said('Önceki öneri geçerli'), findsOneWidget,
-          reason: chat(tester));
+      // 30 dk tek başına anlamlı bir blok (bkz. plan_builder.dart'taki
+      // "kısa süre reddedilmez, küçültülür" düzeltmesi) — yeni, daha küçük
+      // bir plan üretilir, eskisi korunmaz.
+      expect(said(r'Fizik · 30 dk'), findsOneWidget, reason: chat(tester));
+      // Not: bu düzeltme akışı süreyi her zaman >= 15 dk'ya yuvarladığı için
+      // (bkz. coach_screen.dart _refineProposal clamp(15, ...)) ve
+      // plan_builder.dart artık >= 15 dk'lık her isteği bir bloğa
+      // dönüştürdüğü için, "azalt" ile "Önceki öneri geçerli" düşüşünü bu
+      // yoldan tekrar tetiklemek artık mümkün değil — bilinçli bir iyileşme.
     });
   });
 
