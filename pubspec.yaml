@@ -63,5 +63,9 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
 
 flutter_native_splash:
-  color: "#0F1115"
-  image: "assets/icon/icon.png"
+  # Yeni ikonla aynı marka rengi (uygulamanın gerçek primary'si, #5B35B5) —
+  # tema koyu/açık ne olursa olsun sabit, ikonla tutarlı tek bir marka anı.
+  # image: sadece işaret (şeffaf zemin) — tam kare icon.png'yi kullansaydık
+  # kendi mor zemini splash'ın moruyla kaynaşıp kenarları görünmez olurdu.
+  color: "#5B35B5"
+  image: "assets/icon/icon_foreground_splash.png"
