@@ -8,6 +8,9 @@ import 'app_text_styles.dart';
 import 'focus_session_model.dart';
 import 'focus_session_provider.dart';
 import 'subject_provider.dart';
+import 'tap_scale.dart';
+import 'topic_model.dart';
+import 'topic_provider.dart';
 import 'widgets/app_snackbar.dart';
 import 'widgets/empty_state_card.dart';
 import 'widgets/eyebrow.dart';
@@ -36,7 +39,8 @@ class FocusHistoryScreen extends ConsumerWidget {
     }
 
     final subjectTotals = bySubject.entries
-        .map((e) => (name: subjectName(e.key) ?? 'Silinmiş ders', minutes: e.value))
+        .map((e) =>
+            (name: subjectName(e.key) ?? 'Silinmiş ders', minutes: e.value))
         .toList()
       ..sort((a, b) => b.minutes.compareTo(a.minutes));
 
@@ -62,8 +66,8 @@ class FocusHistoryScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
@@ -165,9 +169,18 @@ class FocusHistoryScreen extends ConsumerWidget {
                             );
                           }
                         },
-                        child: _SessionRow(
-                          session: s,
-                          subjectName: subjectName(s.subjectId),
+                        child: TapScale(
+                          onTap: () => showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: AppColors.surface,
+                            showDragHandle: true,
+                            builder: (_) => _EditSessionSheet(session: s),
+                          ),
+                          child: _SessionRow(
+                            session: s,
+                            subjectName: subjectName(s.subjectId),
+                          ),
                         ),
                       ),
                     )),
@@ -212,7 +225,8 @@ class _SessionRow extends StatelessWidget {
             child: Icon(
               isPomodoro ? Icons.timelapse_outlined : Icons.timer_outlined,
               size: 18,
-              color: isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky,
+              color:
+                  isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky,
             ),
           ),
           const SizedBox(width: 14),
@@ -222,7 +236,8 @@ class _SessionRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  style:
+                      AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -247,10 +262,191 @@ class _SessionRow extends StatelessWidget {
           Text(
             '${session.minutes} dk',
             style: AppTextStyles.heading3.copyWith(
-              color: isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky,
+              color:
+                  isPomodoro ? AppColors.vibrantViolet : AppColors.vibrantSky,
             ),
           ),
+          const SizedBox(width: 6),
+          // Sessiz düzenleme ipucu — aksi halde satırın dokunulabilir
+          // olduğunu gösteren hiçbir işaret yoktu (yalnız kaydırınca silme
+          // çıkıyordu, düzenleme keşfedilemiyordu).
+          Icon(Icons.edit_outlined, size: 15, color: AppColors.textMuted),
         ],
+      ),
+    );
+  }
+}
+
+/// Yanlış kaydedilmiş bir seansı düzeltme formu (P0-6). Silme + yeniden
+/// oluşturma yerine tek adım: ders/konu/süre/not değiştirilir, seansın
+/// TARİHİ/NASIL GEÇTİĞİ (feeling) ve modu (Serbest/Pomodoro) sabit kalır —
+/// bunlar düzenlenecek bir "yazım hatası" değil, o seansın gerçek geçmişi.
+class _EditSessionSheet extends ConsumerStatefulWidget {
+  final FocusSession session;
+  const _EditSessionSheet({required this.session});
+
+  @override
+  ConsumerState<_EditSessionSheet> createState() => _EditSessionSheetState();
+}
+
+class _EditSessionSheetState extends ConsumerState<_EditSessionSheet> {
+  late String? _subjectId = widget.session.subjectId;
+  late String? _topicId = widget.session.topicId;
+  late final TextEditingController _minutesController =
+      TextEditingController(text: widget.session.minutes.toString());
+  late final TextEditingController _noteController =
+      TextEditingController(text: widget.session.note ?? '');
+
+  @override
+  void dispose() {
+    _minutesController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final minutes = int.tryParse(_minutesController.text.trim());
+    if (minutes == null || minutes < 1) {
+      AppSnackBar.error(context, 'Geçerli bir dakika gir');
+      return;
+    }
+    ref.read(focusSessionProvider.notifier).updateSession(
+          widget.session.id,
+          minutes: minutes,
+          subjectId: _subjectId,
+          topicId: _topicId,
+          note: _noteController.text,
+        );
+    Navigator.pop(context);
+    AppSnackBar.success(context, 'Seans güncellendi');
+  }
+
+  Widget _chip({
+    required String label,
+    required bool selected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: selected ? AppColors.onColor(color) : color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subjects = ref.watch(subjectProvider);
+    final topics = _subjectId == null
+        ? const <TopicModel>[]
+        : ref.watch(topicsForSubjectProvider(_subjectId!));
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Seansı düzenle', style: AppTextStyles.heading3),
+              const SizedBox(height: 16),
+              Text('DERS', style: AppTextStyles.eyebrow),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip(
+                    label: 'Derssiz',
+                    selected: _subjectId == null,
+                    color: AppColors.textSecondary,
+                    onTap: () => setState(() {
+                      _subjectId = null;
+                      _topicId = null;
+                    }),
+                  ),
+                  for (final s in subjects)
+                    _chip(
+                      label: s.name,
+                      selected: _subjectId == s.id,
+                      color: Color(s.colorValue),
+                      onTap: () => setState(() {
+                        _subjectId = s.id;
+                        _topicId = null;
+                      }),
+                    ),
+                ],
+              ),
+              if (topics.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text('KONU', style: AppTextStyles.eyebrow),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final t in topics)
+                      _chip(
+                        label: t.name,
+                        selected: _topicId == t.id,
+                        color: AppColors.primary,
+                        onTap: () => setState(
+                            () => _topicId = _topicId == t.id ? null : t.id),
+                      ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              Text('DAKİKA', style: AppTextStyles.eyebrow),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _minutesController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(hintText: 'dakika'),
+              ),
+              const SizedBox(height: 16),
+              Text('NOT', style: AppTextStyles.eyebrow),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _noteController,
+                decoration: const InputDecoration(hintText: 'opsiyonel'),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _save,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onColor(AppColors.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Kaydet'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

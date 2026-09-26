@@ -71,6 +71,16 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   bool _running = false;
   bool _leaving = false;
 
+  // Yalnızca "şu an sayıyor mu" değil, "bu ekranda hiç Başlat'a basıldı mı"
+  // — mod seçici ve ders/konu formu bu ikinciye göre gizlenir. Önceden
+  // `_running` kullanılıyordu: DURAKLATINCA (running=false ama zaten
+  // başlamış) tüm form geri geliyor, mod seçici tekrar açılıyordu — hem
+  // ekran zıplıyordu hem de mod değiştirmek _switchMode'da o ana kadarki
+  // ölçülmüş-ama-henüz-kaydedilmemiş dakikaları sessizce siliyordu (bkz.
+  // _switchMode). Bir kez başladıktan sonra mod/form kilitlenir; değiştirmek
+  // isteyen seansı bitirip yeni bir seans başlatır.
+  bool _hasStarted = false;
+
   late _Mode _mode = widget.initialPomodoro ? _Mode.pomodoro : _Mode.free;
   late int _blockMin = widget.intent.targetMinutes ?? kDefaultFocusMinutes;
 
@@ -138,6 +148,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   @override
   void initState() {
     super.initState();
+    // Bir önceki seans arka planda gösterdiği kalıcı bildirimi bırakıp
+    // süreç öldürülmüş olabilir (ör. kullanıcı uygulamayı son uygulamalar
+    // listesinden kapattı) — o durumda bildirim OS'te asılı kalırdı.
+    // Ekran her açıldığında (geri yükleme olsun olmasın, zaten foreground'a
+    // döneceğiz) baştan temizlemek bunu garantiler.
+    NotificationService.instance.cancelOngoingFocus();
     _restoreAnchorIfAny();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -172,10 +188,40 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         _leftAt = DateTime.now();
         _elapsedAtLeaveSec = _mode == _Mode.free ? _freeElapsedSec : 0;
         _writeAnchor();
+        _showOngoingNotification();
       }
     } else if (state == AppLifecycleState.resumed) {
       _discountUnattendedTime();
+      // Uygulama zaten önde — arka plan göstergesine artık gerek yok,
+      // ekranın kendi canlı sayacı yeterli.
+      NotificationService.instance.cancelOngoingFocus();
     }
+  }
+
+  /// Arka plana alınırken (sadece Android) o an süren seansı gösteren
+  /// sessiz, kalıcı bildirimi yazar/günceller — bkz.
+  /// [NotificationService.showOngoingFocus]. Faz/mod bilgisini native
+  /// chronometer'a çevirir: Serbest YUKARI, Pomodoro çalışma/mola AŞAĞI sayar.
+  void _showOngoingNotification() {
+    final onBreak = _mode == _Mode.pomodoro && _phase != _Phase.work;
+    final title = onBreak ? 'Mola sürüyor' : 'Odak sürüyor';
+    final body = _noteLabel() ?? (onBreak ? 'Mola' : 'Serbest çalışma');
+    final DateTime when;
+    final bool countDown;
+    if (_mode == _Mode.free) {
+      countDown = false;
+      when = DateTime.now().subtract(Duration(seconds: _freeElapsedSec));
+    } else {
+      countDown = true;
+      final remaining = _phaseTargetSec - _phaseElapsedSec;
+      when = DateTime.now().add(Duration(seconds: remaining < 0 ? 0 : remaining));
+    }
+    NotificationService.instance.showOngoingFocus(
+      title: title,
+      body: body,
+      when: when,
+      countDown: countDown,
+    );
   }
 
   // Uygulama arka plana alındığı an ve o anki geçen süre — geri dönüşte,
@@ -198,7 +244,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       targetSec: _blockMin * 60,
     );
     if (uncredited > 0) {
-      setState(() => _freeSegStart = segStart.add(Duration(seconds: uncredited)));
+      setState(
+          () => _freeSegStart = segStart.add(Duration(seconds: uncredited)));
     }
   }
 
@@ -245,7 +292,13 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     });
   }
 
-  void _clearAnchor() => HiveBoxes.focusAnchor.delete('current');
+  void _clearAnchor() {
+    HiveBoxes.focusAnchor.delete('current');
+    // Seans burada her ne sebeple bitiyorsa bitsin (bitirme, mod değişimi,
+    // yeni bir çalışmanın eskisinin yerini alması...) arka planda kalmış
+    // olabilecek kalıcı bildirim de onunla birlikte kalkmalı.
+    NotificationService.instance.cancelOngoingFocus();
+  }
 
   /// Bir önceki `_FocusScreenState` çalışırken süreç öldürüldüyse (arka
   /// planda), burada bıraktığı çapayı okuyup gerçek duvar-saati farkından
@@ -308,6 +361,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _phaseLoggedSec = loggedSec;
     }
     _running = true;
+    _hasStarted = true;
   }
 
   /// Çapadaki seans, açılan niyetle aynı bağlamda mı? Görev varsa görev, yoksa
@@ -503,6 +557,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         _phaseSegStart = now;
       }
       _running = true;
+      _hasStarted = true;
       _startTicker();
       _scheduleCompletionNotification();
       _writeAnchor();
@@ -550,7 +605,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   }
 
   void _switchMode(_Mode m) {
-    if (_running || m == _mode) return;
+    if (_hasStarted || m == _mode) return;
     _ticker?.cancel();
     _cancelCompletionNotification();
     _clearAnchor();
@@ -648,11 +703,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
             color: AppColors.tonal(AppColors.success),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.check_rounded,
-              color: AppColors.success, size: 30),
+          child: Icon(Icons.check_rounded, color: AppColors.success, size: 30),
         ),
-        title: Text(title, style: AppTextStyles.heading3,
-            textAlign: TextAlign.center),
+        title: Text(title,
+            style: AppTextStyles.heading3, textAlign: TextAlign.center),
         content: Text(body,
             style: AppTextStyles.bodySecondary, textAlign: TextAlign.center),
         actionsAlignment: actionLabel == null
@@ -668,8 +722,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onColor(AppColors.primary),
-                shape:
-                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999)),
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -1072,215 +1126,239 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
             // Home'daki aynı karar (2026-09-19): Mentora referansı düz,
             // renkli bulanık leke efekti olmayan bir açık zemin kullanıyor
             // — bu atmosfer yalnız koyu temada kalıyor, tutarlılık için.
-            if (AppColors.isDark) const Positioned.fill(child: _FocusAuroraBackground()),
+            if (AppColors.isDark)
+              const Positioned.fill(child: _FocusAuroraBackground()),
             SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Eyebrow(text: 'ODAK SEANSI'),
-                    const SizedBox(height: 12),
-
-                    // mod seçici
-                    _ModeToggle(
-                      mode: _mode,
-                      enabled: !_running,
-                      onChanged: _switchMode,
+              // LayoutBuilder + minHeight: kısa içerik (ör. seans sürerken,
+              // form gizliyken) az sayıda satırdan ibaret kalıyor — bunu
+              // düz bir SingleChildScrollView içine koyarsak ekranın geri
+              // kalanı boş/kırık görünen dev bir boşluk olarak kalıyordu.
+              // İçerik viewport'tan kısaysa dikey ortalanır; taşarsa (uzun
+              // ders/konu listesi vb.) minHeight aşılır ve normal kaydırma
+              // devreye girer — ikisi de aynı ağaçtan çalışır.
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: math.max(0, constraints.maxHeight - 48),
                     ),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Eyebrow(text: 'ODAK SEANSI'),
+                          const SizedBox(height: 12),
 
-                    const SizedBox(height: 16),
-                    // Seans BAŞLAMADAN önce: ne çalışıyorum + neden. Seans
-                    // sürerken alanlar gizlenir (dikkat dağıtmasın); bağlam
-                    // kartı kalır — öğrenci neye çalıştığını görmeye devam
-                    // eder.
-                    if (_running)
-                      _FocusContextCard(
-                        title: _contextTitle(),
-                        subtitle: _contextSubtitle(),
-                        reason: _contextReason(),
-                      )
-                    else ...[
-                      // Bağlam (ne + kaç dk, varsa neden) seçili bir şey
-                      // varken HER ZAMAN görünür; yalnız hiç bağlam yoksa
-                      // (serbest çalışma) kart çizilmez.
-                      if (_selectedSubjectId != null ||
-                          _noteController.text.trim().isNotEmpty) ...[
-                        _FocusContextCard(
-                          title: _contextTitle(),
-                          subtitle: _contextSubtitle(),
-                          reason: _contextReason(),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      // Konu seçiliyse "ne çalışıyorum" zaten belli (kart +
-                      // çip); serbest not yalnız konu yokken sorulur.
-                      if (_selectedTopicId == null) ...[
-                        TextField(
-                          controller: _noteController,
-                          textInputAction: TextInputAction.done,
-                          onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(
-                            hintText: 'Ne üzerinde çalışıyorsun? (opsiyonel)',
+                          // mod seçici
+                          _ModeToggle(
+                            mode: _mode,
+                            enabled: !_hasStarted,
+                            onChanged: _switchMode,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      _SubjectTopicPicker(
-                        enabled: !_running,
-                        selectedSubjectId: _selectedSubjectId,
-                        selectedTopicId: _selectedTopicId,
-                        onSubjectChanged: (id) => setState(() {
-                          _selectedSubjectId = id;
-                          _selectedTopicId = null;
-                        }),
-                        onTopicChanged: (id) =>
-                            setState(() => _selectedTopicId = id),
-                      ),
-                    ],
 
-                    const SizedBox(height: 32),
+                          const SizedBox(height: 16),
+                          // Seans BAŞLAMADAN önce: ne çalışıyorum + neden. Seans
+                          // sürerken alanlar gizlenir (dikkat dağıtmasın); bağlam
+                          // kartı kalır — öğrenci neye çalıştığını görmeye devam
+                          // eder.
+                          if (_hasStarted)
+                            _FocusContextCard(
+                              title: _contextTitle(),
+                              subtitle: _contextSubtitle(),
+                              reason: _contextReason(),
+                            )
+                          else ...[
+                            // Bağlam (ne + kaç dk, varsa neden) seçili bir şey
+                            // varken HER ZAMAN görünür; yalnız hiç bağlam yoksa
+                            // (serbest çalışma) kart çizilmez.
+                            if (_selectedSubjectId != null ||
+                                _noteController.text.trim().isNotEmpty) ...[
+                              _FocusContextCard(
+                                title: _contextTitle(),
+                                subtitle: _contextSubtitle(),
+                                reason: _contextReason(),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            // Konu seçiliyse "ne çalışıyorum" zaten belli (kart +
+                            // çip); serbest not yalnız konu yokken sorulur.
+                            if (_selectedTopicId == null) ...[
+                              TextField(
+                                controller: _noteController,
+                                textInputAction: TextInputAction.done,
+                                onChanged: (_) => setState(() {}),
+                                decoration: const InputDecoration(
+                                  hintText:
+                                      'Ne üzerinde çalışıyorsun? (opsiyonel)',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            _SubjectTopicPicker(
+                              enabled: !_hasStarted,
+                              selectedSubjectId: _selectedSubjectId,
+                              selectedTopicId: _selectedTopicId,
+                              onSubjectChanged: (id) => setState(() {
+                                _selectedSubjectId = id;
+                                _selectedTopicId = null;
+                              }),
+                              onTopicChanged: (id) =>
+                                  setState(() => _selectedTopicId = id),
+                            ),
+                          ],
 
-                    Center(
-                      child: _TimerRing(
-                        progress: progress,
-                        accent:
-                            (isBreak || reached) ? AppColors.success : accent,
-                        running: _running,
-                        clock: clock,
-                        clockColor: (isBreak || reached)
-                            ? AppColors.success
-                            : AppColors.textPrimary,
-                        statusLabel: _mode == _Mode.free
-                            ? (reached
-                                ? 'hedefi geçtin · ${_fmtOverage(_freeElapsedSec - _blockMin * 60)}'
-                                : 'hedef $_blockMin dk')
-                            : _phaseLabel,
-                        statusColor: (isBreak || reached)
-                            ? AppColors.success
-                            : AppColors.textMuted,
-                        noteLabel: _noteLabel(),
-                      ),
-                    ),
+                          const SizedBox(height: 32),
 
-                    const SizedBox(height: 14),
-                    Center(child: _TodayTotalLabel(liveExtraSec: () {
-                      if (_mode == _Mode.free) {
-                        return _freeElapsedSec - _freeLoggedSec;
-                      }
-                      return _phase == _Phase.work
-                          ? _phaseElapsedSec - _phaseLoggedSec
-                          : 0;
-                    }())),
+                          Center(
+                            child: _TimerRing(
+                              progress: progress,
+                              accent: (isBreak || reached)
+                                  ? AppColors.success
+                                  : accent,
+                              running: _running,
+                              clock: clock,
+                              clockColor: (isBreak || reached)
+                                  ? AppColors.success
+                                  : AppColors.textPrimary,
+                              statusLabel: _mode == _Mode.free
+                                  ? (reached
+                                      ? 'hedefi geçtin · ${_fmtOverage(_freeElapsedSec - _blockMin * 60)}'
+                                      : 'hedef $_blockMin dk')
+                                  : _phaseLabel,
+                              statusColor: (isBreak || reached)
+                                  ? AppColors.success
+                                  : AppColors.textMuted,
+                              noteLabel: _noteLabel(),
+                            ),
+                          ),
 
-                    const SizedBox(height: 32),
-                    if (!isBreak)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppColors.surfaceVariant),
-                        ),
-                        child: Wrap(
-                          spacing: 8,
-                          alignment: WrapAlignment.center,
-                          children: _blockOptions.map((min) {
-                            final selected = _blockMin == min;
-                            return TapScale(
-                              onTap: _running
-                                  ? () {}
-                                  : () => setState(() {
-                                        _blockMin = min;
-                                        _freeTargetCelebrated = false;
-                                      }),
-                              child: Opacity(
-                                opacity: _running ? 0.4 : 1,
+                          const SizedBox(height: 14),
+                          Center(child: _TodayTotalLabel(liveExtraSec: () {
+                            if (_mode == _Mode.free) {
+                              return _freeElapsedSec - _freeLoggedSec;
+                            }
+                            return _phase == _Phase.work
+                                ? _phaseElapsedSec - _phaseLoggedSec
+                                : 0;
+                          }())),
+
+                          const SizedBox(height: 32),
+                          if (!isBreak)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(18),
+                                border:
+                                    Border.all(color: AppColors.surfaceVariant),
+                              ),
+                              child: Wrap(
+                                spacing: 8,
+                                alignment: WrapAlignment.center,
+                                children: _blockOptions.map((min) {
+                                  final selected = _blockMin == min;
+                                  return TapScale(
+                                    onTap: _running
+                                        ? () {}
+                                        : () => setState(() {
+                                              _blockMin = min;
+                                              _freeTargetCelebrated = false;
+                                            }),
+                                    child: Opacity(
+                                      opacity: _running ? 0.4 : 1,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: selected
+                                              ? AppColors.primary
+                                              : AppColors.tonal(
+                                                  AppColors.primary),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          '$min dk',
+                                          style: AppTextStyles.body.copyWith(
+                                            color: selected
+                                                ? AppColors.onColor(
+                                                    AppColors.primary)
+                                                : AppColors.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            )
+                          else
+                            Center(
+                              child: TapScale(
+                                onTap: () => _advancePhase(auto: false),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
+                                    horizontal: 18,
+                                    vertical: 10,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: selected
-                                        ? AppColors.primary
-                                        : AppColors.tonal(AppColors.primary),
+                                    color: AppColors.tonal(AppColors.success),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    '$min dk',
+                                    'Molayı geç',
                                     style: AppTextStyles.body.copyWith(
-                                      color: selected
-                                          ? AppColors.onColor(
-                                              AppColors.primary)
-                                          : AppColors.primary,
-                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
                               ),
-                            );
-                          }).toList(),
-                        ),
-                      )
-                    else
-                      Center(
-                        child: TapScale(
-                          onTap: () => _advancePhase(auto: false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 10,
                             ),
-                            decoration: BoxDecoration(
-                              color: AppColors.tonal(AppColors.success),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'Molayı geç',
-                              style: AppTextStyles.body.copyWith(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w700,
+
+                          const SizedBox(height: 40),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _RoundControlButton(
+                                label: 'Bitir',
+                                icon: Icons.stop_rounded,
+                                onTap: _exit,
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              _RoundControlButton(
+                                // Aksiyona göre renk — başlat=yeşil, duraklat=turuncu
+                                // (kullanıcı isteğiyle, referans uygulamalardaki gibi).
+                                color: _running
+                                    ? AppColors.vibrantCoral
+                                    : AppColors.vibrantMint,
+                                main: true,
+                                icon: _running ? Icons.pause : Icons.play_arrow,
+                                label: _running ? 'Duraklat' : 'Başlat',
+                                onTap: _toggleRun,
+                              ),
+                              const SizedBox(width: 12),
+                              _RoundControlButton(
+                                label: 'Geçmiş',
+                                icon: Icons.history_rounded,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          const FocusHistoryScreen()),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
+                        ],
                       ),
-
-                    const SizedBox(height: 40),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _RoundControlButton(
-                          label: 'Bitir',
-                          icon: Icons.stop_rounded,
-                          onTap: _exit,
-                        ),
-                        const SizedBox(width: 12),
-                        _RoundControlButton(
-                          // Aksiyona göre renk — başlat=yeşil, duraklat=turuncu
-                          // (kullanıcı isteğiyle, referans uygulamalardaki gibi).
-                          color: _running
-                              ? AppColors.vibrantCoral
-                              : AppColors.vibrantMint,
-                          main: true,
-                          icon: _running ? Icons.pause : Icons.play_arrow,
-                          label: _running ? 'Duraklat' : 'Başlat',
-                          onTap: _toggleRun,
-                        ),
-                        const SizedBox(width: 12),
-                        _RoundControlButton(
-                          label: 'Geçmiş',
-                          icon: Icons.history_rounded,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const FocusHistoryScreen()),
-                          ),
-                        ),
-                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1470,36 +1548,36 @@ class _TimerRingState extends State<_TimerRing>
               MediaQuery.withClampedTextScaling(
                 maxScaleFactor: 1.3,
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.statusLabel,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.caption.copyWith(
-                      color: widget.statusColor,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    widget.clock,
-                    style: AppTextStyles.heading1.copyWith(
-                      fontSize: 46,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0,
-                      color: widget.clockColor,
-                    ),
-                  ),
-                  if (widget.noteLabel != null) ...[
-                    const SizedBox(height: 4),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      widget.noteLabel!,
-                      style: AppTextStyles.caption,
+                      widget.statusLabel,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.caption.copyWith(
+                        color: widget.statusColor,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.clock,
+                      style: AppTextStyles.heading1.copyWith(
+                        fontSize: 46,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0,
+                        color: widget.clockColor,
+                      ),
+                    ),
+                    if (widget.noteLabel != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.noteLabel!,
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
                   ],
-                ],
-              ),
+                ),
               ),
             ],
           );
@@ -1767,7 +1845,6 @@ class _ModeToggle extends StatelessWidget {
   }
 }
 
-
 /// Seans bitince tek sheet'ten dönen cevap.
 class _FocusOutcome {
   final int? feeling; // FocusFeeling.* ya da null (atlandı)
@@ -1894,8 +1971,7 @@ class _FocusOutcomeSheetState extends State<_FocusOutcomeSheet> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child:
-                      _feelingButton(FocusFeeling.great),
+                  child: _feelingButton(FocusFeeling.great),
                 ),
               ],
             ),
@@ -1907,8 +1983,7 @@ class _FocusOutcomeSheetState extends State<_FocusOutcomeSheet> {
                 value: _complete,
                 activeColor: AppColors.primary,
                 onChanged: (v) => setState(() => _complete = v ?? false),
-                title: Text('Görevi tamamlandı say',
-                    style: AppTextStyles.body),
+                title: Text('Görevi tamamlandı say', style: AppTextStyles.body),
               ),
             ],
             Align(

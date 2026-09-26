@@ -98,6 +98,30 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
     _repo.add(session);
     state = _repo.getAll();
   }
+
+  /// Yanlış kaydedilmiş bir seansı düzeltir (P0-6: önceden yalnız silme
+  /// vardı — yanlış dersi/süreyi düzeltmek isteyen kaydı silip elle yeniden
+  /// oluşturamıyordu, çünkü Odak Geçmişi'nden yeni bir seans başlatılamaz).
+  /// `endedAt`/`mode`/`feeling`/`taskId`/`runId` bilerek değişmez: bunlar
+  /// seansın ne zaman ve nasıl geçtiğinin kaydı, düzenleme yalnız içeriği
+  /// (ders/konu/süre/not) düzeltir.
+  void updateSession(
+    String id, {
+    required int minutes,
+    String? subjectId,
+    String? topicId,
+    String? note,
+  }) {
+    final index = state.indexWhere((s) => s.id == id);
+    if (index == -1) return;
+    final s = state[index];
+    s.minutes = minutes;
+    s.subjectId = subjectId;
+    s.topicId = topicId;
+    s.note = (note == null || note.trim().isEmpty) ? null : note.trim();
+    _repo.add(s);
+    state = _repo.getAll();
+  }
 }
 
 final focusSessionProvider =

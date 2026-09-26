@@ -13,6 +13,10 @@ enum NotificationCategory {
   streakWarning,
   aiSuggestion,
   focusSession,
+  // Sona eklendi: enum index kanal/bildirim id hesaplamasında kullanılıyor
+  // (bkz. _notificationIdFor) — araya eklemek mevcut kategorilerin id'sini
+  // kaydırırdı.
+  focusOngoing,
 }
 
 class NotificationService {
@@ -147,7 +151,8 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    final tz.TZDateTime scheduled = tz.TZDateTime.from(dateTime.toUtc(), tz.UTC);
+    final tz.TZDateTime scheduled =
+        tz.TZDateTime.from(dateTime.toUtc(), tz.UTC);
 
     try {
       await _plugin.zonedSchedule(
@@ -191,6 +196,57 @@ class NotificationService {
     await _plugin.cancel(_notificationIdFor(id, category));
   }
 
+  static const String _ongoingFocusId = 'focus_ongoing';
+
+  /// Odak seansı arka plandayken gösterilen, sessiz ve kalıcı ("ongoing")
+  /// bildirim — Android'in native chronometer'ı kullanır (`when`'den itibaren
+  /// kendi kendine saniyede bir günceller, bizim tarafımızdan periyodik
+  /// güncelleme gerekmez). Rakiplerin en çok övülen özelliği ("uygulama
+  /// kapalıyken de sayıyor") görsel karşılığı — önceden yalnızca hedef anında
+  /// TEK SEFERLİK bir bildirim vardı, arada uygulama arka plandayken hiçbir
+  /// ambient gösterge yoktu. Yalnızca Android'e özel: iOS'ta bu API'nin
+  /// (ongoing + chronometer) karşılığı yok.
+  ///
+  /// [countDown] false ise (Serbest mod) [when] geçmişte bir an — sayaç o
+  /// andan bu yana geçen süreyi YUKARI sayar. true ise (Pomodoro fazı)
+  /// [when] gelecekte bir an — sayaç o ana kadar kalan süreyi AŞAĞI sayar.
+  Future<void> showOngoingFocus({
+    required String title,
+    required String body,
+    required DateTime when,
+    required bool countDown,
+  }) async {
+    if (!Platform.isAndroid || !_initialized) return;
+    final androidDetails = AndroidNotificationDetails(
+      _channelIdFor(NotificationCategory.focusOngoing),
+      _channelNameFor(NotificationCategory.focusOngoing),
+      importance: Importance.low,
+      priority: Priority.low,
+      ongoing: true,
+      autoCancel: false,
+      onlyAlertOnce: true,
+      playSound: false,
+      enableVibration: false,
+      showWhen: true,
+      usesChronometer: true,
+      chronometerCountDown: countDown,
+      when: when.millisecondsSinceEpoch,
+    );
+    await _plugin.show(
+      _notificationIdFor(_ongoingFocusId, NotificationCategory.focusOngoing),
+      title,
+      body,
+      NotificationDetails(android: androidDetails),
+    );
+  }
+
+  Future<void> cancelOngoingFocus() async {
+    if (!Platform.isAndroid) return;
+    await _plugin.cancel(
+      _notificationIdFor(_ongoingFocusId, NotificationCategory.focusOngoing),
+    );
+  }
+
   String _channelIdFor(NotificationCategory category) {
     switch (category) {
       case NotificationCategory.taskReminder:
@@ -205,6 +261,8 @@ class NotificationService {
         return 'ai_suggestion_channel';
       case NotificationCategory.focusSession:
         return 'focus_session_channel';
+      case NotificationCategory.focusOngoing:
+        return 'focus_ongoing_channel';
     }
   }
 
@@ -222,6 +280,8 @@ class NotificationService {
         return 'Öneriler';
       case NotificationCategory.focusSession:
         return 'Odak Seansı';
+      case NotificationCategory.focusOngoing:
+        return 'Odak Durumu';
     }
   }
 }
