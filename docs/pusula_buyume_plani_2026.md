@@ -136,12 +136,18 @@ Kullanıcı video/edit yapmayı kabul etti — iki koldan yürür:
 
 | Faz | Ne | Kaba süre |
 |---|---|---|
-| **Faz 0 — Yayına hazırlık** | P0-1…P0-11 + Play kaydı, ikon, ekran görüntüleri, gizlilik politikası (veri toplamıyoruz → kolay), kapalı test | ~6–10 hafta (8+ madde, solo dev) |
-| **Faz 1 — Yayın + büyüme** | Play'de yayın · ASO · haftalık 3–5 video · forum/discord seeding · mikro-influencer. Geri bildirime göre hızlı yamalar. | Sürekli, ilk 3 ay yoğun |
+| **Faz 0 — Yayına hazırlık** | P0-1…P0-11 + ikon, gizlilik politikası (veri toplamıyoruz → kolay) | ~6–10 hafta (8+ madde, solo dev) |
+| **Faz 0.5 — Sosyal medya soft-launch (Play'den ÖNCE)** | Play Console kaydı henüz açılmaz. İmzalı APK'yı sosyal medyada (kendi hesabından, `seeding_plani_2026-09.md` kurallarıyla) paylaş, sideload ile denetsiz kullanıcı topla, geri bildirimi (yorum/DM) topla. Gelen geri bildirime göre hızlı yama turu. | 2–4 hafta, geri bildirim hacmine göre uzayabilir |
+| **Faz 1 — Play'de yayın + büyüme** | Faz 0.5'te ciddi kırıcı sorun çıkmayınca: Play kaydı, ekran görüntüleri, kapalı test, ASO · haftalık 3–5 video · forum/discord seeding · mikro-influencer. | Sürekli, ilk 3 ay yoğun |
 | **Faz 2 — Backend (Supabase)** | Ancak gerçek kullanıcı + geri bildirim varsa: Auth, şema, RLS, bulut yedek. | Faz 1'den ~2–3 ay sonra |
 | **Faz 3 — Plus + ligler + LLM planlayıcı** | Para kazanma başlar. Haftalık ligler. Dar-kapsam LLM (sadece plan kurar). | Faz 2 sonrası |
 
 **YKS sezonu (Ara–Haz)** büyüme itişinin yoğunlaştığı pencere — fazlar buna göre kaysın.
+
+**Faz 0.5 notu:** Uygulamanın internet izni yok (bkz. `lib/about_screen.dart`) —
+bu bilinçli bir mimari/güven tercihi, uygulama içi geri bildirim formu bu yüzden
+eklenmez. Geri bildirim tamamen dışarıdan (sosyal medya yorum/DM, istenirse
+ayrı bir Google Form linki) toplanır.
 
 ---
 
