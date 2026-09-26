@@ -2562,12 +2562,28 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       ..writeln();
     for (final d in week.days) {
       buf.writeln('${_weekdayLabel(d.date)} · '
-          '${d.blocks.map((b) => b.title).join(', ')}');
+          '${d.blocks.map((b) => b.title).join(', ')} · '
+          '${_fmtMinutes(d.minutes)}');
     }
+    // "Günde 1 saatlik program yap" deyip her gün sessizce 45 dk almak —
+    // bu satır eskiden süreyi HİÇ göstermiyordu, kullanıcı istediğiyle
+    // gerçek plan arasındaki farkı fark edemiyordu (bkz. _proposeDay'deki
+    // aynı sınıf düzeltme). Blok büyüklüğü sabit 45 dk olduğu için (bkz.
+    // plan_builder.buildWeek) tam saatlik istekler (60, 90...) tam
+    // bölünmüyorsa kalan dakika her gün sessizce kullanılmadan kalıyordu.
+    final shortDays =
+        week.days.where((d) => minutesPerDay - d.minutes >= 10).toList();
+    final shortfallNote = week.unfitCount == 0 && shortDays.isNotEmpty
+        ? '\n\n(Günde ${_fmtMinutes(minutesPerDay)} istemiştin — şu an '
+            'elimde bunu dolduracak kadar ders/konu yok, günlük '
+            '${_fmtMinutes(shortDays.first.minutes)} ile sınırlı kaldı. '
+            'Ders eklersen kalanını da doldururum.)'
+        : '';
     buf
       ..writeln()
       ..write('Toplam ${week.totalBlocks} görev, ${week.days.length} güne '
-          'yayılı.\n\nUygunsa "ekle" de, değiştirmek istediğin gün varsa söyle.');
+          'yayılı.$shortfallNote\n\nUygunsa "ekle" de, değiştirmek '
+          'istediğin gün varsa söyle.');
     _say(buf.toString());
   }
 

@@ -91,4 +91,34 @@ void main() {
     expect(said('Toplam 45 dk'), findsOneWidget, reason: chat(tester));
     expect(said('istemiştin'), findsNothing, reason: chat(tester));
   });
+
+  // Haftalık akış — canlı testte bulundu: mesaj günlere hiç süre yazmıyordu
+  // ("Pzt · Matematik" gibi), kullanıcı "1 saatlik" isteğinin karşılanıp
+  // karşılanmadığını HİÇ göremiyordu. plan_builder.buildWeek blok büyüklüğü
+  // sabit 45 dk olduğu için (bkz. plan_builder.dart) 60 dk tam bölünmeyince
+  // her gün 15 dk sessizce kullanılmadan kalıyordu.
+  testWidgets(
+      'tek ders + konu yokken haftalık "günde 1 saatlik program yap" → '
+      'her günün süresi görünür VE 45 dk ile sınırlı kaldığı söylenir',
+      (tester) async {
+    await pumpCoach(tester);
+    await say(tester, 'bu hafta için günde 1 saatlik program yap');
+
+    // Her gün satırında gerçek süre görünüyor (eskiden hiç yoktu).
+    expect(said(r'Matematik · 45 dk'), findsWidgets, reason: chat(tester));
+    expect(said('Günde 1 saat istemiştin'), findsOneWidget,
+        reason: chat(tester));
+    expect(said('günlük 45 dk ile sınırlı kaldı'), findsOneWidget,
+        reason: chat(tester));
+  });
+
+  testWidgets(
+      'haftalık plan istenen süreyi tam karşılıyorsa (45 dk) kırpma notu '
+      'eklenmez', (tester) async {
+    await pumpCoach(tester);
+    await say(tester, 'bu hafta için günde 45 dakikalık program yap');
+
+    expect(said(r'Matematik · 45 dk'), findsWidgets, reason: chat(tester));
+    expect(said('istemiştin'), findsNothing, reason: chat(tester));
+  });
 }
