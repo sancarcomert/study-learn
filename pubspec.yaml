@@ -54,6 +54,13 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/icon.png"
   min_sdk_android: 21
+  # Android 8+ adaptive icon: launcher'lar (daire/squircle/köşeli kare)
+  # kendi maskesini uyguluyor — güvenli bölgenin (canvas'ın ~%66'sı) dışında
+  # kalan içerik kırpılabiliyor. Bu yüzden foreground, icon.png'nin küçültülmüş
+  # (scale=0.72), TAMAMEN AYRI bir versiyonu — düz icon.png'yi burada
+  # kullanırsak altın nokta bazı launcher'larda kırpılırdı.
+  adaptive_icon_background: "#5B35B5"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
 
 flutter_native_splash:
   color: "#0F1115"
