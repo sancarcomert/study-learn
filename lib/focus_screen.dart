@@ -214,7 +214,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     } else {
       countDown = true;
       final remaining = _phaseTargetSec - _phaseElapsedSec;
-      when = DateTime.now().add(Duration(seconds: remaining < 0 ? 0 : remaining));
+      when =
+          DateTime.now().add(Duration(seconds: remaining < 0 ? 0 : remaining));
     }
     NotificationService.instance.showOngoingFocus(
       title: title,
@@ -1157,57 +1158,101 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                             enabled: !_hasStarted,
                             onChanged: _switchMode,
                           ),
+                          // Kilitli mod seçiciye dokunmak önceden sessizce
+                          // hiçbir şey yapmıyordu — kullanıcı "bozuk mu"
+                          // diye düşünebilirdi. Artık NEDEN kilitli olduğu
+                          // açıkça yazıyor.
+                          AnimatedCrossFade(
+                            duration: const Duration(milliseconds: 220),
+                            crossFadeState: _hasStarted
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+                            firstChild: Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                'Değiştirmek için seansı bitir',
+                                style: AppTextStyles.caption
+                                    .copyWith(color: AppColors.textMuted),
+                              ),
+                            ),
+                            secondChild: const SizedBox.shrink(),
+                          ),
 
                           const SizedBox(height: 16),
                           // Seans BAŞLAMADAN önce: ne çalışıyorum + neden. Seans
                           // sürerken alanlar gizlenir (dikkat dağıtmasın); bağlam
                           // kartı kalır — öğrenci neye çalıştığını görmeye devam
                           // eder.
-                          if (_hasStarted)
-                            _FocusContextCard(
-                              title: _contextTitle(),
-                              subtitle: _contextSubtitle(),
-                              reason: _contextReason(),
-                            )
-                          else ...[
-                            // Bağlam (ne + kaç dk, varsa neden) seçili bir şey
-                            // varken HER ZAMAN görünür; yalnız hiç bağlam yoksa
-                            // (serbest çalışma) kart çizilmez.
-                            if (_selectedSubjectId != null ||
-                                _noteController.text.trim().isNotEmpty) ...[
-                              _FocusContextCard(
-                                title: _contextTitle(),
-                                subtitle: _contextSubtitle(),
-                                reason: _contextReason(),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            // Konu seçiliyse "ne çalışıyorum" zaten belli (kart +
-                            // çip); serbest not yalnız konu yokken sorulur.
-                            if (_selectedTopicId == null) ...[
-                              TextField(
-                                controller: _noteController,
-                                textInputAction: TextInputAction.done,
-                                onChanged: (_) => setState(() {}),
-                                decoration: const InputDecoration(
-                                  hintText:
-                                      'Ne üzerinde çalışıyorsun? (opsiyonel)',
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            _SubjectTopicPicker(
-                              enabled: !_hasStarted,
-                              selectedSubjectId: _selectedSubjectId,
-                              selectedTopicId: _selectedTopicId,
-                              onSubjectChanged: (id) => setState(() {
-                                _selectedSubjectId = id;
-                                _selectedTopicId = null;
-                              }),
-                              onTopicChanged: (id) =>
-                                  setState(() => _selectedTopicId = id),
+                          // Başlamadan önceki form ile başladıktan sonraki
+                          // sakin bağlam kartı arasındaki geçiş önceden ANİ
+                          // bir yeniden çizimdi (kart/form aynı anda
+                          // görünüp/kayboluyordu) — artık boyut + çapraz
+                          // solma birlikte animasyonlu. _hasStarted tek
+                          // yönlü (false→true) değiştiği için bu geçiş bir
+                          // ekran ömründe yalnızca bir kez olur.
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutCubic,
+                            alignment: Alignment.topCenter,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              child: _hasStarted
+                                  ? _FocusContextCard(
+                                      title: _contextTitle(),
+                                      subtitle: _contextSubtitle(),
+                                      reason: _contextReason(),
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        // Bağlam (ne + kaç dk, varsa neden)
+                                        // seçili bir şey varken HER ZAMAN
+                                        // görünür; yalnız hiç bağlam yoksa
+                                        // (serbest çalışma) kart çizilmez.
+                                        if (_selectedSubjectId != null ||
+                                            _noteController.text
+                                                .trim()
+                                                .isNotEmpty) ...[
+                                          _FocusContextCard(
+                                            title: _contextTitle(),
+                                            subtitle: _contextSubtitle(),
+                                            reason: _contextReason(),
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                        // Konu seçiliyse "ne çalışıyorum"
+                                        // zaten belli (kart + çip); serbest
+                                        // not yalnız konu yokken sorulur.
+                                        if (_selectedTopicId == null) ...[
+                                          TextField(
+                                            controller: _noteController,
+                                            textInputAction:
+                                                TextInputAction.done,
+                                            onChanged: (_) => setState(() {}),
+                                            decoration: const InputDecoration(
+                                              hintText:
+                                                  'Ne üzerinde çalışıyorsun? (opsiyonel)',
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                        _SubjectTopicPicker(
+                                          enabled: !_hasStarted,
+                                          selectedSubjectId: _selectedSubjectId,
+                                          selectedTopicId: _selectedTopicId,
+                                          onSubjectChanged: (id) =>
+                                              setState(() {
+                                            _selectedSubjectId = id;
+                                            _selectedTopicId = null;
+                                          }),
+                                          onTopicChanged: (id) => setState(
+                                              () => _selectedTopicId = id),
+                                        ),
+                                      ],
+                                    ),
                             ),
-                          ],
+                          ),
 
                           const SizedBox(height: 32),
 

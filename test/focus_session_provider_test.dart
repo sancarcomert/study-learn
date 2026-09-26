@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:study_planner/focus_session_model.dart';
 import 'package:study_planner/focus_session_provider.dart';
 
 import 'support/hive_memory.dart';

@@ -27,6 +27,19 @@ class FocusHistoryScreen extends ConsumerWidget {
   static String _modeLabel(String mode) =>
       mode == 'pomodoro' ? 'Pomodoro' : 'Serbest';
 
+  /// Bir seansın hangi zaman grubuna düştüğü — düz, tarihsiz bir liste
+  /// yerine "Bugün/Dün/Bu Hafta/Daha Eski" başlıklarıyla gruplamak için.
+  /// `sessions` zaten en yeniden en eskiye sıralı geldiğinden (bkz.
+  /// `focusSessionsDescendingProvider`) gruplar tek geçişte, sıralı çıkar.
+  static String _dayBucket(DateTime today, DateTime endedAt) {
+    final day = DateTime(endedAt.year, endedAt.month, endedAt.day);
+    final diff = today.difference(day).inDays;
+    if (diff <= 0) return 'Bugün';
+    if (diff == 1) return 'Dün';
+    if (diff <= 7) return 'Bu Hafta';
+    return 'Daha Eski';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(focusSessionsDescendingProvider);
@@ -139,54 +152,88 @@ class FocusHistoryScreen extends ConsumerWidget {
                   style: AppTextStyles.caption,
                 ),
                 const SizedBox(height: 12),
-                ...sessions.map((s) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Dismissible(
-                        key: ValueKey(s.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          decoration: BoxDecoration(
-                            color: AppColors.tonal(AppColors.danger),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(Icons.delete_outline,
-                              color: AppColors.danger),
-                        ),
-                        onDismissed: (_) {
-                          final deleted = ref
-                              .read(focusSessionProvider.notifier)
-                              .deleteSession(s.id);
-                          if (deleted != null) {
-                            AppSnackBar.undo(
-                              context,
-                              '${_modeLabel(deleted.mode)} · '
-                              '${deleted.minutes} dk silindi',
-                              onUndo: () => ref
-                                  .read(focusSessionProvider.notifier)
-                                  .restoreSession(deleted),
-                            );
-                          }
-                        },
-                        child: TapScale(
-                          onTap: () => showModalBottomSheet<void>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: AppColors.surface,
-                            showDragHandle: true,
-                            builder: (_) => _EditSessionSheet(session: s),
-                          ),
-                          child: _SessionRow(
-                            session: s,
-                            subjectName: subjectName(s.subjectId),
-                          ),
-                        ),
-                      ),
-                    )),
+                ..._historyChildren(context, ref, sessions, subjectName),
               ],
             ),
     );
+  }
+
+  /// "GEÇMİŞ" listesini gün grubu başlıklarıyla (Bugün/Dün/Bu Hafta/Daha
+  /// Eski) üretir — önceden tüm seanslar tarihsiz, düz bir yığındı; hangi
+  /// kaydın ne zaman olduğunu anlamak için her satırın kendi küçük tarih
+  /// yazısını okumak gerekiyordu.
+  List<Widget> _historyChildren(
+    BuildContext context,
+    WidgetRef ref,
+    List<FocusSession> sessions,
+    String? Function(String?) subjectName,
+  ) {
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    final children = <Widget>[];
+    String? lastBucket;
+
+    for (final s in sessions) {
+      final bucket = _dayBucket(todayStart, s.endedAt);
+      if (bucket != lastBucket) {
+        if (lastBucket != null) children.add(const SizedBox(height: 14));
+        children.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            bucket.toUpperCase(),
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ));
+        lastBucket = bucket;
+      }
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Dismissible(
+          key: ValueKey(s.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            decoration: BoxDecoration(
+              color: AppColors.tonal(AppColors.danger),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.delete_outline, color: AppColors.danger),
+          ),
+          onDismissed: (_) {
+            final deleted =
+                ref.read(focusSessionProvider.notifier).deleteSession(s.id);
+            if (deleted != null) {
+              AppSnackBar.undo(
+                context,
+                '${_modeLabel(deleted.mode)} · ${deleted.minutes} dk silindi',
+                onUndo: () => ref
+                    .read(focusSessionProvider.notifier)
+                    .restoreSession(deleted),
+              );
+            }
+          },
+          child: TapScale(
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: AppColors.surface,
+              showDragHandle: true,
+              builder: (_) => _EditSessionSheet(session: s),
+            ),
+            child: _SessionRow(
+              session: s,
+              subjectName: subjectName(s.subjectId),
+            ),
+          ),
+        ),
+      ));
+    }
+    return children;
   }
 }
 
