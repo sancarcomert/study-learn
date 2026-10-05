@@ -170,6 +170,10 @@ CF.__index = function(c, k)
 		return inverseCF
 	elseif k == "PointToWorldSpace" then
 		return xformV
+	elseif k == "PointToObjectSpace" then
+		return function(cf, v)
+			return xformV(inverseCF(cf), v)
+		end
 	end
 	error("CFrame uyesi yok: " .. tostring(k), 2)
 end
@@ -326,6 +330,13 @@ local ENUMS = {
 	NormalId = "Top Bottom Back Front Right Left",
 	TextFilterContext = "PublicChat PrivateChat",
 	TextXAlignment = "Left Center Right",
+	TextTruncate = "None AtEnd",
+	AutomaticSize = "None X Y XY",
+	ApplyStrokeMode = "Contextual Border",
+	SortOrder = "Name LayoutOrder",
+	FillDirection = "Horizontal Vertical",
+	HorizontalAlignment = "Center Left Right",
+	VerticalAlignment = "Center Top Bottom",
 	TextYAlignment = "Top Center Bottom",
 	SurfaceGuiSizingMode = "FixedSize PixelsPerStud",
 	ModelStreamingMode = "Default Atomic Persistent PersistentPerPlayer Nonatomic",
@@ -466,6 +477,12 @@ local PARENT = {
 	PlayerGui = "Instance",
 	Frame = "Instance",
 	UICorner = "Instance",
+	UIStroke = "Instance",
+	UIGridLayout = "Instance",
+	UISizeConstraint = "Instance",
+	ScrollingFrame = "Instance",
+	UIListLayout = "Instance",
+	UIPadding = "Instance",
 	ProximityPrompt = "Instance",
 	RemoteEvent = "Instance",
 	ModuleScript = "Instance",
@@ -590,7 +607,13 @@ local SCHEMA = {
 		TextTransparency = tNum(0, 1),
 		AnchorPoint = tT("Vector2"),
 		BorderSizePixel = tNum(0),
+		AutomaticSize = tEnum("AutomaticSize"),
 		TextXAlignment = tEnum("TextXAlignment"),
+		TextTruncate = tEnum("TextTruncate"),
+		TextWrapped = tBool,
+		LayoutOrder = tNum(),
+		ZIndex = tNum(),
+		AutoButtonColor = tBool,
 		TextYAlignment = tEnum("TextYAlignment"),
 		Visible = tBool,
 	},
@@ -608,7 +631,13 @@ local SCHEMA = {
 		TextTransparency = tNum(0, 1),
 		AnchorPoint = tT("Vector2"),
 		BorderSizePixel = tNum(0),
+		AutomaticSize = tEnum("AutomaticSize"),
 		TextXAlignment = tEnum("TextXAlignment"),
+		TextTruncate = tEnum("TextTruncate"),
+		TextWrapped = tBool,
+		LayoutOrder = tNum(),
+		ZIndex = tNum(),
+		AutoButtonColor = tBool,
 		TextYAlignment = tEnum("TextYAlignment"),
 		Visible = tBool,
 	},
@@ -629,11 +658,19 @@ local SCHEMA = {
 		TextTransparency = tNum(0, 1),
 		AnchorPoint = tT("Vector2"),
 		BorderSizePixel = tNum(0),
+		AutomaticSize = tEnum("AutomaticSize"),
 		TextXAlignment = tEnum("TextXAlignment"),
+		TextTruncate = tEnum("TextTruncate"),
+		TextWrapped = tBool,
+		LayoutOrder = tNum(),
+		ZIndex = tNum(),
+		AutoButtonColor = tBool,
 		TextYAlignment = tEnum("TextYAlignment"),
 		Visible = tBool,
 	},
 	Frame = {
+		LayoutOrder = tNum(),
+		AutomaticSize = tEnum("AutomaticSize"),
 		Position = tT("UDim2"),
 		Size = tT("UDim2"),
 		BackgroundColor3 = tT("Color3"),
@@ -643,6 +680,16 @@ local SCHEMA = {
 		Visible = tBool,
 	},
 	UICorner = { CornerRadius = tT("UDim") },
+	UIGridLayout = { CellSize = tT("UDim2"), CellPadding = tT("UDim2"), SortOrder = tEnum("SortOrder") },
+	UISizeConstraint = { MaxSize = tT("Vector2"), MinSize = tT("Vector2") },
+	ScrollingFrame = {
+		Position = tT("UDim2"), Size = tT("UDim2"), BackgroundTransparency = tNum(0, 1), BorderSizePixel = tNum(0),
+		ScrollBarThickness = tNum(0), CanvasSize = tT("UDim2"), AutomaticCanvasSize = tEnum("AutomaticSize"),
+		LayoutOrder = tNum(), Visible = tBool, BackgroundColor3 = tT("Color3"), AnchorPoint = tT("Vector2"),
+	},
+	UIStroke = { Thickness = tNum(0), Color = tT("Color3"), Transparency = tNum(0, 1), ApplyStrokeMode = tEnum("ApplyStrokeMode") },
+	UIListLayout = { Padding = tT("UDim"), SortOrder = tEnum("SortOrder"), FillDirection = tEnum("FillDirection"), HorizontalAlignment = tEnum("HorizontalAlignment"), VerticalAlignment = tEnum("VerticalAlignment") },
+	UIPadding = { PaddingLeft = tT("UDim"), PaddingRight = tT("UDim"), PaddingTop = tT("UDim"), PaddingBottom = tT("UDim") },
 	ProximityPrompt = {
 		ActionText = tStr,
 		ObjectText = tStr,
@@ -710,7 +757,7 @@ local SCHEMA = {
 		WaterWaveSpeed = tNum(0, 100),
 	},
 	Clouds = { Cover = tNum(0, 1), Density = tNum(0, 1), Color = tT("Color3"), Enabled = tBool },
-	Player = { UserId = tNum(), Character = tInst },
+	Player = { UserId = tNum(), Character = tInst, DisplayName = tStr },
 	Players = { LocalPlayer = tInst },
 	ScreenGui = { ResetOnSpawn = tBool, Enabled = tBool },
 	PlayerGui = {},
@@ -809,6 +856,9 @@ IMT.__index = function(self, key)
 	if schemaFor(data.class, key) then
 		local v = data.props[key]
 		if v == nil then
+			if key == "DisplayName" and data.class == "Player" then
+				return data.name
+			end
 			if key == "Position" then
 				return data.props.CFrame.Position
 			end
@@ -961,6 +1011,16 @@ function Methods.FindFirstChildOfClass(self, class)
 		if d(c).class == class then
 			return c
 		end
+	end
+	return nil
+end
+function Methods.FindFirstAncestor(self, name)
+	local p = d(self).parent
+	while p do
+		if d(p).name == name then
+			return p
+		end
+		p = d(p).parent
 	end
 	return nil
 end
@@ -1211,6 +1271,118 @@ services.TextService = {
 		}
 	end,
 }
+do
+	local function enc(v)
+		local t = type(v)
+		if t == "string" then
+			return '"' .. v:gsub('[%c"\\]', function(c) return string.format("\\u%04x", c:byte()) end) .. '"'
+		elseif t == "number" or t == "boolean" then
+			return tostring(v)
+		elseif t == "table" then
+			if #v > 0 or next(v) == nil then
+				local out = {}
+				for _, x in ipairs(v) do table.insert(out, enc(x)) end
+				return "[" .. table.concat(out, ",") .. "]"
+			end
+			local keys = {}
+			for k in pairs(v) do table.insert(keys, k) end
+			table.sort(keys)
+			local out = {}
+			for _, k in ipairs(keys) do table.insert(out, enc(k) .. ":" .. enc(v[k])) end
+			return "{" .. table.concat(out, ",") .. "}"
+		end
+		error("JSON: desteklenmeyen tur " .. t)
+	end
+	services.HttpService = {
+		JSONEncode = function(_, v) return enc(v) end,
+		JSONDecode = function(_, str)
+			local pos = 1
+			local function ws()
+				pos = str:find("%S", pos) or #str + 1
+			end
+			local parse
+			local function parseString()
+				local out = {}
+				pos = pos + 1
+				while true do
+					local c = str:sub(pos, pos)
+					if c == '"' then
+						pos = pos + 1
+						return table.concat(out)
+					elseif c == "\\" then
+						local n = str:sub(pos + 1, pos + 1)
+						if n == "u" then
+							table.insert(out, string.char(tonumber(str:sub(pos + 2, pos + 5), 16)))
+							pos = pos + 6
+						else
+							table.insert(out, n)
+							pos = pos + 2
+						end
+					else
+						table.insert(out, c)
+						pos = pos + 1
+					end
+				end
+			end
+			function parse()
+				ws()
+				local c = str:sub(pos, pos)
+				if c == "{" then
+					local t = {}
+					pos = pos + 1
+					ws()
+					if str:sub(pos, pos) == "}" then
+						pos = pos + 1
+						return t
+					end
+					while true do
+						ws()
+						local k = parseString()
+						ws()
+						pos = pos + 1 -- ':'
+						t[k] = parse()
+						ws()
+						local d = str:sub(pos, pos)
+						pos = pos + 1
+						if d == "}" then
+							return t
+						end
+					end
+				elseif c == "[" then
+					local t = {}
+					pos = pos + 1
+					ws()
+					if str:sub(pos, pos) == "]" then
+						pos = pos + 1
+						return t
+					end
+					while true do
+						table.insert(t, parse())
+						ws()
+						local d = str:sub(pos, pos)
+						pos = pos + 1
+						if d == "]" then
+							return t
+						end
+					end
+				elseif c == '"' then
+					return parseString()
+				elseif str:sub(pos, pos + 3) == "true" then
+					pos = pos + 4
+					return true
+				elseif str:sub(pos, pos + 4) == "false" then
+					pos = pos + 5
+					return false
+				else
+					local num = str:match("^-?%d+%.?%d*[eE]?[+-]?%d*", pos)
+					pos = pos + #num
+					return tonumber(num)
+				end
+			end
+			return parse()
+		end,
+	}
+end
 services.Players = Instance.new("Players")
 services.Players.Name = "Players"
 

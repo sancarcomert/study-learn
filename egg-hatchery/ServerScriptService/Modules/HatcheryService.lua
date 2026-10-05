@@ -1,62 +1,96 @@
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
-local CollectionService = game:GetService("CollectionService")
 
 local Modules = script.Parent
 local Config = require(Modules.Config)
 local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
+local Styler = require(Modules.BoothStyler)
 
+local T = Config.TEXT
 local HatcheryService = {}
 
 local DEFAULT_COLOR = Config.RARITIES[1].Color
+local CARD_BG = Color3.fromRGB(22, 26, 38)
 
-local function makePrompt(parent, name, action, enabled)
-	local prompt = parent:FindFirstChild(name)
-	if not prompt then
-		prompt = Instance.new("ProximityPrompt")
-		prompt.Name = name
-		prompt.Parent = parent
-	end
-	prompt.ActionText = action
-	prompt.ObjectText = "Mystic Hatchery"
-	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt.HoldDuration = 0.4
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
-	prompt.Enabled = enabled
-	return prompt
-end
-
--- sahipsiz stand: tek satir. sahipli stand: [mesaj] + baslik + XP cubugu + ilerleme
-local function layoutGui(gui, claimed, hasMessage)
-	gui.BarBack.Visible = claimed
-	gui.Progress.Visible = claimed
-	gui.Message.Visible = claimed and hasMessage
-	if not claimed then
-		gui.Title.Position = UDim2.fromScale(0, 0.25)
-		gui.Title.Size = UDim2.fromScale(1, 0.5)
-	elseif hasMessage then
-		gui.Title.Position = UDim2.fromScale(0, 0.25)
-		gui.Title.Size = UDim2.fromScale(1, 0.27)
-	else
-		gui.Title.Position = UDim2.fromScale(0, 0.05)
-		gui.Title.Size = UDim2.fromScale(1, 0.4)
-	end
-end
-
-local function makeLabel(parent, name, pos, size)
+---------------------------------------------------------------------
+-- Stand uzerindeki kart (BillboardGui): isim, seviye/nadirlik, XP cubugu, mesaj
+---------------------------------------------------------------------
+local function makeLabel(parent, name, font, size, pos, dim)
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
 	label.Position = pos
-	label.Size = size
-	label.Font = Enum.Font.GothamBlack
-	label.TextScaled = true
+	label.Size = dim
+	label.Font = font
+	label.TextSize = size
 	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.3
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Parent = parent
 	return label
+end
+
+local function buildGui(egg)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "HatcheryGui"
+	gui.Size = UDim2.fromOffset(280, 76)
+	gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth yumurta boyuna gore ayarlar
+	gui.MaxDistance = 60
+	gui.Parent = egg
+
+	local card = Instance.new("Frame")
+	card.Name = "Card"
+	card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = CARD_BG
+	card.BackgroundTransparency = 0.12
+	card.BorderSizePixel = 0
+	card.Parent = gui
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Stroke"
+	stroke.Thickness = 2
+	stroke.Color = DEFAULT_COLOR
+	stroke.Parent = card
+
+	local name = makeLabel(card, "NameLabel", Enum.Font.GothamBold, 20, UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 26))
+	name.TextStrokeTransparency = 1
+	makeLabel(card, "LevelLabel", Enum.Font.GothamBold, 15, UDim2.fromOffset(12, 32), UDim2.new(1, -24, 0, 20))
+
+	local back = Instance.new("Frame")
+	back.Name = "BarBack"
+	back.Position = UDim2.new(0, 14, 0, 58)
+	back.Size = UDim2.new(1, -28, 0, 8)
+	back.BackgroundColor3 = Color3.fromRGB(52, 58, 78)
+	back.BorderSizePixel = 0
+	back.Parent = card
+	Instance.new("UICorner", back).CornerRadius = UDim.new(1, 0)
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.BackgroundColor3 = DEFAULT_COLOR
+	fill.BorderSizePixel = 0
+	fill.Parent = back
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+	local msg = makeLabel(card, "MessageLabel", Enum.Font.Gotham, 15, UDim2.fromOffset(12, 72), UDim2.new(1, -24, 0, 22))
+	msg.Visible = false
+	return gui
+end
+
+-- mode: "unclaimed" | "claimed"
+local function layoutGui(gui, claimed, hasMessage)
+	local card = gui.Card
+	card.BarBack.Visible = claimed
+	card.LevelLabel.Visible = true
+	card.MessageLabel.Visible = claimed and hasMessage
+	if not claimed then
+		gui.Size = UDim2.fromOffset(240, 62)
+		card.NameLabel.Position = UDim2.fromOffset(12, 6)
+		card.LevelLabel.Position = UDim2.fromOffset(12, 32)
+	else
+		gui.Size = UDim2.fromOffset(280, hasMessage and 100 or 76)
+	end
 end
 
 function HatcheryService.BuildBooth(booth)
@@ -103,48 +137,25 @@ function HatcheryService.BuildBooth(booth)
 		aura.Enabled = false
 		aura.Parent = egg
 	end
-
 	if not egg:FindFirstChild("HatcheryGui") then
-		local gui = Instance.new("BillboardGui")
-		gui.Name = "HatcheryGui"
-		gui.Size = UDim2.fromOffset(300, 96)
-		gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth seviyeye gore ayarlar
-		gui.MaxDistance = 45 -- uzaktan 24 yazi ust uste binmesin
-		gui.Parent = egg
-
-		makeLabel(gui, "Message", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.24))
-		makeLabel(gui, "Title", UDim2.fromScale(0, 0.25), UDim2.fromScale(1, 0.27))
-
-		local back = Instance.new("Frame")
-		back.Name = "BarBack"
-		back.Position = UDim2.fromScale(0.05, 0.56)
-		back.Size = UDim2.fromScale(0.9, 0.17)
-		back.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-		back.BorderSizePixel = 0
-		back.Parent = gui
-		Instance.new("UICorner", back).CornerRadius = UDim.new(1, 0)
-
-		local fill = Instance.new("Frame")
-		fill.Name = "Fill"
-		fill.Size = UDim2.fromScale(0, 1)
-		fill.BackgroundColor3 = DEFAULT_COLOR
-		fill.BorderSizePixel = 0
-		fill.Parent = back
-		Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-
-		makeLabel(gui, "Progress", UDim2.fromScale(0, 0.76), UDim2.fromScale(1, 0.22))
+		buildGui(egg)
 	end
 
-	local claim = makePrompt(base, "ClaimPrompt", "Claim Booth", true)
-	local donate = makePrompt(base, "DonatePrompt", "Support Egg", false)
-	CollectionService:AddTag(donate, "DonatePrompt")
-	local feed = makePrompt(base, "FeedPrompt", "Feed Egg (free)", false)
-	feed.KeyboardKeyCode = Enum.KeyCode.F
-	feed.HoldDuration = 0
-	feed.UIOffset = Vector2.new(0, 70) -- diger butonlarin ustune binmesin
+	-- Tek etkilesim butonu: bos standda "Standi Al", doluysa "Standa Bak" (panel acar)
+	local prompt = base:FindFirstChild("BoothPrompt")
+	if not prompt then
+		prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "BoothPrompt"
+		prompt.Parent = base
+	end
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = true
 
 	HatcheryService.SetUnclaimed(booth)
-	return claim, donate, feed
+	return prompt
 end
 
 local function getStats(player)
@@ -156,49 +167,17 @@ local function getStats(player)
 	return ls:FindFirstChild("Level"), data:FindFirstChild("EggXP")
 end
 
-function HatcheryService.Refresh(player)
-	local booth = Registry.GetBooth(player)
-	local levelVal, xpVal = getStats(player)
-	if not (booth and levelVal and xpVal) then
-		return
-	end
-	local egg = booth:FindFirstChild("Egg")
-	local gui = egg and egg:FindFirstChild("HatcheryGui")
-	if not (egg and gui) then
-		return
-	end
-
-	local level, xp = levelVal.Value, xpVal.Value
-	local need = Config.XPRequired(level)
-	local rarity = Config.GetRarity(level)
-
-	local message = player:GetAttribute("BoothMessage")
-	local hasMessage = type(message) == "string" and message ~= ""
-	local style = Config.STYLE_COLORS[player:GetAttribute("BoothColor") or 1] or Config.STYLE_COLORS[1]
-	layoutGui(gui, true, hasMessage)
-	gui.Message.Text = hasMessage and message or ""
-	gui.Message.TextColor3 = style.Color
-	gui.Title.Text = string.format("%s's Hatchery - Level %d", player.Name, level)
-	gui.Progress.Text = string.format("%s  |  %d / %d XP", rarity.Name, xp, need)
-	gui.BarBack.Fill.BackgroundColor3 = rarity.Color
-	TweenService:Create(gui.BarBack.Fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-		Size = UDim2.fromScale(math.clamp(xp / need, 0, 1), 1),
-	}):Play()
-	egg.Color = rarity.Color
-
-	HatcheryService.ApplyGrowth(egg, level, rarity)
-end
-
--- Yumurta seviye ile buyur; nadirlige gore parlar (Rare+ surekli kivilcim)
+-- Yumurta seviye ile buyur; nadirlige gore parlar (Nadir+ surekli kivilcim)
 function HatcheryService.ApplyGrowth(egg, level, rarity)
 	local base = egg:GetAttribute("BaseSize")
 	if base then
+		local scale = Config.EggScale(level)
 		TweenService:Create(egg, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = base * Config.EggScale(level),
+			Size = base * scale,
 		}):Play()
 		local gui = egg:FindFirstChild("HatcheryGui")
 		if gui then
-			gui.StudsOffset = Vector3.new(0, base.Y * Config.EggScale(level) / 2 + 1.6, 0) -- yazi yumurtanin ustunde kalsin
+			gui.StudsOffset = Vector3.new(0, base.Y * scale / 2 + 2.6, 0) -- kart yumurtanin ustunde kalsin
 		end
 	end
 	local aura = egg:FindFirstChild("Aura")
@@ -214,28 +193,87 @@ function HatcheryService.ApplyGrowth(egg, level, rarity)
 	end
 end
 
+-- Sahibin guncel durumunu karta, yumurtaya, butona ve stand stiline yansitir
+function HatcheryService.Refresh(player)
+	local booth = Registry.GetBooth(player)
+	local levelVal, xpVal = getStats(player)
+	if not (booth and levelVal and xpVal) then
+		return
+	end
+	local egg = booth:FindFirstChild("Egg")
+	local gui = egg and egg:FindFirstChild("HatcheryGui")
+	if not (egg and gui) then
+		return
+	end
+
+	local level, xp = levelVal.Value, xpVal.Value
+	local need = Config.XPRequired(level)
+	local rarity = Config.GetRarity(level)
+	local message = player:GetAttribute("BoothMessage")
+	local hasMessage = type(message) == "string" and message ~= ""
+	local colorIndex = player:GetAttribute("BoothColor") or 1
+	local accent = (Config.STYLE_COLORS[colorIndex] or Config.STYLE_COLORS[1]).Color
+
+	layoutGui(gui, true, hasMessage)
+	local card = gui.Card
+	card.NameLabel.Text = player.DisplayName
+	card.LevelLabel.Text = string.format("Seviye %d  •  %s", level, rarity.Name)
+	card.LevelLabel.TextColor3 = rarity.Color
+	card.Stroke.Color = rarity.Color
+	card.BarBack.Fill.BackgroundColor3 = rarity.Color
+	TweenService:Create(card.BarBack.Fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+		Size = UDim2.fromScale(math.clamp(xp / need, 0, 1), 1),
+	}):Play()
+	card.MessageLabel.Text = hasMessage and message or ""
+	card.MessageLabel.TextColor3 = accent
+	egg.Color = rarity.Color
+
+	local prompt = booth.PrimaryPart:FindFirstChild("BoothPrompt")
+	if prompt then
+		prompt.ActionText = T.PromptView
+		prompt.ObjectText = player.DisplayName
+	end
+
+	-- stil: sadece degistiyse yeniden kur
+	local style = player:GetAttribute("BoothStyle") or "classic"
+	if not Config.IsStyleUnlocked(style, level) then
+		style = "classic"
+	end
+	local key = style .. ":" .. colorIndex
+	if booth:GetAttribute("AppliedStyle") ~= key or (style ~= "classic" and not booth:FindFirstChild("StyleDecor")) then
+		Styler.Apply(booth, style, colorIndex)
+		booth:SetAttribute("AppliedStyle", key)
+	end
+
+	HatcheryService.ApplyGrowth(egg, level, rarity)
+end
+
 function HatcheryService.SetClaimed(booth, player)
-	local base = booth.PrimaryPart
-	base.ClaimPrompt.Enabled = false
-	base.DonatePrompt.Enabled = true
-	base.FeedPrompt.Enabled = true
 	HatcheryService.Refresh(player)
 end
 
 function HatcheryService.SetUnclaimed(booth)
 	local base = booth.PrimaryPart
-	base.ClaimPrompt.Enabled = true
-	base.DonatePrompt.Enabled = false
-	base.FeedPrompt.Enabled = false
+	local prompt = base:FindFirstChild("BoothPrompt")
+	if prompt then
+		prompt.ActionText = T.PromptClaim
+		prompt.ObjectText = T.PromptObject
+	end
 
 	local egg = booth:FindFirstChild("Egg")
 	local gui = egg.HatcheryGui
 	layoutGui(gui, false, false)
-	gui.Title.Text = "Unclaimed - Press E to claim!"
-	gui.Progress.Text = ""
-	gui.BarBack.Fill.Size = UDim2.fromScale(0, 1)
-	gui.BarBack.Fill.BackgroundColor3 = DEFAULT_COLOR
+	local card = gui.Card
+	card.NameLabel.Text = T.Unclaimed
+	card.LevelLabel.Text = T.ClaimHint
+	card.LevelLabel.TextColor3 = Color3.fromRGB(170, 176, 190)
+	card.Stroke.Color = Color3.fromRGB(110, 118, 140)
+	card.BarBack.Fill.Size = UDim2.fromScale(0, 1)
+	card.BarBack.Fill.BackgroundColor3 = DEFAULT_COLOR
+	card.MessageLabel.Text = ""
 	egg.Color = DEFAULT_COLOR
+	Styler.Clear(booth)
+	booth:SetAttribute("AppliedStyle", nil)
 	HatcheryService.ApplyGrowth(egg, 1, Config.RARITIES[1])
 end
 
@@ -256,7 +294,7 @@ function HatcheryService.BurstParticles(egg, rarity)
 	emitter:Emit(rarity.BurstCount)
 	Debris:AddItem(emitter, 3)
 
-	-- kisa isik patlamasi (boyut animasyonu buyume ile carpismasin diye isikla)
+	-- kisa isik patlamasi
 	local glow = egg:FindFirstChild("Glow")
 	if glow then
 		glow.Color = rarity.Color
@@ -294,11 +332,11 @@ function HatcheryService.AddXP(player, amount)
 	HatcheryService.Refresh(player)
 
 	if levelVal.Value > startLevel then
-		HatcheryService.OnEvolve(player, startLevel, levelVal.Value)
+		HatcheryService.OnLevelUp(player, startLevel, levelVal.Value)
 	end
 end
 
-function HatcheryService.OnEvolve(player, oldLevel, newLevel)
+function HatcheryService.OnLevelUp(player, oldLevel, newLevel)
 	local booth = Registry.GetBooth(player)
 	local oldRarity, newRarity = Config.GetRarity(oldLevel), Config.GetRarity(newLevel)
 	local rarityUp = newRarity ~= oldRarity
@@ -317,14 +355,24 @@ function HatcheryService.OnEvolve(player, oldLevel, newLevel)
 		end
 	end
 
+	-- herkese: seviye atladi
 	Remotes.EggFeedback:FireAllClients({
 		Kind = "Evolve",
-		Owner = player.Name,
+		Owner = player.DisplayName,
 		Level = newLevel,
 		Rarity = newRarity.Name,
 		RarityUp = rarityUp,
 		Color = newRarity.Color,
 	})
+	-- sadece sahibe: yeni acilan stiller
+	local unlocked = Config.NewUnlocks(oldLevel, newLevel)
+	if #unlocked > 0 then
+		local names = {}
+		for _, s in ipairs(unlocked) do
+			table.insert(names, s.Name)
+		end
+		Remotes.EggFeedback:FireClient(player, { Kind = "Unlock", Styles = names, Level = newLevel })
+	end
 end
 
 return HatcheryService

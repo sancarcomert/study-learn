@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
-local CollectionService = game:GetService("CollectionService")
 local DataStoreService = game:GetService("DataStoreService")
 
 local Modules = script.Parent:WaitForChild("Modules")
@@ -8,34 +7,15 @@ local Config = require(Modules.Config)
 local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
 local Hatchery = require(Modules.HatcheryService)
+local Products = require(Modules.Products)
 
 -- Ayni makbuz iki kere islenmesin diye kayit tutulur
 local receiptStore = DataStoreService:GetDataStore("EggReceipts_v1")
 local pendingStore = DataStoreService:GetDataStore(Config.PENDING_STORE)
 
-local productById = {}
-for _, product in ipairs(Config.PRODUCTS) do
-	if product.Id > 0 then
-		productById[product.Id] = product
-	end
-end
-
-local priceCache = {}
-local menuBooth = {}
 local pending = {}
 local lastRequest = {} -- [player] = son satin alma istegi zamani (spam korumasi)
-
-local function getPrice(productId)
-	if priceCache[productId] then
-		return priceCache[productId]
-	end
-	local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, productId, Enum.InfoType.Product)
-	if ok and info and info.PriceInRobux then
-		priceCache[productId] = info.PriceInRobux
-		return info.PriceInRobux
-	end
-	return nil
-end
+local getPrice = Products.GetPrice
 
 local function nearBooth(player, booth)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -43,57 +23,16 @@ local function nearBooth(player, booth)
 		and (root.Position - booth.PrimaryPart.Position).Magnitude <= Config.INTERACT_DISTANCE
 end
 
--- 1) Bagis butonuna basinca menu acilir
-local function onDonateTriggered(prompt, donor)
-	local booth = prompt:FindFirstAncestorOfClass("Model")
-	local owner = booth and Registry.GetOwner(booth)
-	if not owner then
-		return
-	end
-	if owner == donor then
-		Remotes.Notify:FireClient(donor, "Bu senin kendi yumurtan! Arkadaslarin bagis yapsin.")
-		return
-	end
-
-	local items = {}
-	for _, product in ipairs(Config.PRODUCTS) do
-		local price = product.Id > 0 and getPrice(product.Id)
-		if price then
-			table.insert(items, { Id = product.Id, Name = product.Name, Price = price })
-		end
-	end
-	if #items == 0 then
-		Remotes.Notify:FireClient(donor, "Su an bagis secenegi yok.")
-		return
-	end
-
-	menuBooth[donor] = booth
-	Remotes.OpenDonateMenu:FireClient(donor, { Owner = owner.Name, Passes = items })
-end
-
-local function hookPrompt(prompt)
-	if prompt:IsA("ProximityPrompt") then
-		prompt.Triggered:Connect(function(donor)
-			onDonateTriggered(prompt, donor)
-		end)
-	end
-end
-
-for _, prompt in ipairs(CollectionService:GetTagged("DonatePrompt")) do
-	hookPrompt(prompt)
-end
-CollectionService:GetInstanceAddedSignal("DonatePrompt"):Connect(hookPrompt)
-
--- 2) Oyuncu secenegi secer, sunucu satin alma penceresini acar
+-- 1) Panelden bir urun secilir, sunucu satin alma penceresini acar
 Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, productId)
-	if typeof(productId) ~= "number" or not productById[productId] then
+	if typeof(productId) ~= "number" or not Products.IsValid(productId) then
 		return
 	end
 	local now = time()
 	if lastRequest[donor] and now - lastRequest[donor] < Config.PURCHASE_COOLDOWN then
 		return -- cok sik istek (spam)
 	end
-	local booth = menuBooth[donor]
+	local booth = Registry.GetViewing(donor)
 	local owner = booth and Registry.GetOwner(booth)
 	if not (booth and owner) or owner == donor or not nearBooth(donor, booth) then
 		return
@@ -115,7 +54,7 @@ MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, produc
 	end
 end)
 
--- 3) Satin alma tamamlaninca: XP + Raised (sahip) + Donated (bagisci) (Roblox makbuz sistemi)
+-- 2) Satin alma tamamlaninca: XP + Raised (sahip) + Donated (bagisci) (Roblox makbuz sistemi)
 MarketplaceService.ProcessReceipt = function(info)
 	-- Bu makbuz daha once islendi mi?
 	local alreadyDone = false
@@ -186,8 +125,8 @@ MarketplaceService.ProcessReceipt = function(info)
 
 	Remotes.EggFeedback:FireAllClients({
 		Kind = "Donation",
-		Donor = donor.Name,
-		Owner = owner.Name,
+		Donor = donor.DisplayName,
+		Owner = owner.DisplayName,
 		Robux = robux,
 		XP = xp,
 	})
@@ -197,7 +136,6 @@ MarketplaceService.ProcessReceipt = function(info)
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	menuBooth[player] = nil
 	pending[player.UserId] = nil
 	lastRequest[player] = nil
 end)

@@ -116,6 +116,9 @@ local function onPlayerAdded(player)
 		if type(saved.BoothColor) == "number" and Config.STYLE_COLORS[saved.BoothColor] then
 			player:SetAttribute("BoothColor", saved.BoothColor)
 		end
+		if type(saved.BoothStyle) == "string" and Config.GetStyle(saved.BoothStyle) then
+			player:SetAttribute("BoothStyle", saved.BoothStyle)
+		end
 		player:SetAttribute("DataLoaded", true)
 		applyPending(player)
 	else
@@ -134,6 +137,7 @@ local function save(player)
 		EggXP = player.EggData.EggXP.Value,
 		BoothMessage = player:GetAttribute("BoothMessage"),
 		BoothColor = player:GetAttribute("BoothColor"),
+		BoothStyle = player:GetAttribute("BoothStyle"),
 	}
 	local ok = withRetry(function()
 		return store:UpdateAsync(keyFor(player.UserId), function()

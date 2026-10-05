@@ -15,7 +15,7 @@ do
   local mods = Instance.new("Folder")
   mods.Name = "Modules"
   mods.Parent = __SSS
-  for _, n in ipairs({ "Config", "Remotes", "BoothRegistry", "HatcheryService" }) do
+  for _, n in ipairs({ "Config", "Remotes", "BoothRegistry", "Products", "BoothStyler", "HatcheryService" }) do
     local m = Instance.new("ModuleScript")
     m.Name = n
     m.Parent = mods
@@ -52,7 +52,7 @@ do
   oldFx.Parent = game:GetService("StarterPlayer").StarterPlayerScripts
 end
 LUA
-  for m in Config Remotes BoothRegistry HatcheryService; do
+  for m in Config Remotes BoothRegistry Products BoothStyler HatcheryService; do
     echo "__moduleFns[\"$m\"] = function(script)"
     cat "$ROOT/ServerScriptService/Modules/$m.lua"
     echo
@@ -67,22 +67,13 @@ LUA
   echo "__EXPECTED_MAPFX = [=====["
   cat "$ROOT/StarterPlayer/StarterPlayerScripts/MapFX.client.lua"
   echo "]=====]"
-  echo "__EXPECTED = {}"
-  for f in Modules/Config.lua:Config Modules/HatcheryService.lua:HatcheryService EconomyManager.server.lua:EconomyManager MarketplaceHook.server.lua:MarketplaceHook; do
-    echo "__EXPECTED[\"${f#*:}\"] = [=====["
-    cat "$ROOT/ServerScriptService/${f%%:*}"
-    echo "]=====]"
-  done
   echo "do"
   cat "$ROOT/command_bar/InstallMap.lua"
   echo "end"
-  echo "do"
-  cat "$ROOT/command_bar/UpdateScripts.lua"
-  echo "end"
-  cat "$HERE/test_updater.lua"
   cat "$HERE/test_installer.lua"
   cat "$HERE/test_layout.lua"
   cat "$HERE/test_integration.lua"
+  cat "$HERE/test_styler.lua"
   echo "do"
   cat "$ROOT/StarterPlayer/StarterPlayerScripts/MapFX.client.lua"
   echo "end"

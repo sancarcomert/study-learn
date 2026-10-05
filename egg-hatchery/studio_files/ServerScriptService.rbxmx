@@ -1,66 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <roblox version="4"><Item class="Folder" referent="RBX4"><Properties><string name="Name">Modules</string></Properties><Item class="ModuleScript" referent="RBX0"><Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[local Config = {}
 
+---------------------------------------------------------------------
+-- Genel
+---------------------------------------------------------------------
 Config.DATASTORE_NAME = "EggHatchery_v1"
+Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
 Config.AUTOSAVE_INTERVAL = 120
-Config.XP_PER_ROBUX = 20
-Config.MAX_LEVEL = 100
-Config.INTERACT_DISTANCE = 25
-Config.OWNER_CHECK_INTERVAL = 5
 Config.BOOTH_FOLDER_NAME = "Booths"
--- Bedava XP: yumurtayi beslemek (F tusu). Hepsi saniye / XP cinsinden
+Config.INTERACT_DISTANCE = 25 -- panel/aksiyon icin standa en fazla bu kadar uzaklik
+Config.OWNER_CHECK_INTERVAL = 5
+
+---------------------------------------------------------------------
+-- XP ve seviye
+-- Seviye atlamak icin gereken XP: XP_BASE * seviye ^ XP_EXP
+-- (40 XP ile 2. seviye, 113 XP ile 3., 208 ile 4., ... ilk acilimlar hizli gelir)
+---------------------------------------------------------------------
+Config.MAX_LEVEL = 50
+Config.XP_BASE = 40
+Config.XP_EXP = 1.5
+Config.XP_PER_ROBUX = 20 -- 1 Robux bagis = 20 XP
+
+function Config.XPRequired(level)
+	return math.floor(Config.XP_BASE * level ^ Config.XP_EXP)
+end
+
+-- Bedava XP: yumurtayi beslemek
 Config.FEED_XP_OWN = 5 -- kendi yumurtani beslersen
 Config.FEED_COOLDOWN_OWN = 20
 Config.FEED_XP_OTHER = 3 -- baskasinin yumurtasini beslersen, sahibine gider
+Config.FEED_XP_FEEDER = 1 -- baskasini besleyen kendi yumurtasina da bu kadar alir (standi varsa)
 Config.FEED_COOLDOWN_OTHER = 30 -- ayni oyuncu ayni standi bu surede bir besleyebilir
 Config.FEED_GLOBAL_COOLDOWN = 3 -- bir oyuncu herhangi bir stand icin en az bu aralikla besleyebilir
--- Stand ozellestirme (sahibi yazi + renk secer)
-Config.STYLE_MAX_LENGTH = 40
-Config.STYLE_COOLDOWN = 3
-Config.STYLE_COLORS = {
-	{ Name = "Kirmizi", Color = Color3.fromRGB(255, 99, 99) },
-	{ Name = "Turuncu", Color = Color3.fromRGB(255, 160, 70) },
-	{ Name = "Sari", Color = Color3.fromRGB(255, 224, 90) },
-	{ Name = "Yesil", Color = Color3.fromRGB(110, 230, 130) },
-	{ Name = "Turkuaz", Color = Color3.fromRGB(80, 220, 210) },
-	{ Name = "Mavi", Color = Color3.fromRGB(100, 160, 255) },
-	{ Name = "Mor", Color = Color3.fromRGB(190, 140, 255) },
-	{ Name = "Pembe", Color = Color3.fromRGB(255, 130, 200) },
-}
-Config.PURCHASE_COOLDOWN = 2 -- ayni oyuncu bu kadar saniyede bir satin alma baslatabilir
-Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
-Config.LEADERBOARD_REFRESH = 60 -- pano yenileme sikligi (sn)
-Config.LEADERBOARD_SIZE = 10
--- Kucuk harf: Studio'da panoya bu adlarla Part koy (Board_Raised, Board_Donated, Board_Level)
-Config.LEADERBOARDS = {
-	Raised = { Store = "EggLB_Raised_v1", Title = "EN COK TOPLAYAN" },
-	Donated = { Store = "EggLB_Donated_v1", Title = "EN COK BAGISLAYAN" },
-	Level = { Store = "EggLB_Level_v1", Title = "EN YUKSEK YUMURTA" },
-}
 
--- Developer Product ID'lerini buraya yaz (Roblox Creator Hub > Monetization > Developer Products)
-Config.PRODUCTS = {
-	{ Id = 0, Name = "Snack" },
-	{ Id = 0, Name = "Feast" },
-	{ Id = 0, Name = "Banquet" },
-	{ Id = 0, Name = "Jackpot" },
-}
-
+-- Nadirlik: seviyeye gore
 Config.RARITIES = {
-	{ Name = "Common",    MinLevel = 1,  Color = Color3.fromRGB(200, 200, 200), BurstCount = 40,  AuraRate = 0  },
-	{ Name = "Rare",      MinLevel = 5,  Color = Color3.fromRGB(60, 140, 255),  BurstCount = 80,  AuraRate = 5  },
-	{ Name = "Legendary", MinLevel = 10, Color = Color3.fromRGB(255, 190, 40),  BurstCount = 150, AuraRate = 10 },
-	{ Name = "Mythic",    MinLevel = 20, Color = Color3.fromRGB(255, 60, 220),  BurstCount = 300, AuraRate = 18 },
+	{ Name = "Yaygın", MinLevel = 1, Color = Color3.fromRGB(200, 205, 214), BurstCount = 40, AuraRate = 0 },
+	{ Name = "Nadir", MinLevel = 5, Color = Color3.fromRGB(70, 150, 255), BurstCount = 80, AuraRate = 5 },
+	{ Name = "Efsanevi", MinLevel = 10, Color = Color3.fromRGB(255, 190, 40), BurstCount = 150, AuraRate = 10 },
+	{ Name = "Mitik", MinLevel = 20, Color = Color3.fromRGB(255, 80, 225), BurstCount = 300, AuraRate = 18 },
 }
-
--- Yumurta gorsel buyuklugu: seviye arttikca buyur, 2.2 kat ustune cikmaz
-function Config.EggScale(level)
-	return math.min(1 + (level - 1) * 0.04, 2.2)
-end
-
-function Config.XPRequired(level)
-	return math.floor(100 * level ^ 1.5)
-end
 
 function Config.GetRarity(level)
 	local result = Config.RARITIES[1]
@@ -72,8 +51,124 @@ function Config.GetRarity(level)
 	return result
 end
 
+-- Yumurta gorsel buyuklugu: seviye arttikca buyur, 2.2 kat ustune cikmaz
+function Config.EggScale(level)
+	return math.min(1 + (level - 1) * 0.04, 2.2)
+end
+
+---------------------------------------------------------------------
+-- Stand stilleri: seviye ile acilir, standin uzerinde gorsel olarak belirir
+---------------------------------------------------------------------
+Config.STYLES = {
+	{ Id = "classic", Name = "Klasik", Level = 1, Desc = "Sade ve temiz bir başlangıç." },
+	{ Id = "rug", Name = "Halı", Level = 2, Desc = "Standının önüne renkli bir halı serilir." },
+	{ Id = "flags", Name = "Bayraklı", Level = 3, Desc = "Köşelere direk, aralarına renkli bayraklar." },
+	{ Id = "lantern", Name = "Fenerli", Level = 5, Desc = "Sıcak ışıklı iki fener standını aydınlatır." },
+	{ Id = "garden", Name = "Çiçekli", Level = 7, Desc = "Köşelerde çiçek saksıları." },
+	{ Id = "gold", Name = "Altın", Level = 10, Desc = "Altın direkler, yumurtanın altında parlak zemin." },
+	{ Id = "legend", Name = "Efsane", Level = 20, Desc = "Altın süs, ışık sütunu ve parıltı." },
+}
+
+function Config.GetStyle(id)
+	for _, s in ipairs(Config.STYLES) do
+		if s.Id == id then
+			return s
+		end
+	end
+	return nil
+end
+
+-- Bu seviyede secilebilen stil mi?
+function Config.IsStyleUnlocked(id, level)
+	local s = Config.GetStyle(id)
+	return s ~= nil and level >= s.Level
+end
+
+-- Verilen seviyeden sonra acilacak ilk stil (yoksa nil)
+function Config.NextUnlock(level)
+	for _, s in ipairs(Config.STYLES) do
+		if s.Level > level then
+			return s
+		end
+	end
+	return nil
+end
+
+-- Iki seviye arasinda (eski, yeni] yeni acilan stiller
+function Config.NewUnlocks(oldLevel, newLevel)
+	local list = {}
+	for _, s in ipairs(Config.STYLES) do
+		if s.Level > oldLevel and s.Level <= newLevel then
+			table.insert(list, s)
+		end
+	end
+	return list
+end
+
+Config.STYLE_COLORS = {
+	{ Name = "Kırmızı", Color = Color3.fromRGB(255, 99, 99) },
+	{ Name = "Turuncu", Color = Color3.fromRGB(255, 160, 70) },
+	{ Name = "Sarı", Color = Color3.fromRGB(255, 224, 90) },
+	{ Name = "Yeşil", Color = Color3.fromRGB(110, 230, 130) },
+	{ Name = "Turkuaz", Color = Color3.fromRGB(80, 220, 210) },
+	{ Name = "Mavi", Color = Color3.fromRGB(100, 160, 255) },
+	{ Name = "Mor", Color = Color3.fromRGB(190, 140, 255) },
+	{ Name = "Pembe", Color = Color3.fromRGB(255, 130, 200) },
+}
+Config.STYLE_MAX_LENGTH = 40
+Config.STYLE_COOLDOWN = 2
+
+---------------------------------------------------------------------
+-- Bagis urunleri (Developer Product). Creator Hub'da olustur, ID'yi buraya yaz.
+---------------------------------------------------------------------
+Config.PRODUCTS = {
+	{ Id = 0, Name = "Atıştırmalık" },
+	{ Id = 0, Name = "Ziyafet" },
+	{ Id = 0, Name = "Şölen" },
+	{ Id = 0, Name = "Büyük İkram" },
+}
+Config.PURCHASE_COOLDOWN = 2
+
+---------------------------------------------------------------------
+-- Liderlik panolari: Studio'da Board_Raised, Board_Donated, Board_Level adli Part'lar
+---------------------------------------------------------------------
+Config.LEADERBOARD_REFRESH = 60
+Config.LEADERBOARD_SIZE = 10
+Config.LEADERBOARDS = {
+	Raised = { Store = "EggLB_Raised_v1", Title = "EN ÇOK TOPLAYAN" },
+	Donated = { Store = "EggLB_Donated_v1", Title = "EN ÇOK BAĞIŞLAYAN" },
+	Level = { Store = "EggLB_Level_v1", Title = "EN YÜKSEK YUMURTA" },
+}
+
+---------------------------------------------------------------------
+-- Metinler (tek yerden duzenlenir)
+---------------------------------------------------------------------
+Config.TEXT = {
+	Unclaimed = "Boş Stand",
+	ClaimHint = "Almak için E'ye bas",
+	PromptClaim = "Standı Al",
+	PromptView = "Standa Bak",
+	PromptObject = "Yumurta Standı",
+	Claimed = "Stand senin! Yumurtana bakmak için standa yaklaş ve E'ye bas.",
+	AlreadyHave = "Zaten bir standın var!",
+	Loading = "Verilerin yükleniyor...",
+	NotNear = "Standa biraz daha yaklaş.",
+	FedOwn = "Yumurtanı besledin (+%d XP)",
+	FedOther = "%s oyuncusunun yumurtasını besledin!",
+	FedBy = "%s yumurtanı besledi (+%d XP)",
+	Full = "Yumurta tok! %d sn sonra tekrar dene.",
+	StyleSaved = "Stand ayarların kaydedildi!",
+	StyleLocked = "%s stili Seviye %d'de açılır.",
+	StyleTooFast = "Biraz yavaş! Birkaç saniye sonra tekrar dene.",
+	StyleTooLong = "Mesaj en fazla %d karakter olabilir.",
+	StyleFilterFail = "Mesaj şu an kontrol edilemedi, tekrar dene.",
+	Unlocked = "Yeni stil açıldı: %s",
+	Tip = "Bir stand sahiplen: boş bir standa yaklaş ve E'ye bas.",
+}
+
 return Config
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 local Config = require(script.Parent.Config)
 
 local folder = ReplicatedStorage:FindFirstChild("EggRemotes")
@@ -83,13 +178,28 @@ if not folder then
 	folder.Parent = ReplicatedStorage
 end
 
--- Istemci Config'e erisemez; stand ayari paneli icin gereken degerler burada yayinlanir
-folder:SetAttribute("StyleMaxLength", Config.STYLE_MAX_LENGTH)
-folder:SetAttribute("StyleColorCount", #Config.STYLE_COLORS)
-for i, c in ipairs(Config.STYLE_COLORS) do
-	folder:SetAttribute("StyleColor" .. i, c.Color)
-	folder:SetAttribute("StyleName" .. i, c.Name)
+-- Istemci Config'e erisemez: arayuzun ihtiyaci olan degerler burada (JSON olarak) yayinlanir
+local function rgb(c)
+	return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
 end
+local styles, colors, rarities = {}, {}, {}
+for _, s in ipairs(Config.STYLES) do
+	table.insert(styles, { id = s.Id, name = s.Name, level = s.Level, desc = s.Desc })
+end
+for _, c in ipairs(Config.STYLE_COLORS) do
+	table.insert(colors, { name = c.Name, rgb = rgb(c.Color) })
+end
+for _, r in ipairs(Config.RARITIES) do
+	table.insert(rarities, { name = r.Name, min = r.MinLevel, rgb = rgb(r.Color) })
+end
+folder:SetAttribute("StylesJSON", HttpService:JSONEncode(styles))
+folder:SetAttribute("ColorsJSON", HttpService:JSONEncode(colors))
+folder:SetAttribute("RaritiesJSON", HttpService:JSONEncode(rarities))
+folder:SetAttribute("XPBase", Config.XP_BASE)
+folder:SetAttribute("XPExp", Config.XP_EXP)
+folder:SetAttribute("MaxLevel", Config.MAX_LEVEL)
+folder:SetAttribute("MaxMessage", Config.STYLE_MAX_LENGTH)
+folder:SetAttribute("TipText", Config.TEXT.Tip)
 
 local function remote(name)
 	local existing = folder:FindFirstChild(name)
@@ -103,16 +213,17 @@ local function remote(name)
 end
 
 return {
-	Notify = remote("Notify"),
-	OpenDonateMenu = remote("OpenDonateMenu"),
-	RequestPurchase = remote("RequestPurchase"),
-	EggFeedback = remote("EggFeedback"),
-	SetBoothStyle = remote("SetBoothStyle"),
+	Notify = remote("Notify"), -- sunucu -> istemci: kisa bildirim
+	OpenPanel = remote("OpenPanel"), -- sunucu -> istemci: stand paneli verisi
+	PanelAction = remote("PanelAction"), -- istemci -> sunucu: {Action = "Feed" | "Style" | "Close", ...}
+	RequestPurchase = remote("RequestPurchase"), -- istemci -> sunucu: bagis urunu ID'si
+	EggFeedback = remote("EggFeedback"), -- sunucu -> istemci: seviye atlama / stil acilimi duyurulari
 }
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2"><Properties><string name="Name">BoothRegistry</string><ProtectedString name="Source"><![CDATA[local Registry = {}
 
 local boothByOwner = {}
 local ownerByBooth = {}
+local viewing = {} -- [player] = su an paneli acik olan stand
 
 function Registry.Claim(booth, player)
 	boothByOwner[player] = booth
@@ -139,66 +250,113 @@ function Registry.AllClaimed()
 	return table.clone(ownerByBooth)
 end
 
+-- Panel: oyuncu hangi standa bakiyor (bagis ve besleme dogrulamasi icin)
+function Registry.SetViewing(player, booth)
+	viewing[player] = booth
+end
+
+function Registry.GetViewing(player)
+	return viewing[player]
+end
+
+function Registry.ClearViewing(player)
+	viewing[player] = nil
+end
+
 return Registry
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX3"><Properties><string name="Name">HatcheryService</string><ProtectedString name="Source"><![CDATA[local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
-local CollectionService = game:GetService("CollectionService")
 
 local Modules = script.Parent
 local Config = require(Modules.Config)
 local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
+local Styler = require(Modules.BoothStyler)
 
+local T = Config.TEXT
 local HatcheryService = {}
 
 local DEFAULT_COLOR = Config.RARITIES[1].Color
+local CARD_BG = Color3.fromRGB(22, 26, 38)
 
-local function makePrompt(parent, name, action, enabled)
-	local prompt = parent:FindFirstChild(name)
-	if not prompt then
-		prompt = Instance.new("ProximityPrompt")
-		prompt.Name = name
-		prompt.Parent = parent
-	end
-	prompt.ActionText = action
-	prompt.ObjectText = "Mystic Hatchery"
-	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt.HoldDuration = 0.4
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
-	prompt.Enabled = enabled
-	return prompt
-end
-
--- sahipsiz stand: tek satir. sahipli stand: [mesaj] + baslik + XP cubugu + ilerleme
-local function layoutGui(gui, claimed, hasMessage)
-	gui.BarBack.Visible = claimed
-	gui.Progress.Visible = claimed
-	gui.Message.Visible = claimed and hasMessage
-	if not claimed then
-		gui.Title.Position = UDim2.fromScale(0, 0.25)
-		gui.Title.Size = UDim2.fromScale(1, 0.5)
-	elseif hasMessage then
-		gui.Title.Position = UDim2.fromScale(0, 0.25)
-		gui.Title.Size = UDim2.fromScale(1, 0.27)
-	else
-		gui.Title.Position = UDim2.fromScale(0, 0.05)
-		gui.Title.Size = UDim2.fromScale(1, 0.4)
-	end
-end
-
-local function makeLabel(parent, name, pos, size)
+---------------------------------------------------------------------
+-- Stand uzerindeki kart (BillboardGui): isim, seviye/nadirlik, XP cubugu, mesaj
+---------------------------------------------------------------------
+local function makeLabel(parent, name, font, size, pos, dim)
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
 	label.Position = pos
-	label.Size = size
-	label.Font = Enum.Font.GothamBlack
-	label.TextScaled = true
+	label.Size = dim
+	label.Font = font
+	label.TextSize = size
 	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.3
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Parent = parent
 	return label
+end
+
+local function buildGui(egg)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "HatcheryGui"
+	gui.Size = UDim2.fromOffset(280, 76)
+	gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth yumurta boyuna gore ayarlar
+	gui.MaxDistance = 60
+	gui.Parent = egg
+
+	local card = Instance.new("Frame")
+	card.Name = "Card"
+	card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = CARD_BG
+	card.BackgroundTransparency = 0.12
+	card.BorderSizePixel = 0
+	card.Parent = gui
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Stroke"
+	stroke.Thickness = 2
+	stroke.Color = DEFAULT_COLOR
+	stroke.Parent = card
+
+	local name = makeLabel(card, "NameLabel", Enum.Font.GothamBold, 20, UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 26))
+	name.TextStrokeTransparency = 1
+	makeLabel(card, "LevelLabel", Enum.Font.GothamBold, 15, UDim2.fromOffset(12, 32), UDim2.new(1, -24, 0, 20))
+
+	local back = Instance.new("Frame")
+	back.Name = "BarBack"
+	back.Position = UDim2.new(0, 14, 0, 58)
+	back.Size = UDim2.new(1, -28, 0, 8)
+	back.BackgroundColor3 = Color3.fromRGB(52, 58, 78)
+	back.BorderSizePixel = 0
+	back.Parent = card
+	Instance.new("UICorner", back).CornerRadius = UDim.new(1, 0)
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.BackgroundColor3 = DEFAULT_COLOR
+	fill.BorderSizePixel = 0
+	fill.Parent = back
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+	local msg = makeLabel(card, "MessageLabel", Enum.Font.Gotham, 15, UDim2.fromOffset(12, 72), UDim2.new(1, -24, 0, 22))
+	msg.Visible = false
+	return gui
+end
+
+-- mode: "unclaimed" | "claimed"
+local function layoutGui(gui, claimed, hasMessage)
+	local card = gui.Card
+	card.BarBack.Visible = claimed
+	card.LevelLabel.Visible = true
+	card.MessageLabel.Visible = claimed and hasMessage
+	if not claimed then
+		gui.Size = UDim2.fromOffset(240, 62)
+		card.NameLabel.Position = UDim2.fromOffset(12, 6)
+		card.LevelLabel.Position = UDim2.fromOffset(12, 32)
+	else
+		gui.Size = UDim2.fromOffset(280, hasMessage and 100 or 76)
+	end
 end
 
 function HatcheryService.BuildBooth(booth)
@@ -245,48 +403,25 @@ function HatcheryService.BuildBooth(booth)
 		aura.Enabled = false
 		aura.Parent = egg
 	end
-
 	if not egg:FindFirstChild("HatcheryGui") then
-		local gui = Instance.new("BillboardGui")
-		gui.Name = "HatcheryGui"
-		gui.Size = UDim2.fromOffset(300, 96)
-		gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth seviyeye gore ayarlar
-		gui.MaxDistance = 45 -- uzaktan 24 yazi ust uste binmesin
-		gui.Parent = egg
-
-		makeLabel(gui, "Message", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.24))
-		makeLabel(gui, "Title", UDim2.fromScale(0, 0.25), UDim2.fromScale(1, 0.27))
-
-		local back = Instance.new("Frame")
-		back.Name = "BarBack"
-		back.Position = UDim2.fromScale(0.05, 0.56)
-		back.Size = UDim2.fromScale(0.9, 0.17)
-		back.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-		back.BorderSizePixel = 0
-		back.Parent = gui
-		Instance.new("UICorner", back).CornerRadius = UDim.new(1, 0)
-
-		local fill = Instance.new("Frame")
-		fill.Name = "Fill"
-		fill.Size = UDim2.fromScale(0, 1)
-		fill.BackgroundColor3 = DEFAULT_COLOR
-		fill.BorderSizePixel = 0
-		fill.Parent = back
-		Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-
-		makeLabel(gui, "Progress", UDim2.fromScale(0, 0.76), UDim2.fromScale(1, 0.22))
+		buildGui(egg)
 	end
 
-	local claim = makePrompt(base, "ClaimPrompt", "Claim Booth", true)
-	local donate = makePrompt(base, "DonatePrompt", "Support Egg", false)
-	CollectionService:AddTag(donate, "DonatePrompt")
-	local feed = makePrompt(base, "FeedPrompt", "Feed Egg (free)", false)
-	feed.KeyboardKeyCode = Enum.KeyCode.F
-	feed.HoldDuration = 0
-	feed.UIOffset = Vector2.new(0, 70) -- diger butonlarin ustune binmesin
+	-- Tek etkilesim butonu: bos standda "Standi Al", doluysa "Standa Bak" (panel acar)
+	local prompt = base:FindFirstChild("BoothPrompt")
+	if not prompt then
+		prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "BoothPrompt"
+		prompt.Parent = base
+	end
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = true
 
 	HatcheryService.SetUnclaimed(booth)
-	return claim, donate, feed
+	return prompt
 end
 
 local function getStats(player)
@@ -298,49 +433,17 @@ local function getStats(player)
 	return ls:FindFirstChild("Level"), data:FindFirstChild("EggXP")
 end
 
-function HatcheryService.Refresh(player)
-	local booth = Registry.GetBooth(player)
-	local levelVal, xpVal = getStats(player)
-	if not (booth and levelVal and xpVal) then
-		return
-	end
-	local egg = booth:FindFirstChild("Egg")
-	local gui = egg and egg:FindFirstChild("HatcheryGui")
-	if not (egg and gui) then
-		return
-	end
-
-	local level, xp = levelVal.Value, xpVal.Value
-	local need = Config.XPRequired(level)
-	local rarity = Config.GetRarity(level)
-
-	local message = player:GetAttribute("BoothMessage")
-	local hasMessage = type(message) == "string" and message ~= ""
-	local style = Config.STYLE_COLORS[player:GetAttribute("BoothColor") or 1] or Config.STYLE_COLORS[1]
-	layoutGui(gui, true, hasMessage)
-	gui.Message.Text = hasMessage and message or ""
-	gui.Message.TextColor3 = style.Color
-	gui.Title.Text = string.format("%s's Hatchery - Level %d", player.Name, level)
-	gui.Progress.Text = string.format("%s  |  %d / %d XP", rarity.Name, xp, need)
-	gui.BarBack.Fill.BackgroundColor3 = rarity.Color
-	TweenService:Create(gui.BarBack.Fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-		Size = UDim2.fromScale(math.clamp(xp / need, 0, 1), 1),
-	}):Play()
-	egg.Color = rarity.Color
-
-	HatcheryService.ApplyGrowth(egg, level, rarity)
-end
-
--- Yumurta seviye ile buyur; nadirlige gore parlar (Rare+ surekli kivilcim)
+-- Yumurta seviye ile buyur; nadirlige gore parlar (Nadir+ surekli kivilcim)
 function HatcheryService.ApplyGrowth(egg, level, rarity)
 	local base = egg:GetAttribute("BaseSize")
 	if base then
+		local scale = Config.EggScale(level)
 		TweenService:Create(egg, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = base * Config.EggScale(level),
+			Size = base * scale,
 		}):Play()
 		local gui = egg:FindFirstChild("HatcheryGui")
 		if gui then
-			gui.StudsOffset = Vector3.new(0, base.Y * Config.EggScale(level) / 2 + 1.6, 0) -- yazi yumurtanin ustunde kalsin
+			gui.StudsOffset = Vector3.new(0, base.Y * scale / 2 + 2.6, 0) -- kart yumurtanin ustunde kalsin
 		end
 	end
 	local aura = egg:FindFirstChild("Aura")
@@ -356,28 +459,87 @@ function HatcheryService.ApplyGrowth(egg, level, rarity)
 	end
 end
 
+-- Sahibin guncel durumunu karta, yumurtaya, butona ve stand stiline yansitir
+function HatcheryService.Refresh(player)
+	local booth = Registry.GetBooth(player)
+	local levelVal, xpVal = getStats(player)
+	if not (booth and levelVal and xpVal) then
+		return
+	end
+	local egg = booth:FindFirstChild("Egg")
+	local gui = egg and egg:FindFirstChild("HatcheryGui")
+	if not (egg and gui) then
+		return
+	end
+
+	local level, xp = levelVal.Value, xpVal.Value
+	local need = Config.XPRequired(level)
+	local rarity = Config.GetRarity(level)
+	local message = player:GetAttribute("BoothMessage")
+	local hasMessage = type(message) == "string" and message ~= ""
+	local colorIndex = player:GetAttribute("BoothColor") or 1
+	local accent = (Config.STYLE_COLORS[colorIndex] or Config.STYLE_COLORS[1]).Color
+
+	layoutGui(gui, true, hasMessage)
+	local card = gui.Card
+	card.NameLabel.Text = player.DisplayName
+	card.LevelLabel.Text = string.format("Seviye %d  •  %s", level, rarity.Name)
+	card.LevelLabel.TextColor3 = rarity.Color
+	card.Stroke.Color = rarity.Color
+	card.BarBack.Fill.BackgroundColor3 = rarity.Color
+	TweenService:Create(card.BarBack.Fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+		Size = UDim2.fromScale(math.clamp(xp / need, 0, 1), 1),
+	}):Play()
+	card.MessageLabel.Text = hasMessage and message or ""
+	card.MessageLabel.TextColor3 = accent
+	egg.Color = rarity.Color
+
+	local prompt = booth.PrimaryPart:FindFirstChild("BoothPrompt")
+	if prompt then
+		prompt.ActionText = T.PromptView
+		prompt.ObjectText = player.DisplayName
+	end
+
+	-- stil: sadece degistiyse yeniden kur
+	local style = player:GetAttribute("BoothStyle") or "classic"
+	if not Config.IsStyleUnlocked(style, level) then
+		style = "classic"
+	end
+	local key = style .. ":" .. colorIndex
+	if booth:GetAttribute("AppliedStyle") ~= key or (style ~= "classic" and not booth:FindFirstChild("StyleDecor")) then
+		Styler.Apply(booth, style, colorIndex)
+		booth:SetAttribute("AppliedStyle", key)
+	end
+
+	HatcheryService.ApplyGrowth(egg, level, rarity)
+end
+
 function HatcheryService.SetClaimed(booth, player)
-	local base = booth.PrimaryPart
-	base.ClaimPrompt.Enabled = false
-	base.DonatePrompt.Enabled = true
-	base.FeedPrompt.Enabled = true
 	HatcheryService.Refresh(player)
 end
 
 function HatcheryService.SetUnclaimed(booth)
 	local base = booth.PrimaryPart
-	base.ClaimPrompt.Enabled = true
-	base.DonatePrompt.Enabled = false
-	base.FeedPrompt.Enabled = false
+	local prompt = base:FindFirstChild("BoothPrompt")
+	if prompt then
+		prompt.ActionText = T.PromptClaim
+		prompt.ObjectText = T.PromptObject
+	end
 
 	local egg = booth:FindFirstChild("Egg")
 	local gui = egg.HatcheryGui
 	layoutGui(gui, false, false)
-	gui.Title.Text = "Unclaimed - Press E to claim!"
-	gui.Progress.Text = ""
-	gui.BarBack.Fill.Size = UDim2.fromScale(0, 1)
-	gui.BarBack.Fill.BackgroundColor3 = DEFAULT_COLOR
+	local card = gui.Card
+	card.NameLabel.Text = T.Unclaimed
+	card.LevelLabel.Text = T.ClaimHint
+	card.LevelLabel.TextColor3 = Color3.fromRGB(170, 176, 190)
+	card.Stroke.Color = Color3.fromRGB(110, 118, 140)
+	card.BarBack.Fill.Size = UDim2.fromScale(0, 1)
+	card.BarBack.Fill.BackgroundColor3 = DEFAULT_COLOR
+	card.MessageLabel.Text = ""
 	egg.Color = DEFAULT_COLOR
+	Styler.Clear(booth)
+	booth:SetAttribute("AppliedStyle", nil)
 	HatcheryService.ApplyGrowth(egg, 1, Config.RARITIES[1])
 end
 
@@ -398,7 +560,7 @@ function HatcheryService.BurstParticles(egg, rarity)
 	emitter:Emit(rarity.BurstCount)
 	Debris:AddItem(emitter, 3)
 
-	-- kisa isik patlamasi (boyut animasyonu buyume ile carpismasin diye isikla)
+	-- kisa isik patlamasi
 	local glow = egg:FindFirstChild("Glow")
 	if glow then
 		glow.Color = rarity.Color
@@ -436,11 +598,11 @@ function HatcheryService.AddXP(player, amount)
 	HatcheryService.Refresh(player)
 
 	if levelVal.Value > startLevel then
-		HatcheryService.OnEvolve(player, startLevel, levelVal.Value)
+		HatcheryService.OnLevelUp(player, startLevel, levelVal.Value)
 	end
 end
 
-function HatcheryService.OnEvolve(player, oldLevel, newLevel)
+function HatcheryService.OnLevelUp(player, oldLevel, newLevel)
 	local booth = Registry.GetBooth(player)
 	local oldRarity, newRarity = Config.GetRarity(oldLevel), Config.GetRarity(newLevel)
 	local rarityUp = newRarity ~= oldRarity
@@ -459,14 +621,24 @@ function HatcheryService.OnEvolve(player, oldLevel, newLevel)
 		end
 	end
 
+	-- herkese: seviye atladi
 	Remotes.EggFeedback:FireAllClients({
 		Kind = "Evolve",
-		Owner = player.Name,
+		Owner = player.DisplayName,
 		Level = newLevel,
 		Rarity = newRarity.Name,
 		RarityUp = rarityUp,
 		Color = newRarity.Color,
 	})
+	-- sadece sahibe: yeni acilan stiller
+	local unlocked = Config.NewUnlocks(oldLevel, newLevel)
+	if #unlocked > 0 then
+		local names = {}
+		for _, s in ipairs(unlocked) do
+			table.insert(names, s.Name)
+		end
+		Remotes.EggFeedback:FireClient(player, { Kind = "Unlock", Styles = names, Level = newLevel })
+	end
 end
 
 return HatcheryService
@@ -588,6 +760,9 @@ local function onPlayerAdded(player)
 		if type(saved.BoothColor) == "number" and Config.STYLE_COLORS[saved.BoothColor] then
 			player:SetAttribute("BoothColor", saved.BoothColor)
 		end
+		if type(saved.BoothStyle) == "string" and Config.GetStyle(saved.BoothStyle) then
+			player:SetAttribute("BoothStyle", saved.BoothStyle)
+		end
 		player:SetAttribute("DataLoaded", true)
 		applyPending(player)
 	else
@@ -606,6 +781,7 @@ local function save(player)
 		EggXP = player.EggData.EggXP.Value,
 		BoothMessage = player:GetAttribute("BoothMessage"),
 		BoothColor = player:GetAttribute("BoothColor"),
+		BoothStyle = player:GetAttribute("BoothStyle"),
 	}
 	local ok = withRetry(function()
 		return store:UpdateAsync(keyFor(player.UserId), function()
@@ -779,13 +955,88 @@ local Config = require(Modules.Config)
 local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
 local Hatchery = require(Modules.HatcheryService)
+local Products = require(Modules.Products)
 
+local T = Config.TEXT
 local boothFolder = Workspace:WaitForChild(Config.BOOTH_FOLDER_NAME)
 
 local lastOwnFeed = {} -- [booth] = son kendi besleme zamani
 local lastFeed = {} -- [player] = { global = zaman, [booth] = zaman }
 local lastStyle = {} -- [player] = son stil degistirme zamani
 
+local function notify(player, text)
+	Remotes.Notify:FireClient(player, text)
+end
+
+local function nearBooth(player, booth)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	return root ~= nil and booth.PrimaryPart ~= nil
+		and (root.Position - booth.PrimaryPart.Position).Magnitude <= Config.INTERACT_DISTANCE
+end
+
+---------------------------------------------------------------------
+-- Panel verisi: istemcinin arayuzu icin tek bir tablo
+---------------------------------------------------------------------
+local function feedSeconds(booth, viewer, owner)
+	local now = time()
+	if viewer == owner then
+		local last = lastOwnFeed[booth]
+		return last and math.max(0, math.ceil(Config.FEED_COOLDOWN_OWN - (now - last))) or 0
+	end
+	local rec = lastFeed[viewer]
+	if not rec then
+		return 0
+	end
+	local wait = 0
+	if rec[booth] then
+		wait = math.max(wait, math.ceil(Config.FEED_COOLDOWN_OTHER - (now - rec[booth])))
+	end
+	if rec.global then
+		wait = math.max(wait, math.ceil(Config.FEED_GLOBAL_COOLDOWN - (now - rec.global)))
+	end
+	return math.max(0, wait)
+end
+
+local function panelPayload(booth, viewer)
+	local owner = Registry.GetOwner(booth)
+	if not owner then
+		return nil
+	end
+	local level = owner.leaderstats.Level.Value
+	local xp = owner.EggData.EggXP.Value
+	local rarity = Config.GetRarity(level)
+	local isOwner = owner == viewer
+	return {
+		Booth = booth,
+		OwnerName = owner.DisplayName,
+		OwnerId = owner.UserId,
+		IsOwner = isOwner,
+		Level = level,
+		XP = xp,
+		Need = Config.XPRequired(level),
+		Rarity = rarity.Name,
+		RarityColor = rarity.Color,
+		Message = owner:GetAttribute("BoothMessage") or "",
+		Style = owner:GetAttribute("BoothStyle") or "classic",
+		Color = owner:GetAttribute("BoothColor") or 1,
+		FeedXP = isOwner and Config.FEED_XP_OWN or Config.FEED_XP_OTHER,
+		FeedWait = feedSeconds(booth, viewer, owner),
+		Products = isOwner and {} or Products.Catalog(),
+		XPPerRobux = Config.XP_PER_ROBUX,
+	}
+end
+
+local function openPanel(booth, player)
+	Registry.SetViewing(player, booth)
+	local payload = panelPayload(booth, player)
+	if payload then
+		Remotes.OpenPanel:FireClient(player, payload)
+	end
+end
+
+---------------------------------------------------------------------
+-- Sahiplenme / birakma
+---------------------------------------------------------------------
 local function release(booth)
 	local owner = Registry.GetOwner(booth)
 	if owner then
@@ -799,31 +1050,26 @@ end
 
 local function claim(booth, player)
 	if not player:GetAttribute("DataLoaded") then
-		Remotes.Notify:FireClient(player, "Verilerin yukleniyor...")
+		notify(player, T.Loading)
 		return
 	end
 	if Registry.GetOwner(booth) then
 		return
 	end
 	if Registry.GetBooth(player) then
-		Remotes.Notify:FireClient(player, "Zaten bir standin var!")
+		notify(player, T.AlreadyHave)
 		return
 	end
-
 	Registry.Claim(booth, player)
 	booth:SetAttribute("OwnerUserId", player.UserId)
 	player:SetAttribute("HasBooth", true)
 	Hatchery.SetClaimed(booth, player)
-	Remotes.Notify:FireClient(player, "Stand senin! Yumurtani F ile besle, mesajini ayarla.")
+	notify(player, T.Claimed)
 end
 
-local function nearBooth(player, booth)
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	return root ~= nil and booth.PrimaryPart ~= nil
-		and (root.Position - booth.PrimaryPart.Position).Magnitude <= Config.INTERACT_DISTANCE
-end
-
--- Bedava XP: yumurtayi besle
+---------------------------------------------------------------------
+-- Bedava XP: besleme
+---------------------------------------------------------------------
 local function feed(booth, player)
 	local owner = Registry.GetOwner(booth)
 	if not owner or not nearBooth(player, booth) then
@@ -833,12 +1079,12 @@ local function feed(booth, player)
 	if owner == player then
 		local last = lastOwnFeed[booth]
 		if last and now - last < Config.FEED_COOLDOWN_OWN then
-			Remotes.Notify:FireClient(player, string.format("Yumurtan tok! %d sn sonra tekrar besle.", math.ceil(Config.FEED_COOLDOWN_OWN - (now - last))))
+			notify(player, string.format(T.Full, math.ceil(Config.FEED_COOLDOWN_OWN - (now - last))))
 			return
 		end
 		lastOwnFeed[booth] = now
 		Hatchery.AddXP(owner, Config.FEED_XP_OWN)
-		Remotes.Notify:FireClient(player, string.format("Yumurtani besledin (+%d XP)", Config.FEED_XP_OWN))
+		notify(player, string.format(T.FedOwn, Config.FEED_XP_OWN))
 		return
 	end
 
@@ -848,36 +1094,23 @@ local function feed(booth, player)
 		return
 	end
 	if rec[booth] and now - rec[booth] < Config.FEED_COOLDOWN_OTHER then
-		Remotes.Notify:FireClient(player, string.format("Bu yumurta tok! %d sn sonra tekrar besleyebilirsin.", math.ceil(Config.FEED_COOLDOWN_OTHER - (now - rec[booth]))))
+		notify(player, string.format(T.Full, math.ceil(Config.FEED_COOLDOWN_OTHER - (now - rec[booth]))))
 		return
 	end
 	rec.global, rec[booth] = now, now
 	Hatchery.AddXP(owner, Config.FEED_XP_OTHER)
-	Remotes.Notify:FireClient(player, string.format("%s oyuncusunun yumurtasini besledin!", owner.Name))
-	Remotes.Notify:FireClient(owner, string.format("%s yumurtani besledi (+%d XP)", player.Name, Config.FEED_XP_OTHER))
-end
-
-local function setupBooth(booth)
-	if not booth:IsA("Model") then
-		return
+	if Registry.GetBooth(player) then
+		Hatchery.AddXP(player, Config.FEED_XP_FEEDER) -- iyilik karsiliksiz kalmaz
 	end
-	local claimPrompt, _, feedPrompt = Hatchery.BuildBooth(booth)
-	claimPrompt.Triggered:Connect(function(player)
-		claim(booth, player)
-	end)
-	feedPrompt.Triggered:Connect(function(player)
-		feed(booth, player)
-	end)
+	notify(player, string.format(T.FedOther, owner.DisplayName))
+	notify(owner, string.format(T.FedBy, player.DisplayName, Config.FEED_XP_OTHER))
 end
 
-for _, booth in ipairs(boothFolder:GetChildren()) do
-	setupBooth(booth)
-end
-boothFolder.ChildAdded:Connect(setupBooth)
-
--- Stand ozellestirme: sahibi mesaj + renk secer. Mesaj Roblox filtresinden gecer (zorunlu), sadece filtrelenmis hali saklanir.
-Remotes.SetBoothStyle.OnServerEvent:Connect(function(player, data)
-	if typeof(data) ~= "table" or typeof(data.Text) ~= "string" or typeof(data.Color) ~= "number" then
+---------------------------------------------------------------------
+-- Stand ozellestirme: stil + renk + mesaj (mesaj Roblox filtresinden gecer)
+---------------------------------------------------------------------
+local function setStyle(player, data)
+	if typeof(data.Style) ~= "string" or typeof(data.Color) ~= "number" or typeof(data.Text) ~= "string" then
 		return
 	end
 	if not Registry.GetBooth(player) then
@@ -885,18 +1118,27 @@ Remotes.SetBoothStyle.OnServerEvent:Connect(function(player, data)
 	end
 	local now = time()
 	if lastStyle[player] and now - lastStyle[player] < Config.STYLE_COOLDOWN then
-		Remotes.Notify:FireClient(player, "Biraz yavas! Birkac saniye sonra tekrar dene.")
+		notify(player, T.StyleTooFast)
 		return
 	end
 	lastStyle[player] = now
 
+	local style = Config.GetStyle(data.Style)
+	if not style then
+		return
+	end
+	local level = player.leaderstats.Level.Value
+	if level < style.Level then
+		notify(player, string.format(T.StyleLocked, style.Name, style.Level))
+		return
+	end
 	local color = math.floor(data.Color)
 	if color < 1 or color > #Config.STYLE_COLORS then
 		return
 	end
 	local text = data.Text:gsub("[%c]", " "):gsub("%s+", " "):match("^%s*(.-)%s*$")
 	if utf8.len(text) == nil or utf8.len(text) > Config.STYLE_MAX_LENGTH then
-		Remotes.Notify:FireClient(player, "Mesaj en fazla " .. Config.STYLE_MAX_LENGTH .. " karakter olabilir.")
+		notify(player, string.format(T.StyleTooLong, Config.STYLE_MAX_LENGTH))
 		return
 	end
 	if text ~= "" then
@@ -904,7 +1146,7 @@ Remotes.SetBoothStyle.OnServerEvent:Connect(function(player, data)
 			return TextService:FilterStringAsync(text, player.UserId, Enum.TextFilterContext.PublicChat):GetNonChatStringForBroadcastAsync()
 		end)
 		if not ok or typeof(filtered) ~= "string" then
-			Remotes.Notify:FireClient(player, "Mesaj su an kontrol edilemedi, tekrar dene.")
+			notify(player, T.StyleFilterFail)
 			return
 		end
 		text = filtered
@@ -914,16 +1156,73 @@ Remotes.SetBoothStyle.OnServerEvent:Connect(function(player, data)
 	end
 	player:SetAttribute("BoothMessage", text)
 	player:SetAttribute("BoothColor", color)
+	player:SetAttribute("BoothStyle", style.Id)
 	Hatchery.Refresh(player)
-	Remotes.Notify:FireClient(player, "Stand ayarlarin kaydedildi!")
+	notify(player, T.StyleSaved)
+end
+
+---------------------------------------------------------------------
+-- Baglantilar
+---------------------------------------------------------------------
+local function setupBooth(booth)
+	if not booth:IsA("Model") then
+		return
+	end
+	local prompt = Hatchery.BuildBooth(booth)
+	prompt.Triggered:Connect(function(player)
+		if Registry.GetOwner(booth) == nil then
+			claim(booth, player)
+		else
+			openPanel(booth, player)
+		end
+	end)
+end
+
+for _, booth in ipairs(boothFolder:GetChildren()) do
+	setupBooth(booth)
+end
+boothFolder.ChildAdded:Connect(setupBooth)
+
+Remotes.PanelAction.OnServerEvent:Connect(function(player, data)
+	if typeof(data) ~= "table" or typeof(data.Action) ~= "string" then
+		return
+	end
+	if data.Action == "Close" then
+		Registry.ClearViewing(player)
+		return
+	end
+	local booth = Registry.GetViewing(player)
+	if not booth or not booth.Parent or not nearBooth(player, booth) then
+		Registry.ClearViewing(player)
+		return
+	end
+	if data.Action == "Feed" then
+		feed(booth, player)
+	elseif data.Action == "Style" then
+		if Registry.GetOwner(booth) ~= player then
+			return -- sadece sahibi kendi standini ozellestirir
+		end
+		setStyle(player, data)
+	else
+		return
+	end
+	-- paneli guncel veriyle tazele
+	if Registry.GetViewing(player) == booth then
+		local payload = panelPayload(booth, player)
+		if payload then
+			Remotes.OpenPanel:FireClient(player, payload)
+		else
+			Registry.ClearViewing(player)
+		end
+	end
 end)
 
--- Sahibi cikinca stand sifirlanir
 Players.PlayerRemoving:Connect(function(player)
 	local booth = Registry.GetBooth(player)
 	if booth then
 		release(booth)
 	end
+	Registry.ClearViewing(player)
 	lastFeed[player] = nil
 	lastStyle[player] = nil
 end)
@@ -941,7 +1240,6 @@ task.spawn(function()
 end)
 ]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX8"><Properties><string name="Name">MarketplaceHook</string><ProtectedString name="Source"><![CDATA[local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
-local CollectionService = game:GetService("CollectionService")
 local DataStoreService = game:GetService("DataStoreService")
 
 local Modules = script.Parent:WaitForChild("Modules")
@@ -949,34 +1247,15 @@ local Config = require(Modules.Config)
 local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
 local Hatchery = require(Modules.HatcheryService)
+local Products = require(Modules.Products)
 
 -- Ayni makbuz iki kere islenmesin diye kayit tutulur
 local receiptStore = DataStoreService:GetDataStore("EggReceipts_v1")
 local pendingStore = DataStoreService:GetDataStore(Config.PENDING_STORE)
 
-local productById = {}
-for _, product in ipairs(Config.PRODUCTS) do
-	if product.Id > 0 then
-		productById[product.Id] = product
-	end
-end
-
-local priceCache = {}
-local menuBooth = {}
 local pending = {}
 local lastRequest = {} -- [player] = son satin alma istegi zamani (spam korumasi)
-
-local function getPrice(productId)
-	if priceCache[productId] then
-		return priceCache[productId]
-	end
-	local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, productId, Enum.InfoType.Product)
-	if ok and info and info.PriceInRobux then
-		priceCache[productId] = info.PriceInRobux
-		return info.PriceInRobux
-	end
-	return nil
-end
+local getPrice = Products.GetPrice
 
 local function nearBooth(player, booth)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -984,57 +1263,16 @@ local function nearBooth(player, booth)
 		and (root.Position - booth.PrimaryPart.Position).Magnitude <= Config.INTERACT_DISTANCE
 end
 
--- 1) Bagis butonuna basinca menu acilir
-local function onDonateTriggered(prompt, donor)
-	local booth = prompt:FindFirstAncestorOfClass("Model")
-	local owner = booth and Registry.GetOwner(booth)
-	if not owner then
-		return
-	end
-	if owner == donor then
-		Remotes.Notify:FireClient(donor, "Bu senin kendi yumurtan! Arkadaslarin bagis yapsin.")
-		return
-	end
-
-	local items = {}
-	for _, product in ipairs(Config.PRODUCTS) do
-		local price = product.Id > 0 and getPrice(product.Id)
-		if price then
-			table.insert(items, { Id = product.Id, Name = product.Name, Price = price })
-		end
-	end
-	if #items == 0 then
-		Remotes.Notify:FireClient(donor, "Su an bagis secenegi yok.")
-		return
-	end
-
-	menuBooth[donor] = booth
-	Remotes.OpenDonateMenu:FireClient(donor, { Owner = owner.Name, Passes = items })
-end
-
-local function hookPrompt(prompt)
-	if prompt:IsA("ProximityPrompt") then
-		prompt.Triggered:Connect(function(donor)
-			onDonateTriggered(prompt, donor)
-		end)
-	end
-end
-
-for _, prompt in ipairs(CollectionService:GetTagged("DonatePrompt")) do
-	hookPrompt(prompt)
-end
-CollectionService:GetInstanceAddedSignal("DonatePrompt"):Connect(hookPrompt)
-
--- 2) Oyuncu secenegi secer, sunucu satin alma penceresini acar
+-- 1) Panelden bir urun secilir, sunucu satin alma penceresini acar
 Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, productId)
-	if typeof(productId) ~= "number" or not productById[productId] then
+	if typeof(productId) ~= "number" or not Products.IsValid(productId) then
 		return
 	end
 	local now = time()
 	if lastRequest[donor] and now - lastRequest[donor] < Config.PURCHASE_COOLDOWN then
 		return -- cok sik istek (spam)
 	end
-	local booth = menuBooth[donor]
+	local booth = Registry.GetViewing(donor)
 	local owner = booth and Registry.GetOwner(booth)
 	if not (booth and owner) or owner == donor or not nearBooth(donor, booth) then
 		return
@@ -1056,7 +1294,7 @@ MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, produc
 	end
 end)
 
--- 3) Satin alma tamamlaninca: XP + Raised (sahip) + Donated (bagisci) (Roblox makbuz sistemi)
+-- 2) Satin alma tamamlaninca: XP + Raised (sahip) + Donated (bagisci) (Roblox makbuz sistemi)
 MarketplaceService.ProcessReceipt = function(info)
 	-- Bu makbuz daha once islendi mi?
 	local alreadyDone = false
@@ -1127,8 +1365,8 @@ MarketplaceService.ProcessReceipt = function(info)
 
 	Remotes.EggFeedback:FireAllClients({
 		Kind = "Donation",
-		Donor = donor.Name,
-		Owner = owner.Name,
+		Donor = donor.DisplayName,
+		Owner = owner.DisplayName,
 		Robux = robux,
 		XP = xp,
 	})
@@ -1138,7 +1376,6 @@ MarketplaceService.ProcessReceipt = function(info)
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	menuBooth[player] = nil
 	pending[player.UserId] = nil
 	lastRequest[player] = nil
 end)

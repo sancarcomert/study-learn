@@ -2,6 +2,7 @@ local Registry = {}
 
 local boothByOwner = {}
 local ownerByBooth = {}
+local viewing = {} -- [player] = su an paneli acik olan stand
 
 function Registry.Claim(booth, player)
 	boothByOwner[player] = booth
@@ -26,6 +27,19 @@ end
 
 function Registry.AllClaimed()
 	return table.clone(ownerByBooth)
+end
+
+-- Panel: oyuncu hangi standa bakiyor (bagis ve besleme dogrulamasi icin)
+function Registry.SetViewing(player, booth)
+	viewing[player] = booth
+end
+
+function Registry.GetViewing(player)
+	return viewing[player]
+end
+
+function Registry.ClearViewing(player)
+	viewing[player] = nil
 end
 
 return Registry
