@@ -114,6 +114,7 @@ MarketplaceService.ProcessReceipt = function(info)
 		if donor:FindFirstChild("leaderstats") then
 			donor.leaderstats.Donated.Value += robux
 		end
+		Hatchery.AddXP(donor, robux * Config.DONOR_XP_PER_ROBUX)
 		warn("[Marketplace] Stand sahibi cikmis; bagis sahibine biriktirildi (+" .. xp .. " XP).")
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
@@ -121,6 +122,7 @@ MarketplaceService.ProcessReceipt = function(info)
 	if donor:FindFirstChild("leaderstats") then
 		donor.leaderstats.Donated.Value += robux
 	end
+	Hatchery.AddXP(donor, robux * Config.DONOR_XP_PER_ROBUX) -- bagis yapan da buyur
 	owner.leaderstats.Raised.Value += robux
 
 	Remotes.EggFeedback:FireAllClients({
