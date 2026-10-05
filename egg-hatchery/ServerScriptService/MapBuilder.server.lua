@@ -293,9 +293,9 @@ local function buildTerrain()
 	end
 	local ok, err = pcall(function()
 		terrain:Clear()
-		terrain:FillBlock(CFrame.new(0, -8, 0), Vector3.new(GROUND_HALF * 2, 16, GROUND_HALF * 2), Mat.Grass)
+		terrain:FillBlock(CFrame.new(0, -8, 0), Vector3.new(GROUND_HALF * 2, 16, GROUND_HALF * 2), Mat.LeafyGrass)
 		for _, h in ipairs(hills) do
-			terrain:FillBall(Vector3.new(h.x, h.h - h.radius, h.z), h.radius, Mat.Grass)
+			terrain:FillBall(Vector3.new(h.x, h.h - h.radius, h.z), h.radius, Mat.LeafyGrass)
 		end
 
 		-- su govdeleri: once kum yatagi, sonra oyuk (hava), en sonda su
@@ -331,6 +331,7 @@ local function buildTerrain()
 		end
 
 		pcall(function()
+			terrain:SetMaterialColor(Mat.LeafyGrass, C.grass) -- LeafyGrass: uzun cim yaprakcigi (Decoration) cikarmaz
 			terrain:SetMaterialColor(Mat.Grass, C.grass)
 			terrain:SetMaterialColor(Mat.Sand, C.sand)
 			terrain:SetMaterialColor(Mat.Rock, RGB(120, 122, 128))

@@ -29,7 +29,7 @@ end
 -- onizleme icin arazi dolgularini yaklasik parcalar olarak yaz (hava oyuklari cizilemez; su/kum ince disk olarak ustte gosterilir)
 do
 	local terr = workspace.Terrain
-	local colors = { Grass = { 0.38, 0.64, 0.27 }, Sand = { 0.87, 0.78, 0.59 }, Water = { 0.25, 0.59, 0.75 } }
+	local colors = { LeafyGrass = { 0.38, 0.64, 0.27 }, Grass = { 0.38, 0.64, 0.27 }, Sand = { 0.87, 0.78, 0.59 }, Water = { 0.25, 0.59, 0.75 } }
 	local function emit(shape, size, cf, mat)
 		local c = colors[mat]
 		if not c then
@@ -44,7 +44,7 @@ do
 	for _, f in ipairs(terr:GetFills_MOCK()) do
 		local a, mat = f.args, f.args[#f.args].Name
 		if f.kind == "Block" then
-			if mat == "Grass" then
+			if mat == "Grass" or mat == "LeafyGrass" then
 				emit("Block", Vector3.new(a[2].X, 1, a[2].Z), CFrame.new(a[1].Position.X, -0.5, a[1].Position.Z), mat)
 			elseif mat == "Sand" or mat == "Water" then
 				local target = (mat == "Sand") and 0.02 or 0.05
