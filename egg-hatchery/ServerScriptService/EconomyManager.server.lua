@@ -1,6 +1,3 @@
--- ServerScriptService/EconomyManager  (Script)
--- Leaderstats (TimePoints, EggLevel), hidden EggXP, DataStore load/save, per-second ticker.
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local DataStoreService = game:GetService("DataStoreService")
@@ -12,16 +9,15 @@ local Hatchery = require(Modules.HatcheryService)
 
 local store = DataStoreService:GetDataStore(Config.DATASTORE_NAME)
 
-local pendingSaves = 0                       -- in-flight final saves (for BindToClose)
-local finalSaveStarted: { [number]: boolean } = {}
-local autosaveBusy: { [number]: boolean } = {}
+local pendingSaves = 0
+local finalSaveStarted = {}
+local autosaveBusy = {}
 
-local function keyFor(userId: number): string
+local function keyFor(userId)
 	return "Player_" .. userId
 end
 
--- Retries a DataStore call with backoff; returns (ok, result).
-local function withRetry(fn: () -> any, attempts: number)
+local function withRetry(fn, attempts)
 	local result
 	for i = 1, attempts do
 		local ok, res = pcall(fn)
@@ -29,40 +25,36 @@ local function withRetry(fn: () -> any, attempts: number)
 			return true, res
 		end
 		result = res
-		warn(string.format("[Economy] DataStore attempt %d/%d failed: %s", i, attempts, tostring(res)))
+		warn(string.format("[Economy] DataStore deneme %d/%d basarisiz: %s", i, attempts, tostring(res)))
 		task.wait(i * 1.5)
 	end
 	return false, result
 end
 
----------------------------------------------------------------------
--- Setup / load
----------------------------------------------------------------------
+local function newValue(name, parent, default)
+	local v = Instance.new("IntValue")
+	v.Name = name
+	v.Value = default or 0
+	v.Parent = parent
+	return v
+end
 
-local function createValues(player: Player)
+local function createValues(player)
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
 	ls.Parent = player
 
-	local points = Instance.new("IntValue")
-	points.Name = "TimePoints"
-	points.Parent = ls
-
-	local level = Instance.new("IntValue")
-	level.Name = "EggLevel"
-	level.Value = 1
-	level.Parent = ls
+	newValue("TimePoints", ls, 0)
+	newValue("EggLevel", ls, 1)
+	newValue("Raised", ls, 0)
 
 	local data = Instance.new("Folder")
 	data.Name = "EggData"
 	data.Parent = player
-
-	local xp = Instance.new("IntValue")
-	xp.Name = "EggXP"
-	xp.Parent = data
+	newValue("EggXP", data, 0)
 end
 
-local function onPlayerAdded(player: Player)
+local function onPlayerAdded(player)
 	createValues(player)
 
 	local ok, saved = withRetry(function()
@@ -70,38 +62,31 @@ local function onPlayerAdded(player: Player)
 	end, 3)
 
 	if not player.Parent then
-		return -- left while loading
+		return
 	end
 
 	if ok then
 		saved = saved or {}
 		player.leaderstats.TimePoints.Value = saved.TimePoints or 0
 		player.leaderstats.EggLevel.Value = math.max(saved.EggLevel or 1, 1)
+		player.leaderstats.Raised.Value = saved.Raised or 0
 		player.EggData.EggXP.Value = saved.EggXP or 0
-		player:SetAttribute("DataLoaded", true) -- gates XP, claiming and saving
+		player:SetAttribute("DataLoaded", true)
 	else
-		-- Never save defaults over a failed load; player simply can't progress this session.
-		warn("[Economy] Load failed for " .. player.Name .. "; saving disabled for this session.")
+		warn("[Economy] " .. player.Name .. " verisi yuklenemedi, bu oturumda kayit kapali.")
 	end
 end
 
----------------------------------------------------------------------
--- Save
----------------------------------------------------------------------
-
-local function snapshot(player: Player)
-	return {
-		TimePoints = player.leaderstats.TimePoints.Value,
-		EggLevel = player.leaderstats.EggLevel.Value,
-		EggXP = player.EggData.EggXP.Value,
-	}
-end
-
-local function save(player: Player): boolean
+local function save(player)
 	if not player:GetAttribute("DataLoaded") then
 		return false
 	end
-	local data = snapshot(player)
+	local data = {
+		TimePoints = player.leaderstats.TimePoints.Value,
+		EggLevel = player.leaderstats.EggLevel.Value,
+		Raised = player.leaderstats.Raised.Value,
+		EggXP = player.EggData.EggXP.Value,
+	}
 	local ok = withRetry(function()
 		return store:UpdateAsync(keyFor(player.UserId), function()
 			return data
@@ -110,7 +95,7 @@ local function save(player: Player): boolean
 	return ok
 end
 
-local function finalSave(player: Player)
+local function finalSave(player)
 	if finalSaveStarted[player.UserId] then
 		return
 	end
@@ -141,7 +126,6 @@ game:BindToClose(function()
 	end
 end)
 
--- Autosave loop (staggered so we stay inside DataStore budgets).
 task.spawn(function()
 	while true do
 		task.wait(Config.AUTOSAVE_INTERVAL)
@@ -158,10 +142,6 @@ task.spawn(function()
 		end
 	end
 end)
-
----------------------------------------------------------------------
--- Ticker: +1 TimePoint per second; passive egg XP while the owner has a booth
----------------------------------------------------------------------
 
 task.spawn(function()
 	while true do

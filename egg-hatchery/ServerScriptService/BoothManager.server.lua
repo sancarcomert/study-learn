@@ -1,7 +1,3 @@
--- ServerScriptService/BoothManager  (Script)
--- Workspace layout: Workspace > Booths (Folder) > any number of Models (each with >= 1 BasePart).
--- Prompts, egg and billboard are auto-generated if missing.
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
@@ -13,33 +9,32 @@ local Hatchery = require(Modules.HatcheryService)
 
 local boothFolder = Workspace:WaitForChild(Config.BOOTH_FOLDER_NAME)
 
-local function release(booth: Model)
+local function release(booth)
 	Registry.Release(booth)
 	booth:SetAttribute("OwnerUserId", nil)
 	Hatchery.SetUnclaimed(booth)
 end
 
-local function claim(booth: Model, player: Player)
-	-- Handlers run on one thread and nothing below yields, so double-claims can't race.
+local function claim(booth, player)
 	if not player:GetAttribute("DataLoaded") then
-		Remotes.Notify:FireClient(player, "Your data is still loading...")
+		Remotes.Notify:FireClient(player, "Verilerin yukleniyor...")
 		return
 	end
 	if Registry.GetOwner(booth) then
 		return
 	end
 	if Registry.GetBooth(player) then
-		Remotes.Notify:FireClient(player, "You already own a booth!")
+		Remotes.Notify:FireClient(player, "Zaten bir standin var!")
 		return
 	end
 
 	Registry.Claim(booth, player)
 	booth:SetAttribute("OwnerUserId", player.UserId)
 	Hatchery.SetClaimed(booth, player)
-	Remotes.Notify:FireClient(player, "Booth claimed! Your egg grows while you stay.")
+	Remotes.Notify:FireClient(player, "Stand senin! Yumurtan sen oldukca buyur.")
 end
 
-local function setupBooth(booth: Instance)
+local function setupBooth(booth)
 	if not booth:IsA("Model") then
 		return
 	end
@@ -54,7 +49,7 @@ for _, booth in ipairs(boothFolder:GetChildren()) do
 end
 boothFolder.ChildAdded:Connect(setupBooth)
 
--- Immediate reset when the owner leaves.
+-- Sahibi cikinca stand sifirlanir
 Players.PlayerRemoving:Connect(function(player)
 	local booth = Registry.GetBooth(player)
 	if booth then
@@ -62,7 +57,7 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
--- Periodic safety net: frees booths whose owner is gone/invalid (crashes, teleports, etc.).
+-- Periyodik kontrol: sahibi gitmis standlari bosaltir
 task.spawn(function()
 	while true do
 		task.wait(Config.OWNER_CHECK_INTERVAL)

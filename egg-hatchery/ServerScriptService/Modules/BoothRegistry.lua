@@ -1,17 +1,14 @@
--- ServerScriptService/Modules/BoothRegistry  (ModuleScript)
--- Single source of truth for who owns which booth.
-
 local Registry = {}
 
-local boothByOwner: { [Player]: Model } = {}
-local ownerByBooth: { [Model]: Player } = {}
+local boothByOwner = {}
+local ownerByBooth = {}
 
-function Registry.Claim(booth: Model, player: Player)
+function Registry.Claim(booth, player)
 	boothByOwner[player] = booth
 	ownerByBooth[booth] = player
 end
 
-function Registry.Release(booth: Model)
+function Registry.Release(booth)
 	local owner = ownerByBooth[booth]
 	if owner then
 		boothByOwner[owner] = nil
@@ -19,16 +16,15 @@ function Registry.Release(booth: Model)
 	ownerByBooth[booth] = nil
 end
 
-function Registry.GetBooth(player: Player): Model?
+function Registry.GetBooth(player)
 	return boothByOwner[player]
 end
 
-function Registry.GetOwner(booth: Model): Player?
+function Registry.GetOwner(booth)
 	return ownerByBooth[booth]
 end
 
--- Snapshot copy so callers can release while iterating.
-function Registry.AllClaimed(): { [Model]: Player }
+function Registry.AllClaimed()
 	return table.clone(ownerByBooth)
 end
 

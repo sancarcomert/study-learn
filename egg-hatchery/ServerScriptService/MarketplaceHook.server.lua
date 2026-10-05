@@ -1,11 +1,7 @@
--- ServerScriptService/MarketplaceHook  (Script)
--- Donate prompt -> menu -> server-initiated gamepass prompt -> verified XP award.
--- The client only *requests* a prompt; XP is awarded here after PromptGamePassPurchaseFinished.
--- Note: gamepasses are one-time per donor. For repeat donations, add Developer Products + ProcessReceipt.
-
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local CollectionService = game:GetService("CollectionService")
+local DataStoreService = game:GetService("DataStoreService")
 
 local Modules = script.Parent:WaitForChild("Modules")
 local Config = require(Modules.Config)
@@ -13,68 +9,67 @@ local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
 local Hatchery = require(Modules.HatcheryService)
 
-local passById = {}                -- whitelist: [passId] = config entry
-for _, pass in ipairs(Config.GAMEPASSES) do
-	if pass.Id > 0 then
-		passById[pass.Id] = pass
+-- Ayni makbuz iki kere islenmesin diye kayit tutulur
+local receiptStore = DataStoreService:GetDataStore("EggReceipts_v1")
+
+local productById = {}
+for _, product in ipairs(Config.PRODUCTS) do
+	if product.Id > 0 then
+		productById[product.Id] = product
 	end
 end
 
-local priceCache = {}              -- [passId] = Robux price
-local menuBooth = {}               -- [donor] = booth whose menu they have open
-local pending = {}                 -- [donor.UserId] = { PassId, OwnerUserId, Booth, Expires }
+local priceCache = {}
+local menuBooth = {}
+local pending = {}
 
--- Fetches (and caches) a gamepass's Robux price; nil if unavailable/off-sale.
-local function getPrice(passId: number): number?
-	if priceCache[passId] then
-		return priceCache[passId]
+local function getPrice(productId)
+	if priceCache[productId] then
+		return priceCache[productId]
 	end
-	local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, passId, Enum.InfoType.GamePass)
+	local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, productId, Enum.InfoType.Product)
 	if ok and info and info.PriceInRobux then
-		priceCache[passId] = info.PriceInRobux
+		priceCache[productId] = info.PriceInRobux
 		return info.PriceInRobux
 	end
 	return nil
 end
 
-local function nearBooth(player: Player, booth: Model): boolean
+local function nearBooth(player, booth)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	return root ~= nil and booth.PrimaryPart ~= nil
 		and (root.Position - booth.PrimaryPart.Position).Magnitude <= Config.INTERACT_DISTANCE
 end
 
----------------------------------------------------------------------
--- 1) Donate prompt opens the menu on the donor's client
----------------------------------------------------------------------
-
-local function onDonateTriggered(prompt: ProximityPrompt, donor: Player)
+-- 1) Bagis butonuna basinca menu acilir
+local function onDonateTriggered(prompt, donor)
 	local booth = prompt:FindFirstAncestorOfClass("Model")
 	local owner = booth and Registry.GetOwner(booth)
 	if not owner then
 		return
 	end
 	if owner == donor then
-		Remotes.Notify:FireClient(donor, "That's your own egg! Ask friends to donate.")
+		Remotes.Notify:FireClient(donor, "Bu senin kendi yumurtan! Arkadaslarin bagis yapsin.")
 		return
 	end
 
-	local passes = {}
-	for _, pass in ipairs(Config.GAMEPASSES) do
-		local price = pass.Id > 0 and getPrice(pass.Id)
+	local items = {}
+	for _, product in ipairs(Config.PRODUCTS) do
+		local price = product.Id > 0 and getPrice(product.Id)
 		if price then
-			table.insert(passes, { Id = pass.Id, Name = pass.Name, Price = price })
+			table.insert(items, { Id = product.Id, Name = product.Name, Price = price })
 		end
 	end
-	if #passes == 0 then
-		Remotes.Notify:FireClient(donor, "No donation items are available right now.")
+	if #items == 0 then
+		Remotes.Notify:FireClient(donor, "Su an bagis secenegi yok.")
 		return
 	end
 
 	menuBooth[donor] = booth
-	Remotes.OpenDonateMenu:FireClient(donor, { Owner = owner.Name, Passes = passes })
+	Remotes.OpenDonateMenu:FireClient(donor, { Owner = owner.Name, Passes = items })
 end
 
-local function hookPrompt(prompt: Instance)
+local function hookPrompt(prompt)
 	if prompt:IsA("ProximityPrompt") then
 		prompt.Triggered:Connect(function(donor)
 			onDonateTriggered(prompt, donor)
@@ -87,12 +82,9 @@ for _, prompt in ipairs(CollectionService:GetTagged("DonatePrompt")) do
 end
 CollectionService:GetInstanceAddedSignal("DonatePrompt"):Connect(hookPrompt)
 
----------------------------------------------------------------------
--- 2) Client picks a pass -> server validates -> server prompts purchase
----------------------------------------------------------------------
-
-Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, passId)
-	if typeof(passId) ~= "number" or not passById[passId] then
+-- 2) Oyuncu secenegi secer, sunucu satin alma penceresini acar
+Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, productId)
+	if typeof(productId) ~= "number" or not productById[productId] then
 		return
 	end
 	local booth = menuBooth[donor]
@@ -100,40 +92,61 @@ Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, passId)
 	if not (booth and owner) or owner == donor or not nearBooth(donor, booth) then
 		return
 	end
-	local existing = pending[donor.UserId]
-	if existing and os.clock() < existing.Expires then
-		return -- a prompt is already open
-	end
 
 	pending[donor.UserId] = {
-		PassId = passId,
+		ProductId = productId,
 		OwnerUserId = owner.UserId,
 		Booth = booth,
-		Expires = os.clock() + Config.PURCHASE_TIMEOUT,
 	}
-	MarketplaceService:PromptGamePassPurchase(donor, passId)
+	MarketplaceService:PromptProductPurchase(donor, productId)
 end)
 
----------------------------------------------------------------------
--- 3) Purchase result -> award XP to the booth owner's egg
----------------------------------------------------------------------
+-- Pencere kapatildiysa (satin alinmadiysa) bekleyen kaydi temizle
+MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, productId, isPurchased)
+	if not isPurchased then
+		pending[userId] = nil
+	end
+end)
 
-MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(donor, passId, wasPurchased)
-	local record = pending[donor.UserId]
-	pending[donor.UserId] = nil
-	if not record or record.PassId ~= passId or not wasPurchased then
-		return -- cancelled, or not a booth purchase
+-- 3) Satin alma tamamlaninca: XP + Raised (Roblox makbuz sistemi)
+MarketplaceService.ProcessReceipt = function(info)
+	-- Bu makbuz daha once islendi mi?
+	local alreadyDone = false
+	local ok = pcall(function()
+		receiptStore:UpdateAsync(tostring(info.PurchaseId), function(old)
+			if old then
+				alreadyDone = true
+				return nil
+			end
+			return true
+		end)
+	end)
+	if not ok then
+		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox tekrar dener
+	end
+	if alreadyDone then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+
+	local donor = Players:GetPlayerByUserId(info.PlayerId)
+	local record = donor and pending[donor.UserId]
+	pending[info.PlayerId] = nil
+	if not (donor and record and record.ProductId == info.ProductId) then
+		warn("[Marketplace] Bekleyen bagis kaydi yok, makbuz onaylandi: " .. tostring(info.PurchaseId))
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
 	local owner = Registry.GetOwner(record.Booth)
 	if not owner or owner.UserId ~= record.OwnerUserId then
-		return -- owner left mid-purchase; nobody to credit
+		warn("[Marketplace] Stand sahibi cikmis, XP verilemedi.")
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
-	local robux = getPrice(passId) or 0
+	local robux = info.CurrencySpent or getPrice(info.ProductId) or 0
 	local xp = robux * Config.XP_PER_ROBUX
 
-	-- Server -> clients: show the donation banner (purely cosmetic; XP is already server-side).
+	owner.leaderstats.Raised.Value += robux
+
 	Remotes.EggFeedback:FireAllClients({
 		Kind = "Donation",
 		Donor = donor.Name,
@@ -141,8 +154,10 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(donor, passId
 		Robux = robux,
 		XP = xp,
 	})
-	Hatchery.AddXP(owner, xp) -- may trigger evolution + particle burst
-end)
+	Hatchery.AddXP(owner, xp)
+
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
 
 Players.PlayerRemoving:Connect(function(player)
 	menuBooth[player] = nil

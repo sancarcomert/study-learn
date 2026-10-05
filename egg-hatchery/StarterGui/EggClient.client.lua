@@ -1,6 +1,3 @@
--- StarterGui/EggClient  (LocalScript)
--- Toasts, donation menu and evolution/donation banners. Fully server-driven.
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -11,10 +8,7 @@ gui.Name = "EggGui"
 gui.ResetOnSpawn = false
 gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
----------------------------------------------------------------------
--- Toast
----------------------------------------------------------------------
-
+-- Ust bildirim yazisi
 local toast = Instance.new("TextLabel")
 toast.AnchorPoint = Vector2.new(0.5, 0)
 toast.Position = UDim2.new(0.5, 0, 0, 20)
@@ -29,7 +23,7 @@ toast.Parent = gui
 Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 10)
 
 local toastId = 0
-local function showToast(text: string, color: Color3?)
+local function showToast(text, color)
 	toastId += 1
 	local id = toastId
 	toast.Text = text
@@ -45,10 +39,7 @@ end
 
 remotes.Notify.OnClientEvent:Connect(showToast)
 
----------------------------------------------------------------------
--- Donation menu
----------------------------------------------------------------------
-
+-- Destek menusu
 local menu
 local function closeMenu()
 	if menu then
@@ -73,7 +64,7 @@ remotes.OpenDonateMenu.OnClientEvent:Connect(function(payload)
 	title.Font = Enum.Font.GothamBlack
 	title.TextSize = 20
 	title.TextColor3 = Color3.new(1, 1, 1)
-	title.Text = "Feed " .. payload.Owner .. "'s Egg"
+	title.Text = payload.Owner .. " oyuncusunun yumurtasini besle"
 	title.Parent = menu
 
 	for i, pass in ipairs(payload.Passes) do
@@ -102,19 +93,16 @@ remotes.OpenDonateMenu.OnClientEvent:Connect(function(payload)
 	close.Font = Enum.Font.Gotham
 	close.TextSize = 14
 	close.TextColor3 = Color3.fromRGB(170, 170, 170)
-	close.Text = "Close"
+	close.Text = "Kapat"
 	close.Parent = menu
 	close.Activated:Connect(closeMenu)
 end)
 
----------------------------------------------------------------------
--- Server-wide banners
----------------------------------------------------------------------
-
+-- Herkese gorunen duyurular
 remotes.EggFeedback.OnClientEvent:Connect(function(data)
 	if data.Kind == "Donation" then
-		showToast(string.format("%s fed %s's egg  (+%d XP)", data.Donor, data.Owner, data.XP), Color3.fromRGB(120, 255, 150))
+		showToast(string.format("%s, %s oyuncusunun yumurtasini besledi (+%d XP)", data.Donor, data.Owner, data.XP), Color3.fromRGB(120, 255, 150))
 	elseif data.Kind == "Evolve" then
-		showToast(string.format("%s's egg reached Lv %d  [%s]!", data.Owner, data.Level, data.Rarity), data.Color)
+		showToast(string.format("%s oyuncusunun yumurtasi Lv %d oldu [%s]!", data.Owner, data.Level, data.Rarity), data.Color)
 	end
 end)

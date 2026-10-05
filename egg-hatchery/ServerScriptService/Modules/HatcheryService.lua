@@ -1,6 +1,3 @@
--- ServerScriptService/Modules/HatcheryService  (ModuleScript)
--- Egg XP, evolution logic and all booth visuals (billboard, progress bar, particles).
-
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
@@ -14,18 +11,13 @@ local HatcheryService = {}
 
 local DEFAULT_COLOR = Config.RARITIES[1].Color
 
----------------------------------------------------------------------
--- Booth construction (auto-builds anything missing so any Model works)
----------------------------------------------------------------------
-
-local function makePrompt(parent: BasePart, name: string, action: string, enabled: boolean): ProximityPrompt
-	local prompt = parent:FindFirstChild(name) :: ProximityPrompt?
+local function makePrompt(parent, name, action, enabled)
+	local prompt = parent:FindFirstChild(name)
 	if not prompt then
 		prompt = Instance.new("ProximityPrompt")
 		prompt.Name = name
 		prompt.Parent = parent
 	end
-	prompt = prompt :: ProximityPrompt
 	prompt.ActionText = action
 	prompt.ObjectText = "Mystic Hatchery"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
@@ -36,7 +28,7 @@ local function makePrompt(parent: BasePart, name: string, action: string, enable
 	return prompt
 end
 
-local function makeLabel(parent: Instance, name: string, pos: UDim2, size: UDim2): TextLabel
+local function makeLabel(parent, name, pos, size)
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
@@ -50,14 +42,12 @@ local function makeLabel(parent: Instance, name: string, pos: UDim2, size: UDim2
 	return label
 end
 
--- Ensures Base, Egg, billboard and both prompts exist. Returns (claimPrompt, donatePrompt).
-function HatcheryService.BuildBooth(booth: Model): (ProximityPrompt, ProximityPrompt)
+function HatcheryService.BuildBooth(booth)
 	local base = booth.PrimaryPart or booth:FindFirstChildWhichIsA("BasePart", true)
-	assert(base, booth:GetFullName() .. " needs at least one BasePart")
+	assert(base, booth:GetFullName() .. " icinde en az bir Part olmali")
 	booth.PrimaryPart = base
 
-	-- Egg: use your own part/MeshPart named "Egg", otherwise a neon ellipsoid is generated.
-	local egg = booth:FindFirstChild("Egg") :: BasePart?
+	local egg = booth:FindFirstChild("Egg")
 	if not egg then
 		egg = Instance.new("Part")
 		egg.Name = "Egg"
@@ -67,12 +57,10 @@ function HatcheryService.BuildBooth(booth: Model): (ProximityPrompt, ProximityPr
 		egg.CFrame = base.CFrame * CFrame.new(0, base.Size.Y / 2 + 3, 0)
 		egg.Parent = booth
 	end
-	egg = egg :: BasePart
 	egg.Anchored = true
 	egg.CanCollide = false
 	egg.Color = DEFAULT_COLOR
 
-	-- Billboard: title + progress bar + progress text, all parented to the egg.
 	if not egg:FindFirstChild("HatcheryGui") then
 		local gui = Instance.new("BillboardGui")
 		gui.Name = "HatcheryGui"
@@ -104,34 +92,29 @@ function HatcheryService.BuildBooth(booth: Model): (ProximityPrompt, ProximityPr
 	end
 
 	local claim = makePrompt(base, "ClaimPrompt", "Claim Booth", true)
-	local donate = makePrompt(base, "DonatePrompt", "Donate to Egg", false)
-	CollectionService:AddTag(donate, "DonatePrompt") -- MarketplaceHook discovers prompts by tag
+	local donate = makePrompt(base, "DonatePrompt", "Support Egg", false)
+	CollectionService:AddTag(donate, "DonatePrompt")
 
 	HatcheryService.SetUnclaimed(booth)
 	return claim, donate
 end
 
----------------------------------------------------------------------
--- Visual refresh
----------------------------------------------------------------------
-
-local function getStats(player: Player): (IntValue?, IntValue?)
+local function getStats(player)
 	local ls = player:FindFirstChild("leaderstats")
 	local data = player:FindFirstChild("EggData")
 	if not (ls and data) then
 		return nil, nil
 	end
-	return ls:FindFirstChild("EggLevel") :: IntValue?, data:FindFirstChild("EggXP") :: IntValue?
+	return ls:FindFirstChild("EggLevel"), data:FindFirstChild("EggXP")
 end
 
--- Redraws title, bar, progress text and egg colour for the booth owned by `player`.
-function HatcheryService.Refresh(player: Player)
+function HatcheryService.Refresh(player)
 	local booth = Registry.GetBooth(player)
 	local levelVal, xpVal = getStats(player)
 	if not (booth and levelVal and xpVal) then
 		return
 	end
-	local egg = booth:FindFirstChild("Egg") :: BasePart?
+	local egg = booth:FindFirstChild("Egg")
 	local gui = egg and egg:FindFirstChild("HatcheryGui")
 	if not (egg and gui) then
 		return
@@ -150,19 +133,19 @@ function HatcheryService.Refresh(player: Player)
 	egg.Color = rarity.Color
 end
 
-function HatcheryService.SetClaimed(booth: Model, player: Player)
-	local base = booth.PrimaryPart :: BasePart
+function HatcheryService.SetClaimed(booth, player)
+	local base = booth.PrimaryPart
 	base.ClaimPrompt.Enabled = false
 	base.DonatePrompt.Enabled = true
 	HatcheryService.Refresh(player)
 end
 
-function HatcheryService.SetUnclaimed(booth: Model)
-	local base = booth.PrimaryPart :: BasePart
+function HatcheryService.SetUnclaimed(booth)
+	local base = booth.PrimaryPart
 	base.ClaimPrompt.Enabled = true
 	base.DonatePrompt.Enabled = false
 
-	local egg = booth:FindFirstChild("Egg") :: BasePart
+	local egg = booth:FindFirstChild("Egg")
 	local gui = egg.HatcheryGui
 	gui.Title.Text = "Unclaimed - Press E to claim!"
 	gui.Progress.Text = ""
@@ -171,12 +154,7 @@ function HatcheryService.SetUnclaimed(booth: Model)
 	egg.Color = DEFAULT_COLOR
 end
 
----------------------------------------------------------------------
--- Particle burst
----------------------------------------------------------------------
-
--- Creates a temporary ParticleEmitter on the egg, fires one burst, then cleans up.
-function HatcheryService.BurstParticles(egg: BasePart, rarity: { Name: string, Color: Color3, BurstCount: number })
+function HatcheryService.BurstParticles(egg, rarity)
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
 	emitter.Color = ColorSequence.new(rarity.Color, Color3.new(1, 1, 1))
@@ -188,24 +166,18 @@ function HatcheryService.BurstParticles(egg: BasePart, rarity: { Name: string, C
 		NumberSequenceKeypoint.new(0, 1.6),
 		NumberSequenceKeypoint.new(1, 0),
 	})
-	emitter.Rate = 0 -- burst only
+	emitter.Rate = 0
 	emitter.Parent = egg
 	emitter:Emit(rarity.BurstCount)
 	Debris:AddItem(emitter, 3)
 
-	-- Egg "pop" so the evolution reads from across the map.
 	local original = egg.Size
 	TweenService:Create(egg, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true), {
 		Size = original * 1.35,
 	}):Play()
 end
 
----------------------------------------------------------------------
--- XP + evolution
----------------------------------------------------------------------
-
--- Awards XP to `player`'s egg, evolving it as many times as the XP allows.
-function HatcheryService.AddXP(player: Player, amount: number)
+function HatcheryService.AddXP(player, amount)
 	if not player:GetAttribute("DataLoaded") then
 		return
 	end
@@ -236,17 +208,16 @@ function HatcheryService.AddXP(player: Player, amount: number)
 	end
 end
 
--- Fired whenever the egg gains one or more levels.
-function HatcheryService.OnEvolve(player: Player, oldLevel: number, newLevel: number)
+function HatcheryService.OnEvolve(player, oldLevel, newLevel)
 	local booth = Registry.GetBooth(player)
 	local oldRarity, newRarity = Config.GetRarity(oldLevel), Config.GetRarity(newLevel)
 	local rarityUp = newRarity ~= oldRarity
 
 	if booth then
-		local egg = booth:FindFirstChild("Egg") :: BasePart?
+		local egg = booth:FindFirstChild("Egg")
 		if egg then
 			HatcheryService.BurstParticles(egg, newRarity)
-			if rarityUp then -- double burst for a rarity tier-up
+			if rarityUp then
 				task.delay(0.35, function()
 					if egg.Parent then
 						HatcheryService.BurstParticles(egg, newRarity)
