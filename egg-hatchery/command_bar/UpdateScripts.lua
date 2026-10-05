@@ -54,6 +54,25 @@ Config.MAX_LEVEL = 100
 Config.INTERACT_DISTANCE = 25
 Config.OWNER_CHECK_INTERVAL = 5
 Config.BOOTH_FOLDER_NAME = "Booths"
+-- Bedava XP: yumurtayi beslemek (F tusu). Hepsi saniye / XP cinsinden
+Config.FEED_XP_OWN = 5 -- kendi yumurtani beslersen
+Config.FEED_COOLDOWN_OWN = 20
+Config.FEED_XP_OTHER = 3 -- baskasinin yumurtasini beslersen, sahibine gider
+Config.FEED_COOLDOWN_OTHER = 30 -- ayni oyuncu ayni standi bu surede bir besleyebilir
+Config.FEED_GLOBAL_COOLDOWN = 3 -- bir oyuncu herhangi bir stand icin en az bu aralikla besleyebilir
+-- Stand ozellestirme (sahibi yazi + renk secer)
+Config.STYLE_MAX_LENGTH = 40
+Config.STYLE_COOLDOWN = 3
+Config.STYLE_COLORS = {
+	{ Name = "Kirmizi", Color = Color3.fromRGB(255, 99, 99) },
+	{ Name = "Turuncu", Color = Color3.fromRGB(255, 160, 70) },
+	{ Name = "Sari", Color = Color3.fromRGB(255, 224, 90) },
+	{ Name = "Yesil", Color = Color3.fromRGB(110, 230, 130) },
+	{ Name = "Turkuaz", Color = Color3.fromRGB(80, 220, 210) },
+	{ Name = "Mavi", Color = Color3.fromRGB(100, 160, 255) },
+	{ Name = "Mor", Color = Color3.fromRGB(190, 140, 255) },
+	{ Name = "Pembe", Color = Color3.fromRGB(255, 130, 200) },
+}
 Config.PURCHASE_COOLDOWN = 2 -- ayni oyuncu bu kadar saniyede bir satin alma baslatabilir
 Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
 Config.LEADERBOARD_REFRESH = 60 -- pano yenileme sikligi (sn)
@@ -133,12 +152,21 @@ local function makePrompt(parent, name, action, enabled)
 	return prompt
 end
 
--- sahipsiz stand: tek satir; sahipli stand: baslik + XP cubugu + ilerleme
-local function layoutGui(gui, claimed)
+-- sahipsiz stand: tek satir. sahipli stand: [mesaj] + baslik + XP cubugu + ilerleme
+local function layoutGui(gui, claimed, hasMessage)
 	gui.BarBack.Visible = claimed
 	gui.Progress.Visible = claimed
-	gui.Title.Size = claimed and UDim2.fromScale(1, 0.45) or UDim2.fromScale(1, 0.6)
-	gui.Title.Position = claimed and UDim2.fromScale(0, 0) or UDim2.fromScale(0, 0.2)
+	gui.Message.Visible = claimed and hasMessage
+	if not claimed then
+		gui.Title.Position = UDim2.fromScale(0, 0.25)
+		gui.Title.Size = UDim2.fromScale(1, 0.5)
+	elseif hasMessage then
+		gui.Title.Position = UDim2.fromScale(0, 0.25)
+		gui.Title.Size = UDim2.fromScale(1, 0.27)
+	else
+		gui.Title.Position = UDim2.fromScale(0, 0.05)
+		gui.Title.Size = UDim2.fromScale(1, 0.4)
+	end
 end
 
 local function makeLabel(parent, name, pos, size)
@@ -203,17 +231,18 @@ function HatcheryService.BuildBooth(booth)
 	if not egg:FindFirstChild("HatcheryGui") then
 		local gui = Instance.new("BillboardGui")
 		gui.Name = "HatcheryGui"
-		gui.Size = UDim2.fromOffset(260, 66)
+		gui.Size = UDim2.fromOffset(300, 96)
 		gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth seviyeye gore ayarlar
 		gui.MaxDistance = 45 -- uzaktan 24 yazi ust uste binmesin
 		gui.Parent = egg
 
-		makeLabel(gui, "Title", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.45))
+		makeLabel(gui, "Message", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.24))
+		makeLabel(gui, "Title", UDim2.fromScale(0, 0.25), UDim2.fromScale(1, 0.27))
 
 		local back = Instance.new("Frame")
 		back.Name = "BarBack"
-		back.Position = UDim2.fromScale(0.05, 0.52)
-		back.Size = UDim2.fromScale(0.9, 0.2)
+		back.Position = UDim2.fromScale(0.05, 0.56)
+		back.Size = UDim2.fromScale(0.9, 0.17)
 		back.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 		back.BorderSizePixel = 0
 		back.Parent = gui
@@ -227,15 +256,19 @@ function HatcheryService.BuildBooth(booth)
 		fill.Parent = back
 		Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
 
-		makeLabel(gui, "Progress", UDim2.fromScale(0, 0.76), UDim2.fromScale(1, 0.24))
+		makeLabel(gui, "Progress", UDim2.fromScale(0, 0.76), UDim2.fromScale(1, 0.22))
 	end
 
 	local claim = makePrompt(base, "ClaimPrompt", "Claim Booth", true)
 	local donate = makePrompt(base, "DonatePrompt", "Support Egg", false)
 	CollectionService:AddTag(donate, "DonatePrompt")
+	local feed = makePrompt(base, "FeedPrompt", "Feed Egg (free)", false)
+	feed.KeyboardKeyCode = Enum.KeyCode.F
+	feed.HoldDuration = 0
+	feed.UIOffset = Vector2.new(0, 70) -- diger butonlarin ustune binmesin
 
 	HatcheryService.SetUnclaimed(booth)
-	return claim, donate
+	return claim, donate, feed
 end
 
 local function getStats(player)
@@ -263,7 +296,12 @@ function HatcheryService.Refresh(player)
 	local need = Config.XPRequired(level)
 	local rarity = Config.GetRarity(level)
 
-	layoutGui(gui, true)
+	local message = player:GetAttribute("BoothMessage")
+	local hasMessage = type(message) == "string" and message ~= ""
+	local style = Config.STYLE_COLORS[player:GetAttribute("BoothColor") or 1] or Config.STYLE_COLORS[1]
+	layoutGui(gui, true, hasMessage)
+	gui.Message.Text = hasMessage and message or ""
+	gui.Message.TextColor3 = style.Color
 	gui.Title.Text = string.format("%s's Hatchery - Level %d", player.Name, level)
 	gui.Progress.Text = string.format("%s  |  %d / %d XP", rarity.Name, xp, need)
 	gui.BarBack.Fill.BackgroundColor3 = rarity.Color
@@ -304,6 +342,7 @@ function HatcheryService.SetClaimed(booth, player)
 	local base = booth.PrimaryPart
 	base.ClaimPrompt.Enabled = false
 	base.DonatePrompt.Enabled = true
+	base.FeedPrompt.Enabled = true
 	HatcheryService.Refresh(player)
 end
 
@@ -311,10 +350,11 @@ function HatcheryService.SetUnclaimed(booth)
 	local base = booth.PrimaryPart
 	base.ClaimPrompt.Enabled = true
 	base.DonatePrompt.Enabled = false
+	base.FeedPrompt.Enabled = false
 
 	local egg = booth:FindFirstChild("Egg")
 	local gui = egg.HatcheryGui
-	layoutGui(gui, false)
+	layoutGui(gui, false, false)
 	gui.Title.Text = "Unclaimed - Press E to claim!"
 	gui.Progress.Text = ""
 	gui.BarBack.Fill.Size = UDim2.fromScale(0, 1)
@@ -527,6 +567,12 @@ local function onPlayerAdded(player)
 		player.leaderstats.Donated.Value = saved.Donated or 0
 		player.leaderstats.Level.Value = math.max(saved.Level or saved.EggLevel or 1, 1)
 		player.EggData.EggXP.Value = saved.EggXP or 0
+		if type(saved.BoothMessage) == "string" then
+			player:SetAttribute("BoothMessage", saved.BoothMessage) -- zaten filtrelenmis hali kayitli
+		end
+		if type(saved.BoothColor) == "number" and Config.STYLE_COLORS[saved.BoothColor] then
+			player:SetAttribute("BoothColor", saved.BoothColor)
+		end
 		player:SetAttribute("DataLoaded", true)
 		applyPending(player)
 	else
@@ -543,6 +589,8 @@ local function save(player)
 		Donated = player.leaderstats.Donated.Value,
 		Level = player.leaderstats.Level.Value,
 		EggXP = player.EggData.EggXP.Value,
+		BoothMessage = player:GetAttribute("BoothMessage"),
+		BoothColor = player:GetAttribute("BoothColor"),
 	}
 	local ok = withRetry(function()
 		return store:UpdateAsync(keyFor(player.UserId), function()

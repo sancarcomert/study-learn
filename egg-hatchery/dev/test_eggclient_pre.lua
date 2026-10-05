@@ -1,0 +1,9 @@
+local __Players = game:GetService("Players")
+local __lp = Instance.new("Player")
+__lp.Name = "LocalGuy"
+__lp.UserId = 9
+__lp.Parent = __Players
+local __pg = Instance.new("PlayerGui")
+__pg.Name = "PlayerGui"
+__pg.Parent = __lp
+__Players.LocalPlayer = __lp

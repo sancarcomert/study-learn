@@ -1,10 +1,19 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(script.Parent.Config)
 
 local folder = ReplicatedStorage:FindFirstChild("EggRemotes")
 if not folder then
 	folder = Instance.new("Folder")
 	folder.Name = "EggRemotes"
 	folder.Parent = ReplicatedStorage
+end
+
+-- Istemci Config'e erisemez; stand ayari paneli icin gereken degerler burada yayinlanir
+folder:SetAttribute("StyleMaxLength", Config.STYLE_MAX_LENGTH)
+folder:SetAttribute("StyleColorCount", #Config.STYLE_COLORS)
+for i, c in ipairs(Config.STYLE_COLORS) do
+	folder:SetAttribute("StyleColor" .. i, c.Color)
+	folder:SetAttribute("StyleName" .. i, c.Name)
 end
 
 local function remote(name)
@@ -23,4 +32,5 @@ return {
 	OpenDonateMenu = remote("OpenDonateMenu"),
 	RequestPurchase = remote("RequestPurchase"),
 	EggFeedback = remote("EggFeedback"),
+	SetBoothStyle = remote("SetBoothStyle"),
 }

@@ -7,6 +7,25 @@ Config.MAX_LEVEL = 100
 Config.INTERACT_DISTANCE = 25
 Config.OWNER_CHECK_INTERVAL = 5
 Config.BOOTH_FOLDER_NAME = "Booths"
+-- Bedava XP: yumurtayi beslemek (F tusu). Hepsi saniye / XP cinsinden
+Config.FEED_XP_OWN = 5 -- kendi yumurtani beslersen
+Config.FEED_COOLDOWN_OWN = 20
+Config.FEED_XP_OTHER = 3 -- baskasinin yumurtasini beslersen, sahibine gider
+Config.FEED_COOLDOWN_OTHER = 30 -- ayni oyuncu ayni standi bu surede bir besleyebilir
+Config.FEED_GLOBAL_COOLDOWN = 3 -- bir oyuncu herhangi bir stand icin en az bu aralikla besleyebilir
+-- Stand ozellestirme (sahibi yazi + renk secer)
+Config.STYLE_MAX_LENGTH = 40
+Config.STYLE_COOLDOWN = 3
+Config.STYLE_COLORS = {
+	{ Name = "Kirmizi", Color = Color3.fromRGB(255, 99, 99) },
+	{ Name = "Turuncu", Color = Color3.fromRGB(255, 160, 70) },
+	{ Name = "Sari", Color = Color3.fromRGB(255, 224, 90) },
+	{ Name = "Yesil", Color = Color3.fromRGB(110, 230, 130) },
+	{ Name = "Turkuaz", Color = Color3.fromRGB(80, 220, 210) },
+	{ Name = "Mavi", Color = Color3.fromRGB(100, 160, 255) },
+	{ Name = "Mor", Color = Color3.fromRGB(190, 140, 255) },
+	{ Name = "Pembe", Color = Color3.fromRGB(255, 130, 200) },
+}
 Config.PURCHASE_COOLDOWN = 2 -- ayni oyuncu bu kadar saniyede bir satin alma baslatabilir
 Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
 Config.LEADERBOARD_REFRESH = 60 -- pano yenileme sikligi (sn)

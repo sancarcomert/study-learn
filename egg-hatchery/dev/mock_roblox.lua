@@ -324,6 +324,7 @@ local ENUMS = {
 	SurfaceType = "Smooth Glue Weld Studs Inlet Universal Hinge Motor SteppingMotor SmoothNoOutlines",
 	MeshType = "Head Torso Wedge Prism Pyramid ParallelRamp RightAngleRamp CornerWedge Brick Sphere Cylinder FileMesh",
 	NormalId = "Top Bottom Back Front Right Left",
+	TextFilterContext = "PublicChat PrivateChat",
 	TextXAlignment = "Left Center Right",
 	TextYAlignment = "Top Center Bottom",
 	SurfaceGuiSizingMode = "FixedSize PixelsPerStud",
@@ -459,6 +460,10 @@ local PARENT = {
 	SurfaceGui = "Instance",
 	BillboardGui = "Instance",
 	TextLabel = "Instance",
+	TextButton = "Instance",
+	TextBox = "Instance",
+	ScreenGui = "Instance",
+	PlayerGui = "Instance",
 	Frame = "Instance",
 	UICorner = "Instance",
 	ProximityPrompt = "Instance",
@@ -582,6 +587,46 @@ local SCHEMA = {
 		TextScaled = tBool,
 		TextSize = tNum(1),
 		TextStrokeTransparency = tNum(0, 1),
+		TextTransparency = tNum(0, 1),
+		AnchorPoint = tT("Vector2"),
+		BorderSizePixel = tNum(0),
+		TextXAlignment = tEnum("TextXAlignment"),
+		TextYAlignment = tEnum("TextYAlignment"),
+		Visible = tBool,
+	},
+	TextButton = {
+		BackgroundTransparency = tNum(0, 1),
+		BackgroundColor3 = tT("Color3"),
+		Font = tEnum("Font"),
+		Size = tT("UDim2"),
+		Position = tT("UDim2"),
+		Text = tStr,
+		TextColor3 = tT("Color3"),
+		TextScaled = tBool,
+		TextSize = tNum(1),
+		TextStrokeTransparency = tNum(0, 1),
+		TextTransparency = tNum(0, 1),
+		AnchorPoint = tT("Vector2"),
+		BorderSizePixel = tNum(0),
+		TextXAlignment = tEnum("TextXAlignment"),
+		TextYAlignment = tEnum("TextYAlignment"),
+		Visible = tBool,
+	},
+	TextBox = {
+		BackgroundTransparency = tNum(0, 1),
+		BackgroundColor3 = tT("Color3"),
+		Font = tEnum("Font"),
+		Size = tT("UDim2"),
+		Position = tT("UDim2"),
+		Text = tStr,
+		PlaceholderText = tStr,
+		PlaceholderColor3 = tT("Color3"),
+		ClearTextOnFocus = tBool,
+		TextColor3 = tT("Color3"),
+		TextScaled = tBool,
+		TextSize = tNum(1),
+		TextStrokeTransparency = tNum(0, 1),
+		TextTransparency = tNum(0, 1),
 		AnchorPoint = tT("Vector2"),
 		BorderSizePixel = tNum(0),
 		TextXAlignment = tEnum("TextXAlignment"),
@@ -605,6 +650,7 @@ local SCHEMA = {
 		HoldDuration = tNum(0),
 		MaxActivationDistance = tNum(0),
 		RequiresLineOfSight = tBool,
+		UIOffset = tT("Vector2"),
 		Enabled = tBool,
 	},
 	Atmosphere = {
@@ -665,6 +711,9 @@ local SCHEMA = {
 	},
 	Clouds = { Cover = tNum(0, 1), Density = tNum(0, 1), Color = tT("Color3"), Enabled = tBool },
 	Player = { UserId = tNum(), Character = tInst },
+	Players = { LocalPlayer = tInst },
+	ScreenGui = { ResetOnSpawn = tBool, Enabled = tBool },
+	PlayerGui = {},
 }
 
 local DEFAULTS = {
@@ -776,7 +825,7 @@ IMT.__index = function(self, key)
 		return data.props.CFrame.Position
 	end
 	if key == "ChildAdded" or key == "ChildRemoved" or key == "Changed" or key == "Triggered" or key == "OnServerEvent"
-		or key == "Destroying" or key == "DescendantAdded" or key == "PlayerAdded" or key == "PlayerRemoving" or key == "OnClientEvent" then
+		or key == "Destroying" or key == "DescendantAdded" or key == "PlayerAdded" or key == "PlayerRemoving" or key == "OnClientEvent" or key == "Activated" then
 		return getSignal(self, key)
 	end
 	if Methods[key] then
@@ -1059,6 +1108,10 @@ function Methods.FireAllClients(self, ...)
 	d(self).fired = d(self).fired or {}
 	table.insert(d(self).fired, { ... })
 end
+function Methods.FireServer(self, ...)
+	d(self).firedServer = d(self).firedServer or {}
+	table.insert(d(self).firedServer, { ... })
+end
 function Methods.FireClient(self, ...)
 	d(self).fired = d(self).fired or {}
 	table.insert(d(self).fired, { ... })
@@ -1141,6 +1194,21 @@ selectionSet = nil
 services.Selection = {
 	Set = function(_, list)
 		selectionSet = list
+	end,
+}
+__textFilterFail = false
+services.TextService = {
+	-- "badword" -> "#######" (gercek Roblox filtresinin yerine basit taklit)
+	FilterStringAsync = function(_, text, fromUserId, context)
+		assert(type(text) == "string" and type(fromUserId) == "number", "FilterStringAsync: (string, number) bekler")
+		if __textFilterFail then
+			error("mock filtre hatasi")
+		end
+		return {
+			GetNonChatStringForBroadcastAsync = function()
+				return (text:gsub("[Bb][Aa][Dd][Ww][Oo][Rr][Dd]", "#######"))
+			end,
+		}
 	end,
 }
 services.Players = Instance.new("Players")

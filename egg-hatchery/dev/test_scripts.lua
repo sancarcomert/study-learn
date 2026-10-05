@@ -81,6 +81,101 @@ do
 	local lastNotify = firedOf(Remotes.Notify)
 	check(lastNotify[#lastNotify][2] == "Zaten bir standin var!", "uyari bildirimi gonderildi")
 
+	print("== Bedava XP (besleme) ve stand ayari ==")
+	local function placeChar(player, booth)
+		local c = Instance.new("Model")
+		c.Name = player.Name .. "Char"
+		local r = Instance.new("Part")
+		r.Name = "HumanoidRootPart"
+		r.Size = Vector3.new(2, 2, 1)
+		r.CFrame = booth.PrimaryPart.CFrame + Vector3.new(0, 0, -3)
+		r.Parent = c
+		c.Parent = workspace
+		player.Character = c
+	end
+	check(alice:GetAttribute("HasBooth") == true, "sahip oyuncunun HasBooth attribute'u true (istemci ayar dugmesi icin)")
+	check(b2.PrimaryPart.FeedPrompt.Enabled == true and b4.PrimaryPart.FeedPrompt.Enabled == false, "besleme butonu sadece sahipli standda acik")
+	local xp0 = alice.EggData.EggXP.Value
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", alice)
+	check(alice.EggData.EggXP.Value == xp0, "karakteri standdan uzak/yok: besleme yok sayildi")
+	placeChar(alice, b2)
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", alice)
+	check(alice.EggData.EggXP.Value == xp0 + Config.FEED_XP_OWN, "kendi yumurtani beslemek +" .. Config.FEED_XP_OWN .. " XP")
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", alice)
+	check(alice.EggData.EggXP.Value == xp0 + Config.FEED_XP_OWN, "bekleme suresinde tekrar besleme XP vermedi")
+	local nf = firedOf(Remotes.Notify)
+	check(nf[#nf][2]:find("tok") ~= nil, "bekleme uyarisi: " .. nf[#nf][2])
+	__advance(Config.FEED_COOLDOWN_OWN + 1)
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", alice)
+	check(alice.EggData.EggXP.Value == xp0 + 2 * Config.FEED_XP_OWN, "bekleme bitince tekrar +XP")
+
+	placeChar(bob, b2)
+	local xp1 = alice.EggData.EggXP.Value
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", bob)
+	check(alice.EggData.EggXP.Value == xp1 + Config.FEED_XP_OTHER, "baskasinin yumurtasini beslemek sahibine +" .. Config.FEED_XP_OTHER .. " XP")
+	local na = firedOf(Remotes.Notify)
+	local sawOwnerMsg = false
+	for _, f in ipairs(na) do
+		if f[1] == alice and tostring(f[2]):find("Bob yumurtani besledi") then
+			sawOwnerMsg = true
+		end
+	end
+	check(sawOwnerMsg, "sahibe 'Bob yumurtani besledi' bildirimi gitti")
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", bob)
+	check(alice.EggData.EggXP.Value == xp1 + Config.FEED_XP_OTHER, "3 sn kuresel bekleme: spam yok sayildi")
+	__advance(Config.FEED_GLOBAL_COOLDOWN + 1)
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", bob)
+	check(alice.EggData.EggXP.Value == xp1 + Config.FEED_XP_OTHER, "ayni standi 30 sn icinde tekrar beslemek XP vermedi")
+	__advance(Config.FEED_COOLDOWN_OTHER)
+	__fire(b2.PrimaryPart.FeedPrompt, "Triggered", bob)
+	check(alice.EggData.EggXP.Value == xp1 + 2 * Config.FEED_XP_OTHER, "bekleme bitince tekrar +XP")
+	local xpb4 = bob.EggData.EggXP.Value
+	__fire(b4.PrimaryPart.FeedPrompt, "Triggered", bob)
+	check(bob.EggData.EggXP.Value == xpb4, "sahipsiz standi beslemek bir sey yapmaz")
+
+	-- stand ayari (mesaj + renk)
+	local style = Remotes.SetBoothStyle
+	__fire(style, "OnServerEvent", alice, { Text = "  Pet icin   biriktiriyorum  ", Color = 3 })
+	check(alice:GetAttribute("BoothMessage") == "Pet icin biriktiriyorum" and alice:GetAttribute("BoothColor") == 3, "mesaj kirpildi/bosluklar toplandi, renk 3 kaydedildi")
+	local g = b2.Egg.HatcheryGui
+	check(g.Message.Text == "Pet icin biriktiriyorum" and g.Message.Visible == true, "mesaj yumurtanin ustundeki yaziya basildi")
+	check(g.Message.TextColor3 == Config.STYLE_COLORS[3].Color, "mesaj rengi secilen renk")
+	__fire(style, "OnServerEvent", alice, { Text = "baska", Color = 1 })
+	check(alice:GetAttribute("BoothMessage") == "Pet icin biriktiriyorum", "3 sn bekleme: ayar spam'i yok sayildi")
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = "BadWord burada", Color = 1 })
+	check(alice:GetAttribute("BoothMessage") == "####### burada", "Roblox filtresinden gecen yazi saklandi: " .. tostring(alice:GetAttribute("BoothMessage")))
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = string.rep("a", Config.STYLE_MAX_LENGTH + 1), Color = 1 })
+	check(alice:GetAttribute("BoothMessage") == "####### burada", "cok uzun mesaj reddedildi")
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = "ok", Color = 99 })
+	check(alice:GetAttribute("BoothMessage") == "####### burada", "gecersiz renk reddedildi")
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = 123, Color = 1 })
+	__fire(style, "OnServerEvent", alice, "hile")
+	__fire(style, "OnServerEvent", alice, { Text = "x" })
+	check(alice:GetAttribute("BoothMessage") == "####### burada", "yanlis turdeki veri (sayi/string/eksik) reddedildi")
+	__textFilterFail = true
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = "yeni", Color = 1 })
+	check(alice:GetAttribute("BoothMessage") == "####### burada", "filtre hata verirse mesaj KAYDEDILMEZ")
+	__textFilterFail = false
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = "satir\nsonu\tsekme", Color = 6 })
+	check(alice:GetAttribute("BoothMessage") == "satir sonu sekme" and alice:GetAttribute("BoothColor") == 6, "satir sonu/tab bosluga cevrildi")
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = "", Color = 2 })
+	check(alice:GetAttribute("BoothMessage") == "" and b2.Egg.HatcheryGui.Message.Visible == false, "bos mesaj: yazi gizlenir")
+	__advance(4)
+	__fire(style, "OnServerEvent", alice, { Text = "Kalici mesaj", Color = 4 })
+	local dan = newPlayer("Dan", 6006)
+	__fire(style, "OnServerEvent", dan, { Text = "stand yok", Color = 1 })
+	check(dan:GetAttribute("BoothMessage") == nil, "standi olmayan oyuncu ayar yapamaz")
+	__fire(style, "OnServerEvent", bob, { Text = "Bob mesaji", Color = 2 })
+	check(bob:GetAttribute("BoothMessage") == "Bob mesaji" and alice:GetAttribute("BoothMessage") == "Kalici mesaj", "her sahip kendi standinin ayarini yapar")
+	leave(dan)
+
 	print("== MarketplaceHook: bagis akisi ==")
 	local donor = newPlayer("Carol", 3003)
 	local ch = Instance.new("Model")
@@ -177,6 +272,7 @@ do
 	leave(alice2)
 	local alice3 = newPlayer("Alice", 1001)
 	check(alice3.leaderstats.Raised.Value == alice2.leaderstats.Raised.Value, "ikinci girista bagis tekrar EKLENMEDI")
+	check(alice3:GetAttribute("BoothMessage") == "Kalici mesaj" and alice3:GetAttribute("BoothColor") == 4, "stand mesaji ve rengi kayitla geri geldi")
 	leave(alice3)
 
 	-- veri yuklenemezse kayit KAPALI olmali (eski veri silinmesin)

@@ -110,6 +110,12 @@ local function onPlayerAdded(player)
 		player.leaderstats.Donated.Value = saved.Donated or 0
 		player.leaderstats.Level.Value = math.max(saved.Level or saved.EggLevel or 1, 1)
 		player.EggData.EggXP.Value = saved.EggXP or 0
+		if type(saved.BoothMessage) == "string" then
+			player:SetAttribute("BoothMessage", saved.BoothMessage) -- zaten filtrelenmis hali kayitli
+		end
+		if type(saved.BoothColor) == "number" and Config.STYLE_COLORS[saved.BoothColor] then
+			player:SetAttribute("BoothColor", saved.BoothColor)
+		end
 		player:SetAttribute("DataLoaded", true)
 		applyPending(player)
 	else
@@ -126,6 +132,8 @@ local function save(player)
 		Donated = player.leaderstats.Donated.Value,
 		Level = player.leaderstats.Level.Value,
 		EggXP = player.EggData.EggXP.Value,
+		BoothMessage = player:GetAttribute("BoothMessage"),
+		BoothColor = player:GetAttribute("BoothColor"),
 	}
 	local ok = withRetry(function()
 		return store:UpdateAsync(keyFor(player.UserId), function()
