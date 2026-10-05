@@ -336,6 +336,7 @@ local ENUMS = {
 	ZIndexBehavior = "Global Sibling",
 	ProductPurchaseDecision = "PurchaseGranted NotProcessedYet",
 	InfoType = "Asset Product GamePass Subscription Bundle",
+	Technology = "Compatibility Voxel ShadowMap Future Legacy",
 }
 local enumItems = {}
 Enum = setmetatable({}, {
@@ -474,11 +475,17 @@ local PARENT = {
 	ReplicatedStorage = "Instance",
 	Player = "Instance",
 	IntValue = "Instance",
+	StarterPlayer = "Instance",
+	StarterPlayerScripts = "Instance",
+	StarterGui = "Instance",
+	ServerScriptService = "Instance",
+	Camera = "Instance",
 }
 
 local SCHEMA = {
 	Instance = { Name = tStr, Parent = tInst },
 	BasePart = {
+		Locked = tBool,
 		Anchored = tBool,
 		Size = tSize,
 		CFrame = tT("CFrame"),
@@ -496,6 +503,7 @@ local SCHEMA = {
 	Part = { Shape = tEnum("PartType") },
 	SpawnLocation = { Neutral = tBool, Duration = tNum(0), Enabled = tBool, AllowTeamChangeOnTouch = tBool },
 	Model = { PrimaryPart = tInst, ModelStreamingMode = tEnum("ModelStreamingMode"), WorldPivot = tT("CFrame") },
+	Workspace = { CurrentCamera = tInst },
 	SpecialMesh = { MeshType = tEnum("MeshType"), Scale = tT("Vector3"), Offset = tT("Vector3") },
 	PointLight = { Brightness = tNum(0), Color = tT("Color3"), Range = tNum(0, 60), Shadows = tBool, Enabled = tBool },
 	ParticleEmitter = {
@@ -627,11 +635,16 @@ local SCHEMA = {
 		ColorShift_Top = tT("Color3"),
 		ColorShift_Bottom = tT("Color3"),
 		ShadowSoftness = tNum(0, 1),
+		Technology = tEnum("Technology"),
 		FogColor = tT("Color3"),
 		FogEnd = tNum(),
 		FogStart = tNum(),
 	},
 	IntValue = { Value = tNum() },
+	ModuleScript = { Source = tStr },
+	Script = { Source = tStr },
+	LocalScript = { Source = tStr },
+	Camera = { CFrame = tT("CFrame"), FieldOfView = tNum(1, 120) },
 	Player = { UserId = tNum(), Character = tInst },
 }
 
@@ -1033,6 +1046,30 @@ services.Lighting = lightingInst
 
 services.ReplicatedStorage = Instance.new("ReplicatedStorage")
 services.ReplicatedStorage.Name = "ReplicatedStorage"
+services.ServerScriptService = Instance.new("ServerScriptService")
+services.ServerScriptService.Name = "ServerScriptService"
+services.StarterPlayer = Instance.new("StarterPlayer")
+services.StarterPlayer.Name = "StarterPlayer"
+do
+	local sps = Instance.new("StarterPlayerScripts")
+	sps.Name = "StarterPlayerScripts"
+	sps.Parent = services.StarterPlayer
+end
+services.StarterGui = Instance.new("StarterGui")
+services.StarterGui.Name = "StarterGui"
+do
+	local cam = Instance.new("Camera")
+	cam.Name = "Camera"
+	cam.CFrame = CFrame.new(0, 20, 20)
+	cam.Parent = workspaceInst
+	workspaceInst.CurrentCamera = cam
+end
+selectionSet = nil
+services.Selection = {
+	Set = function(_, list)
+		selectionSet = list
+	end,
+}
 services.Players = Instance.new("Players")
 services.Players.Name = "Players"
 

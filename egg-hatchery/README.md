@@ -24,8 +24,15 @@ doldurur (stand sayisi ve ruh hali `MapBuilder` basindaki `BOOTH_COUNT` / `MOOD`
 
 ## Harita (MapBuilder + MapFX)
 
-`MapBuilder` oyun her basladiginda haritayi kurar; `MapFX` donme/yuzme/yorunge animasyonlarini
-istemcide oynatir. Onizlemeler `dev/previews/` altinda (gercek Roblox gorunumu degil, yazilim cizicisi).
+**Onerilen: tek komutla kurulum.** `command_bar/InstallMap.lua` dosyasinin TAMAMINI Studio'da
+View > Command Bar'a yapistirip Enter'a bas. Harita KALICI kurulur (Play'e basmadan gorunur), `MapFX`
+LocalScript'i otomatik olusturulur, eski `MapBuilder` scripti silinir, kamera adaya cevrilir.
+Ayarlar (stand sayisi, ruh hali, Future isik) dosyanin basindaki `BOOTH_COUNT`, `MOOD`,
+`USE_FUTURE_LIGHTING` satirlaridir; degistirip tekrar calistirmak eskisini siler.
+
+Alternatif: `MapBuilder.server.lua`'yi Script olarak koyarsan harita her oyun basinda kurulur.
+Bu dosya `python3 dev/build_command_bar.py` ile MapBuilder + MapFX'ten uretilir; elle duzenleme.
+Onizlemeler `dev/previews/` altinda (gercek Roblox gorunumu degil, yazilim cizicisi).
 
 ## Gelistirici testleri (Roblox'suz)
 
@@ -33,7 +40,8 @@ istemcide oynatir. Onizlemeler `dev/previews/` altinda (gercek Roblox gorunumu d
 
 ```
 # Luau CLI: https://github.com/luau-lang/luau/releases (luau-ubuntu.zip)
-dev/run_tests.sh /yol/luau                       # 70 kontrol: harita, stand, MapFX, kayit, bagis/makbuz
+python3 dev/build_command_bar.py                 # command_bar/InstallMap.lua'yi yeniden uretir
+dev/run_tests.sh /yol/luau                       # 82 kontrol: kurulum komutu, harita, stand, MapFX, kayit, bagis/makbuz
 dev/run_map.sh /yol/luau parts.txt               # haritayi kurup parca dokumunu yazar
 python3 dev/render_preview.py parts.txt cikti/   # (pillow, numpy) 3B onizleme PNG'leri
 ```

@@ -1,23 +1,14 @@
--- ServerScriptService/MapBuilder  (Script)
---
--- CELESTIAL HATCHERY: gokyuzunde yuzen kozmik bir kulucka adasi.
--- Oyun baslarken haritanin tamamini kodla kurar (elle hicbir sey yerlestirmen gerekmez):
---   * N adet stand (kaide, ay kapisi, direkler, kristaller, yildizlara uzanan isik huzmesi)
---   * ortada donen halkalarin icinde yuzen "Genesis" yumurtasi
---   * gokkusagi halkasi, yuzen adaciklar, uzak monolitler, gokyuzu halkalari (derinlik)
---   * isiklandirma, atmosfer, bloom, alan derinligi
--- Standlar Workspace.Booths icine "Booth_1..N" adiyla konur; BoothManager bunlari otomatik kullanir.
--- Donme/yuzme animasyonlari MapFX LocalScript'i ile istemcide calisir.
--- Iki sekilde kullanilir: Studio Command Bar'a yapistirinca harita KALICI kurulur (command_bar/InstallMap.lua),
--- Script olarak calistirilirsa her oyun basinda kurulur.
-
+-- ============================================================
+-- CELESTIAL HATCHERY - tek komutla kurulum (Studio Command Bar)
+-- 1) Studio'da View > Command Bar'i ac (altta yazi kutusu cikar)
+-- 2) Bu dosyanin TAMAMINI kopyala, kutuya yapistir, Enter'a bas
+-- 3) Birkac saniye bekle; Output'ta "[Kurulum] Bitti" yazinca hazir
+-- Ayarlari (stand sayisi, ruh hali, isik) asagidaki ilk satirlardan degistirip tekrar calistirabilirsin.
+-- ============================================================
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local CollectionService = game:GetService("CollectionService")
 
----------------------------------------------------------------------
--- AYARLAR
----------------------------------------------------------------------
 local BOOTH_COUNT = 16 -- stand sayisi (8 - 24)
 local MOOD = "twilight" -- "twilight" (alacakaranlik) | "night" (gece) | "day" (gunduz)
 local BOOTH_FOLDER_NAME = "Booths"
@@ -77,9 +68,6 @@ local COLOR = {
 
 local DECO = { solid = false, shadow = false } -- carpisma ve golge yok (sus)
 
----------------------------------------------------------------------
--- TEMIZLIK
----------------------------------------------------------------------
 local oldMap = Workspace:FindFirstChild("Map")
 if oldMap then
 	oldMap:Destroy()
@@ -122,9 +110,6 @@ local farF = subfolder("FarScenery")
 local fxF = subfolder("Effects")
 local beamF = subfolder("SkyBeams")
 
----------------------------------------------------------------------
--- YARDIMCILAR
----------------------------------------------------------------------
 local function hsv(h, s, v)
 	return Color3.fromHSV(h % 1, s, v)
 end
@@ -175,7 +160,6 @@ local function part(parent, name, size, cf, color, material, o)
 	return p
 end
 
--- Silindirin ekseni X'tedir; 90 derece doneren dikey olur. cf = silindirin merkezi.
 local UPRIGHT = CFrame.Angles(0, 0, math.rad(90))
 local function cyl(parent, name, diameter, height, cf, color, material, o)
 	local p = newPart(name, Vector3.new(height, diameter, diameter), cf * UPRIGHT, color, material, o, Enum.PartType.Cylinder)
@@ -189,7 +173,6 @@ local function ball(parent, name, diameter, cf, color, material, o)
 	return p
 end
 
--- Elipsoid: SpecialMesh(Sphere) ile esit olmayan olcude "yumurta/igne" sekilleri
 local function ellipsoid(parent, name, size, cf, color, material, o)
 	local p = newPart(name, size, cf, color, material, o)
 	local mesh = Instance.new("SpecialMesh")
@@ -270,8 +253,6 @@ local function makeBeam(parent, a0, a1, c0, c1, w0, w1, t0)
 	return b
 end
 
--- Y ekseni etrafinda halka: parcalarin uzun kenari teget yonde. base = halkanin merkez CFrame'i.
--- color bir Color3 ya da function(k, n) -> Color3 olabilir.
 local function ringSegments(parent, name, base, radius, count, radial, height, color, material, o)
 	local chord = 2 * radius * math.sin(math.pi / count) * 1.06
 	for k = 0, count - 1 do
@@ -285,7 +266,6 @@ local function ringSegments(parent, name, base, radius, count, radial, height, c
 	end
 end
 
--- Yere yapisik ince neon halka (ust yuzey y = 0.16)
 local function neonRing(parent, name, radius, width, color, segLen)
 	local count = math.max(16, math.floor(TAU * radius / (segLen or 7)))
 	ringSegments(parent, name, CFrame.new(0, 0.08, 0), radius, count, width, 0.16, color, Mat.Neon, DECO)
@@ -295,9 +275,6 @@ local function boothAccent(i)
 	return hsv((i - 1) / BOOTH_COUNT, 0.62, 1)
 end
 
----------------------------------------------------------------------
--- ZEMIN: gokyuzu adasi, meydan, neon kakmalar
----------------------------------------------------------------------
 local function buildFloor()
 	cyl(floorF, "Floor", ISLAND_RADIUS * 2, 2, CFrame.new(0, -1, 0), COLOR.floor, Mat.Slate)
 	cyl(floorF, "FloorMid", 208, 0.1, CFrame.new(0, 0, 0), COLOR.floorMid, Mat.Slate, DECO)
@@ -309,7 +286,6 @@ local function buildFloor()
 	neonRing(floorF, "EdgeRing", 122, 0.6, COLOR.gold, 8)
 end
 
--- Merkezden standa uzanan yol
 local function buildPath(i)
 	local accent = boothAccent(i)
 	local a = (i - 1) / BOOTH_COUNT * TAU
@@ -329,9 +305,6 @@ local function buildPath(i)
 	end
 end
 
----------------------------------------------------------------------
--- MERKEZ: sunak, donen halkalar, yuzen Genesis yumurtasi, obeliskler
----------------------------------------------------------------------
 local EGG_Y = 34
 
 local function gyroRing(name, radius, count, tilt, spin, hue0)
@@ -387,7 +360,6 @@ local function buildCenter()
 	cyl(centerF, "AltarBand", 14.6, 0.35, CFrame.new(0, 3.7, 0), COLOR.cyan, Mat.Neon, DECO)
 	cyl(centerF, "AltarTop", 11, 0.12, CFrame.new(0, 4.46, 0), COLOR.cyan, Mat.Neon, DECO)
 
-	-- Genesis yumurtasi + cam kabuk
 	local egg = ellipsoid(centerF, "GenesisEgg", Vector3.new(9.5, 13, 9.5), CFrame.new(0, EGG_Y, 0), COLOR.cyan, Mat.Neon, DECO)
 	addLight(egg, COLOR.cyan, 60, 2.5)
 	addSparkles(egg, COLOR.cyan, 14, 2, 6, 0.9, 2, 4)
@@ -396,7 +368,6 @@ local function buildCenter()
 		{ solid = false, shadow = false, transparency = 0.55, reflectance = 0.2 })
 	tag(shell, "FX_Bob", { BobHeight = 1.4, BobSpeed = 0.8, BobPhase = 0 })
 
-	-- Sunaktan yumurtaya enerji huzmesi ve gokyuzune uzanan sutun
 	local low = anchorPart(centerF, "BeamLow", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 4.6, 0))
 	local mid = anchorPart(centerF, "BeamMid", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 29, 0))
 	makeBeam(low, attach(low, "A0"), attach(mid, "A1"), COLOR.cyan, COLOR.white, 1.6, 3.2, 0.25)
@@ -423,15 +394,11 @@ local function buildCenter()
 		})
 	end
 
-	-- Standlarin arasina (yollara degil) obeliskler
 	for j = 0, BOOTH_COUNT - 1, 2 do
 		buildObelisk((j + 0.5) / BOOTH_COUNT * TAU)
 	end
 end
 
----------------------------------------------------------------------
--- STAND: ay kapili kulucka kaidesi
----------------------------------------------------------------------
 local function buildBooth(i)
 	local a = (i - 1) / BOOTH_COUNT * TAU
 	local pos = Vector3.new(math.cos(a) * BOOTH_RADIUS, 0, math.sin(a) * BOOTH_RADIUS)
@@ -444,7 +411,6 @@ local function buildBooth(i)
 	local model = Instance.new("Model")
 	model.Name = "Booth_" .. i
 
-	-- Basamak, kaide, neon kakmalar
 	cyl(model, "Step", 19, 0.5, L(0, 0.25, 0), COLOR.stoneMid, Mat.Slate)
 	cyl(model, "Dais", 16, 0.9, L(0, 0.75, 0), COLOR.stoneDark, Mat.Slate)
 	ringSegments(model, "DaisInlay", L(0, 1.18, 0), 7.2, 20, 0.45, 0.1, accent, Mat.Neon, DECO)
@@ -452,7 +418,6 @@ local function buildBooth(i)
 	cyl(model, "DaisRune", 5.2, 0.06, L(0, 1.26, 0), accent, Mat.Neon, { solid = false, shadow = false, transparency = 0.3 })
 	ringSegments(model, "FloorGlow", L(0, 0.08, 0), 9.9, 20, 0.35, 0.16, accent, Mat.Neon, DECO)
 
-	-- Destek sunagi (on) + stand numarasi
 	part(model, "PlinthBase", Vector3.new(3.6, 0.35, 3.6), L(0, 1.375, -5), COLOR.metal, Mat.Metal)
 	local plinth = part(model, "Plinth", Vector3.new(3, 2.4, 3), L(0, 2.75, -5), COLOR.stoneDark, Mat.Slate)
 	part(model, "PlinthCap", Vector3.new(3.3, 0.16, 3.3), L(0, 4.03, -5), accent, Mat.Neon, DECO)
@@ -471,14 +436,12 @@ local function buildBooth(i)
 	num.TextColor3 = accent
 	num.Parent = sg
 
-	-- Ay kapisi: yumurtanin arkasinda dikey halka (on taraf tamamen acik)
 	local gate = L(0, 7.4, 3.2) * CFrame.Angles(math.rad(90), 0, 0)
 	ringSegments(model, "GateFrame", gate, 6, 20, 0.8, 0.9, COLOR.metal, Mat.Metal, DECO)
 	ringSegments(model, "GateGlow", gate * CFrame.new(0, -0.5, 0), 6, 20, 0.28, 0.2, accent, Mat.Neon, DECO)
 	part(model, "GateBase", Vector3.new(2.2, 0.3, 1.4), L(0, 1.35, 3.2), COLOR.metal, Mat.Metal, DECO)
 	ball(model, "GateKeystone", 1.3, L(0, 13.9, 3.2), accent, Mat.Neon, DECO)
 
-	-- Yan direkler + kucuk kristal kumeleri
 	for _, sx in ipairs({ -6.6, 6.6 }) do
 		local side = sx > 0 and 1 or -1
 		cyl(model, "PylonBase", 1.8, 0.6, L(sx, 1.5, 1.2), COLOR.metal, Mat.Metal, DECO)
@@ -489,7 +452,6 @@ local function buildBooth(i)
 		ellipsoid(model, "Crystal", Vector3.new(0.8, 2.4, 0.8), L(side * 4.5, 2.4, 3.4) * CFrame.Angles(0, 0, math.rad(12 * side)), accent, Mat.Neon, DECO)
 	end
 
-	-- Yumurta (HatcheryService bu parcayi bulup kullanir) + isik + yuzen yorungeler
 	local egg = ellipsoid(model, "Egg", Vector3.new(3.4, 4.6, 3.4), L(0, 6.8, 0), COLOR.white, Mat.Neon, DECO)
 	addLight(egg, accent, 20, 1.6)
 	addSparkles(egg, accent, 5, 1, 3, 0.45, 1.5, 3)
@@ -506,29 +468,23 @@ local function buildBooth(i)
 		})
 	end
 
-	-- Fenerler
 	for _, sx in ipairs({ -8.2, 8.2 }) do
 		cyl(model, "LanternPost", 0.35, 4.2, L(sx, 2.6, -3.6), COLOR.metal, Mat.Metal, DECO)
 		ball(model, "LanternLamp", 1.2, L(sx, 5.1, -3.6), accent, Mat.Neon, DECO)
 	end
 
-	-- Gokyuzune uzanan isik huzmesi (MapFX: sahipli standda parlak, bos standda soluk)
 	local bBase = anchorPart(model, "BeamBase", Vector3.new(0.4, 0.4, 0.4), L(0, 1.3, 0))
 	local bTop = anchorPart(beamF, "BeamTop_" .. i, Vector3.new(0.4, 0.4, 0.4), CFrame.new(pos + Vector3.new(0, 200, 0)))
 	local beam = makeBeam(bBase, attach(bBase, "A0"), attach(bTop, "A1"), accent, COLOR.white, 0.9, 0.3, 0.85)
 	beam.Name = "SkyBeam"
 	CollectionService:AddTag(beam, "BoothBeam")
 
-	-- Istem prompt'larinin baglanacagi gorunmez ankraj (PrimaryPart = "Base")
 	local base = anchorPart(model, "Base", Vector3.new(2, 2, 2), L(0, 5.4, -5))
 	model.PrimaryPart = base
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	model.Parent = boothFolder
 end
 
----------------------------------------------------------------------
--- SUS: bahce halkasi, korkuluk, gorunmez sinir
----------------------------------------------------------------------
 local function buildGarden()
 	for j = 0, BOOTH_COUNT - 1 do
 		local a = (j + 0.5) / BOOTH_COUNT * TAU
@@ -556,15 +512,11 @@ local function buildParapet()
 		cyl(decorF, "WallPost", 1.8, 5, p * CFrame.new(0, 2.5, 0), COLOR.stoneMid, Mat.Slate)
 		ball(decorF, "WallLamp", 1.7, p * CFrame.new(0, 5.6, 0), COLOR.gold, Mat.Neon, DECO)
 	end
-	-- Gorunmez yuksek sinir: oyuncular adadan dusmesin
 	local br = r + 2.8
 	ringSegments(decorF, "Barrier", CFrame.new(0, 20, 0), br, math.floor(TAU * br / 10), 1, 40, COLOR.white, Mat.SmoothPlastic,
 		{ transparency = 1, shadow = false })
 end
 
----------------------------------------------------------------------
--- ADANIN ALTI: kaya basamaklari, parcalar, sarkan kristaller
----------------------------------------------------------------------
 local function buildUnderside()
 	local layers = 15
 	local radii = {}
@@ -604,9 +556,6 @@ local function buildUnderside()
 	end
 end
 
----------------------------------------------------------------------
--- UZAK MANZARA: yuzen adaciklar, monolitler, gokyuzu halkalari (derinlik)
----------------------------------------------------------------------
 local function buildIslet(i)
 	local ang = i * 2.399963
 	local r = 190 + ((i - 1) % 4) * 48 + rng:NextNumber(0, 24)
@@ -691,9 +640,6 @@ local function skyRing(name, radius, count, tilt, height, hueShift, spin)
 	model.Parent = farF
 end
 
----------------------------------------------------------------------
--- EFEKTLER, ISIKLANDIRMA, DOGMA NOKTALARI
----------------------------------------------------------------------
 local function buildEffects()
 	local dust = anchorPart(fxF, "Stardust", Vector3.new(320, 70, 320), CFrame.new(0, 30, 0))
 	local e = addSparkles(dust, COLOR.white, 60, 0.4, 1.6, 0.6, 8, 14)
@@ -785,9 +731,6 @@ local function buildSpawns()
 	end
 end
 
----------------------------------------------------------------------
--- KUR
----------------------------------------------------------------------
 buildFloor()
 buildCenter()
 for i = 1, BOOTH_COUNT do
@@ -811,3 +754,210 @@ applyLighting()
 
 map.Parent = Workspace
 print(string.format("[MapBuilder] Celestial Hatchery hazir: %d stand", BOOTH_COUNT))
+
+local MAPFX_SOURCE = [=[
+-- StarterPlayer/StarterPlayerScripts/MapFX  (LocalScript)
+--
+-- MapBuilder'in isaretledigi (CollectionService tag) nesneleri istemcide anime eder.
+-- Hepsi SADECE bu oyuncunun ekraninda olur: sunucuya yuk bindirmez, tum oyuncular ayni fazi gorur.
+--   FX_Spin  : kendi ekseni etrafinda doner   (SpinSpeed)
+--   FX_Bob   : yukari-asagi yuzer, istege bagli yavasca doner (BobHeight, BobSpeed, BobPhase, SpinSpeed)
+--   FX_Orbit : bir merkez etrafinda yorunge  (OrbitCenter, OrbitRadius, OrbitSpeed, OrbitPhase, OrbitHeight, OrbitBob)
+--   BoothBeam: standin isik huzmesi; stand sahipliyse parlak, bossa soluk
+--
+-- Onemli: modeller her karede PivotTo ile "arttirilarak" degil, baslangic ofsetlerinden MUTLAK olarak
+-- yeniden hesaplanir. Boylece sayisal hata birikmez (uzun oturumlarda bile kayma olmaz).
+
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local FAR_DISTANCE = 200 -- adanin merkezinden bu kadar uzaktaki dekor 3 karede bir guncellenir
+
+local spinners = {}
+local bobbers = {}
+local orbiters = {}
+
+-- Model ya da parcanin baslangic pivotunu ve her parcanin pivota gore SABIT ofsetini saklar
+local function captureRig(inst)
+	if inst:IsA("Model") then
+		local base = inst:GetPivot()
+		local inverse = base:Inverse()
+		local parts, offsets = {}, {}
+		for _, d in ipairs(inst:GetDescendants()) do
+			if d:IsA("BasePart") then
+				table.insert(parts, d)
+				table.insert(offsets, inverse * d.CFrame)
+			end
+		end
+		return { base = base, parts = parts, offsets = offsets }
+	end
+	return { base = inst.CFrame, parts = { inst }, offsets = { CFrame.new() } }
+end
+
+local function applyRig(rig, pivot)
+	local parts, offsets = rig.parts, rig.offsets
+	for i = 1, #parts do
+		parts[i].CFrame = pivot * offsets[i]
+	end
+end
+
+-- tag'li nesneleri (var olanlar + sonradan akan/gelenler) takip eder
+local function watch(tagName, store, make)
+	local function add(inst)
+		if store[inst] == nil then
+			local data = make(inst)
+			if data then
+				store[inst] = data
+			end
+		end
+	end
+	for _, inst in ipairs(CollectionService:GetTagged(tagName)) do
+		add(inst)
+	end
+	CollectionService:GetInstanceAddedSignal(tagName):Connect(add)
+	CollectionService:GetInstanceRemovedSignal(tagName):Connect(function(inst)
+		store[inst] = nil
+	end)
+end
+
+local function newEntry(inst, extra)
+	local rig = captureRig(inst)
+	extra.rig = rig
+	extra.far = rig.base.Position.Magnitude > FAR_DISTANCE
+	extra.slot = math.random(0, 2)
+	return extra
+end
+
+watch("FX_Spin", spinners, function(inst)
+	return newEntry(inst, { speed = inst:GetAttribute("SpinSpeed") or 0.3 })
+end)
+
+watch("FX_Bob", bobbers, function(inst)
+	return newEntry(inst, {
+		height = inst:GetAttribute("BobHeight") or 1,
+		speed = inst:GetAttribute("BobSpeed") or 0.5,
+		phase = inst:GetAttribute("BobPhase") or 0,
+		spin = inst:GetAttribute("SpinSpeed") or 0,
+	})
+end)
+
+watch("FX_Orbit", orbiters, function(inst)
+	local center = inst:GetAttribute("OrbitCenter")
+	if not center then
+		return nil
+	end
+	return {
+		center = center,
+		radius = inst:GetAttribute("OrbitRadius") or 5,
+		speed = inst:GetAttribute("OrbitSpeed") or 1,
+		phase = inst:GetAttribute("OrbitPhase") or 0,
+		height = inst:GetAttribute("OrbitHeight") or 0,
+		bob = inst:GetAttribute("OrbitBob") or 0,
+	}
+end)
+
+local frame = 0
+
+RunService.Heartbeat:Connect(function()
+	frame += 1
+	local t = Workspace:GetServerTimeNow()
+
+	for inst, d in pairs(spinners) do
+		if inst.Parent and (not d.far or frame % 3 == d.slot) then
+			applyRig(d.rig, d.rig.base * CFrame.Angles(0, t * d.speed, 0))
+		end
+	end
+
+	for inst, d in pairs(bobbers) do
+		if inst.Parent and (not d.far or frame % 3 == d.slot) then
+			local pivot = d.rig.base
+			if d.spin ~= 0 then
+				pivot = pivot * CFrame.Angles(0, t * d.spin, 0)
+			end
+			applyRig(d.rig, pivot + Vector3.new(0, math.sin(t * d.speed + d.phase) * d.height, 0))
+		end
+	end
+
+	for inst, d in pairs(orbiters) do
+		if inst.Parent then
+			local a = t * d.speed + d.phase
+			local offset = Vector3.new(math.cos(a) * d.radius, d.height + math.sin(a * 1.7) * d.bob, math.sin(a) * d.radius)
+			inst.CFrame = CFrame.new(d.center + offset) * CFrame.Angles(a, a * 0.7, 0)
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Stand huzmeleri: sahipli = parlak sutun, bos = soluk
+---------------------------------------------------------------------
+local function applyBeam(beam, claimed)
+	if claimed then
+		beam.Width0 = 2.6
+		beam.Width1 = 0.6
+		beam.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.15),
+			NumberSequenceKeypoint.new(0.5, 0.55),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+	else
+		beam.Width0 = 0.9
+		beam.Width1 = 0.3
+		beam.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.85),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+	end
+end
+
+local function hookBeam(beam)
+	local booth = beam:FindFirstAncestorOfClass("Model")
+	if not booth then
+		return
+	end
+	local function refresh()
+		applyBeam(beam, booth:GetAttribute("OwnerUserId") ~= nil)
+	end
+	refresh()
+	booth:GetAttributeChangedSignal("OwnerUserId"):Connect(refresh)
+end
+
+for _, beam in ipairs(CollectionService:GetTagged("BoothBeam")) do
+	hookBeam(beam)
+end
+CollectionService:GetInstanceAddedSignal("BoothBeam"):Connect(hookBeam)
+]=]
+
+do
+	local ok, err = pcall(function()
+		local container = game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts") or game:GetService("StarterGui")
+		local old = container:FindFirstChild("MapFX")
+		if old then
+			old:Destroy()
+		end
+		local fx = Instance.new("LocalScript")
+		fx.Name = "MapFX"
+		fx.Source = MAPFX_SOURCE
+		fx.Parent = container
+	end)
+	if ok then
+		print("[Kurulum] MapFX kuruldu (StarterPlayerScripts).")
+	else
+		warn("[Kurulum] MapFX otomatik kurulamadi (" .. tostring(err) .. "). Asagidaki kodu elle bir LocalScript'e yapistir:")
+		print(MAPFX_SOURCE)
+	end
+
+	local oldBuilder = game:GetService("ServerScriptService"):FindFirstChild("MapBuilder")
+	if oldBuilder then
+		oldBuilder:Destroy()
+		print("[Kurulum] Eski MapBuilder scripti silindi (harita artik kalici).")
+	end
+end
+
+pcall(function()
+	Workspace.CurrentCamera.CFrame = CFrame.lookAt(Vector3.new(0, 175, 310), Vector3.new(0, 18, 0))
+end)
+pcall(function()
+	game:GetService("Selection"):Set({ map })
+end)
+print("[Kurulum] Bitti. Play'e (F5) basip standlara gidebilirsin.")
