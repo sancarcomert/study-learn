@@ -43,3 +43,25 @@ write("ServerScriptService.rbxmx", [item("Folder", "Modules", None, mods)] + [
 ])
 write("StarterGui.rbxmx", [item("LocalScript", "EggClient", read("StarterGui/EggClient.client.lua"))])
 write("StarterPlayerScripts.rbxmx", [item("LocalScript", "MapFX", read("StarterPlayer/StarterPlayerScripts/MapFX.client.lua"))])
+
+
+# --- BoothRing.rbxmx: Workspace'e eklenir. Sari disk (BoothRing) + icinde Script. Disk surukle/boyutlandir -> Play'de standlar halka olur.
+def part_disc(source):
+    ref = f"RBX{next(ids)}"
+    color = (255 << 24) | (255 << 16) | (200 << 8) | 60  # sari
+    props = (
+        '<string name="Name">BoothRing</string>'
+        '<bool name="Anchored">true</bool>'
+        '<bool name="CanCollide">false</bool>'
+        '<bool name="Locked">false</bool>'
+        '<float name="Transparency">0.35</float>'
+        f'<Color3uint8 name="Color3uint8">{color}</Color3uint8>'
+        '<token name="shape">2</token>'
+        '<Vector3 name="size"><X>0.5</X><Y>168</Y><Z>168</Z></Vector3>'
+        '<CoordinateFrame name="CFrame"><X>0</X><Y>1</Y><Z>0</Z>'
+        '<R00>0</R00><R01>-1</R01><R02>0</R02><R10>1</R10><R11>0</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame>'
+    )
+    return f'<Item class="Part" referent="{ref}"><Properties>{props}</Properties>{item("Script", "BoothRingBuilder", source)}</Item>'
+
+
+write("BoothRing.rbxmx", [part_disc(read("studio_src/BoothRing.server.lua"))])
