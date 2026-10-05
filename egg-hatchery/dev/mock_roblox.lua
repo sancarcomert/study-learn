@@ -528,6 +528,7 @@ local SCHEMA = {
 		Enabled = tBool,
 		Drag = tNum(0),
 		LockedToPart = tBool,
+		EmissionDirection = tEnum("NormalId"),
 		ZOffset = tNum(),
 	},
 	Beam = {
@@ -649,6 +650,14 @@ local SCHEMA = {
 	Script = { Source = tStr },
 	LocalScript = { Source = tStr },
 	Camera = { CFrame = tT("CFrame"), FieldOfView = tNum(1, 120) },
+	Terrain = {
+		Decoration = tBool,
+		WaterColor = tT("Color3"),
+		WaterTransparency = tNum(0, 1),
+		WaterReflectance = tNum(0, 1),
+		WaterWaveSize = tNum(0, 1),
+		WaterWaveSpeed = tNum(0, 100),
+	},
 	Clouds = { Cover = tNum(0, 1), Density = tNum(0, 1), Color = tT("Color3"), Enabled = tBool },
 	Player = { UserId = tNum(), Character = tInst },
 }
@@ -930,6 +939,44 @@ function Methods.ClearAllChildren(self)
 	for _, c in ipairs(table.clone(d(self).children)) do
 		Methods.Destroy(c)
 	end
+end
+-- Terrain: dolgu cagrilari kaydedilir (gercek arazi uretilmez); parametre turleri dogrulanir
+local function terrainFill(self, kind, spec, ...)
+	assert(d(self).class == "Terrain", kind .. " sadece Terrain uzerinde calisir")
+	local args = { ... }
+	for i, want in ipairs(spec) do
+		local v = args[i]
+		if want == "number" then
+			assert(type(v) == "number" and not isNaN(v) and v > 0, kind .. " arg" .. i .. " pozitif sayi olmali")
+		elseif want == "Material" then
+			assert(isType(v, "EnumItem") and v.EnumType == "Material", kind .. " arg" .. i .. " Enum.Material olmali")
+		else
+			assert(isType(v, want), kind .. " arg" .. i .. " " .. want .. " olmali")
+		end
+	end
+	d(self).fills = d(self).fills or {}
+	table.insert(d(self).fills, { kind = kind, args = args })
+end
+function Methods.FillBlock(self, cf, size, mat)
+	terrainFill(self, "Block", { "CFrame", "Vector3", "Material" }, cf, size, mat)
+end
+function Methods.FillBall(self, center, radius, mat)
+	terrainFill(self, "Ball", { "Vector3", "number", "Material" }, center, radius, mat)
+end
+function Methods.FillCylinder(self, cf, height, radius, mat)
+	terrainFill(self, "Cylinder", { "CFrame", "number", "number", "Material" }, cf, height, radius, mat)
+end
+function Methods.Clear(self)
+	assert(d(self).class == "Terrain", "Clear sadece Terrain'de")
+	d(self).fills = {}
+end
+function Methods.SetMaterialColor(self, mat, color)
+	assert(d(self).class == "Terrain" and isType(mat, "EnumItem") and isType(color, "Color3"), "SetMaterialColor arguman hatasi")
+	d(self).matColors = d(self).matColors or {}
+	d(self).matColors[mat.Name] = color
+end
+function Methods.GetFills_MOCK(self)
+	return d(self).fills or {}
 end
 local ATTR_OK = { boolean = true, number = true, string = true }
 function Methods.SetAttribute(self, name, value)

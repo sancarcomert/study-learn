@@ -46,11 +46,11 @@ do
 	local plazaHalf = workspace.Map.Plaza.PlazaFloor.Size.X / 2
 	local parkHalf = 0
 	for _, h in ipairs(workspace.Map.Scenery:GetChildren()) do
-		if h.Name == "Hedge" then
+		if h.Name == "Barrier" then
 			parkHalf = math.max(parkHalf, math.abs(h.Position.X), math.abs(h.Position.Z))
 		end
 	end
-	parkHalf = math.floor(parkHalf + 0.5)
+	parkHalf = math.floor(parkHalf + 0.5) - 3 -- gorunmez duvar parkin 3 stud disinda
 	check(#booths == 24 and plazaHalf == 106 and parkHalf == 232, "24 stand; meydan yari boyutu " .. plazaHalf .. ", park " .. parkHalf)
 
 	-- her stand: dogru yone bakiyor, giris yollarini kapatmiyor, meydanin icinde
@@ -148,7 +148,7 @@ do
 			end
 		end
 	end
-	check(cornerTrees == 4 and parkTrees >= 60, "4 kose agaci + " .. parkTrees .. " park agaci, hepsi yollardan uzak ve citligin icinde")
+	check(cornerTrees == 4 and parkTrees >= 50, "4 kose agaci + " .. parkTrees .. " park agaci, hepsi yollardan uzak ve citligin icinde")
 
 	-- hicbir sey citlikten tasmiyor, cok yuksek degil
 	local maxY, tooFar = 0, nil
@@ -179,5 +179,124 @@ do
 			count = count + 1
 		end
 	end
-	check(count < 2200, "toplam parca sayisi makul (" .. count .. " < 2200)")
+	check(count < 7000, "toplam parca sayisi makul (" .. count .. " < 7000)")
+
+	---------------------------------------------------------------------
+	-- Arazi, su, kopru, renkler
+	---------------------------------------------------------------------
+	print("== Arazi / su / dekor ==")
+	local fills = workspace.Terrain:GetFills_MOCK()
+	local pools, segs, hillsN = {}, {}, 0
+	for _, f in ipairs(fills) do
+		local mat = f.args[#f.args].Name
+		if f.kind == "Cylinder" and mat == "Air" then
+			table.insert(pools, { x = f.args[1].Position.X, z = f.args[1].Position.Z, r = f.args[3] })
+		elseif f.kind == "Block" and mat == "Air" then
+			local cf, size = f.args[1], f.args[2]
+			local look = cf.LookVector
+			table.insert(segs, { x = cf.Position.X, z = cf.Position.Z, lx = look.X, lz = look.Z, half = size.Z / 2, w = size.X })
+		elseif f.kind == "Ball" then
+			hillsN = hillsN + 1
+			local c, R = f.args[1], f.args[2]
+			local h = c.Y + R
+			local foot = math.sqrt(2 * R * h - h * h)
+			local d = math.sqrt(c.X ^ 2 + c.Z ^ 2)
+			assert(d - foot >= parkHalf + 30, string.format("tepe parka giriyor (mesafe %.0f, taban %.0f)", d, foot))
+		end
+	end
+	check(#pools == 2 and #segs == 8 and hillsN == 16, string.format("2 gol, %d dere parcasi, %d tepe; hicbir tepe parka girmiyor", #segs, hillsN))
+	-- su sirasi: kum -> hava -> su (kum en sona kalirsa suyu doldurur)
+	local order = {}
+	for _, f in ipairs(fills) do
+		table.insert(order, f.args[#f.args].Name)
+	end
+	local lastSand, firstAir, lastAir, firstWater = 0, math.huge, 0, math.huge
+	for i, m in ipairs(order) do
+		if m == "Sand" then lastSand = i end
+		if m == "Air" then firstAir = math.min(firstAir, i); lastAir = i end
+		if m == "Water" then firstWater = math.min(firstWater, i) end
+	end
+	check(lastSand < firstAir and lastAir < firstWater, "dolgu sirasi dogru: once kum, sonra oyuk, en sonda su")
+
+	local function distToSeg(px, pz, s)
+		local dx, dz = px - s.x, pz - s.z
+		local along = math.clamp(dx * s.lx + dz * s.lz, -s.half, s.half)
+		local cx, cz = s.x + s.lx * along, s.z + s.lz * along
+		return math.sqrt((px - cx) ^ 2 + (pz - cz) ^ 2)
+	end
+	local function waterDistance(px, pz)
+		local best = math.huge
+		for _, pl in ipairs(pools) do
+			best = math.min(best, math.sqrt((px - pl.x) ^ 2 + (pz - pl.z) ^ 2) - pl.r)
+		end
+		for _, sg in ipairs(segs) do
+			best = math.min(best, distToSeg(px, pz, sg) - sg.w / 2)
+		end
+		return best
+	end
+	local minTree = math.huge
+	for _, t in ipairs(workspace.Map.Trees:GetChildren()) do
+		if t.Name == "Trunk" then
+			minTree = math.min(minTree, waterDistance(t.Position.X, t.Position.Z))
+		end
+	end
+	check(minTree >= 6, string.format("hicbir agac suya 6 stud'dan yakin degil (en yakin %.1f)", minTree))
+	local minDecor = math.huge
+	for _, p in ipairs(partsOf(workspace.Map.Decor)) do
+		if p.CanCollide then
+			minDecor = math.min(minDecor, waterDistance(p.Position.X, p.Position.Z))
+		end
+	end
+	check(minDecor >= 1, string.format("carpismali mobilya suyun icinde degil (en yakin %.1f)", minDecor))
+
+	-- kopru dereyi tamamen kapliyor, yol parcasi kopruyle cakismiyor
+	local deck = workspace.Map.Water.BridgeDeck
+	local streamX
+	for _, sg in ipairs(segs) do
+		if math.abs(sg.z) < 20 and math.abs(sg.lz) > 0.5 then
+			local t = (0 - sg.z) / sg.lz
+			if math.abs(t) <= sg.half then
+				streamX = sg.x + sg.lx * t
+			end
+		end
+	end
+	assert(streamX, "dere z=0'da bulunamadi")
+	check(deck.Position.X - deck.Size.X / 2 < streamX - 4 - 3 and deck.Position.X + deck.Size.X / 2 > streamX + 4 + 3, string.format("kopru dereyi (x=%.1f) iki yandan tasarak kapliyor", streamX))
+	local deckMin, deckMax = deck.Position.X - deck.Size.X / 2, deck.Position.X + deck.Size.X / 2
+	for _, p in ipairs(workspace.Map.Plaza:GetChildren()) do
+		if p.Name == "Path" and math.abs(p.Position.Z) < 9 and p.Position.X > 0 then
+			local lo, hi = p.Position.X - p.Size.Z / 2, p.Position.X + p.Size.Z / 2
+			-- +X yolu X ekseninde uzar
+			assert(hi <= deckMin + 0.5 or lo >= deckMax - 0.5, "yol parcasi dereyi/kopruyu ortuyor")
+		end
+	end
+	check(true, "+X yolu dere uzerinde kesilmis, kopru oraya oturuyor")
+
+	-- stand renkleri: 8 farkli renk, yan yana iki stand ayni renkte degil
+	local colors, same = {}, 0
+	local list = workspace.Booths:GetChildren()
+	table.sort(list, function(a, b) return tonumber(a.Name:match("%d+")) < tonumber(b.Name:match("%d+")) end)
+	local prev
+	local distinct = {}
+	for idx, b in ipairs(list) do
+		local c = b.Awning.Color
+		local key = string.format("%.2f,%.2f,%.2f", c.R, c.G, c.B)
+		distinct[key] = true
+		if prev == key and (idx - 1) % 6 ~= 0 then
+			same = same + 1
+		end
+		prev = key
+	end
+	local n = 0
+	for _ in pairs(distinct) do n = n + 1 end
+	check(n == 8 and same == 0, n .. " farkli stand rengi, yan yana ayni renk yok")
+
+	-- 4 yol kapisi, 4 patika, su kenari esyalari
+	local gates, stones = 0, 0
+	for _, p in ipairs(workspace.Map.Decor:GetChildren()) do
+		if p.Name == "GateSign" then gates = gates + 1 end
+		if p.Name == "StepStone" then stones = stones + 1 end
+	end
+	check(gates == 4 and stones >= 80, gates .. " kapi tabelasi, " .. stones .. " patika tasi")
+	check(workspace.Map.Water:FindFirstChild("DockPlank") ~= nil and #workspace.Map.Water:GetChildren() > 100, "iskele, kopru, kamis, nilufer ve kayalar var")
 end

@@ -28,12 +28,13 @@ do
 		end
 	end
 	check(atm == 1, "Lighting'te tek Atmosphere var (eski EH_Atmosphere silindi)")
-	check(workspace.Map.Ground.Grass.Locked == true and workspace.Spawn1.Locked == true, "parcalar kilitli")
+	check(workspace.Map.Plaza.PlazaFloor.Locked == true and workspace.Spawn1.Locked == true, "parcalar kilitli")
 	local cp = workspace.CurrentCamera.CFrame.Position
 	check(cp.X == 0 and cp.Y == 210 and cp.Z == 360, "kamera parka cevrildi")
 	check(selectionSet ~= nil and selectionSet[1] == workspace.Map, "Map klasoru secildi (F ile odaklanilir)")
 	local cs = game:GetService("CollectionService")
 	check(#cs:GetTagged("FX_Bob") == 24 and #cs:GetTagged("BoothSign") == 24, "kalici haritada 24 yumurta ve 24 tabela etiketi var")
+	check(#workspace.Terrain:GetFills_MOCK() > 20, "arazi dolduruldu (zemin, tepeler, gol, dere): " .. #workspace.Terrain:GetFills_MOCK() .. " dolgu")
 	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
 	check(clouds ~= nil and #workspace.Terrain:GetChildren() == 1, "gokyuzunde tek bir Clouds nesnesi var (eskisi silindi)")
 end

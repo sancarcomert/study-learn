@@ -1,7 +1,7 @@
 # Egg Hatchery (Roblox)
 
 Please Donate tarzi bir stand oyunu: oyuncu bir stand sahiplenir, ustundeki yumurta zamanla ve
-destek satin alimlariyla buyur/evrilir. Harita "Celestial Hatchery" kodla kurulur.
+destek satin alimlariyla buyur/evrilir. Harita (dogal park + gol) kodla kurulur.
 
 ## Studio'ya yerlestirme
 
@@ -22,13 +22,22 @@ Kurulum: Game Settings > Security > "Enable Studio Access to API Services" acik 
 `Config.PRODUCTS` icine Developer Product ID'lerini yaz. `Workspace.Booths` klasorunu `MapBuilder` kendisi
 doldurur (stand sayisi `MapBuilder` basindaki `BOOTHS_PER_SIDE` ile degisir).
 
-## Harita: Sunny Park (MapBuilder + MapFX)
+## Ekonomi / liderlik tablosu
 
-Gunesli, yesil bir park meydani; Please Donate tarzi stand haritasi:
-- ortada cesme, genis tasli meydan, 4 yonde cimenlik parka acilan yollar
-- meydanin 4 kenarinda sira sira (kenara dik) dizili 24 sade ahsap kulube: tezgah, cizgili yesil tente,
-  ustunde isim tabelasi ve tabelanin ustunde kucuk yumurta (`BOOTHS_PER_SIDE` ile 6 ya da 8 => 24 ya da 32 stand)
-- agaclar, calilar, cicek yataklari, banklar, lamba direkleri, citlik, uzakta tepeler, gunesli gokyuzu
+Liderlik tablosu: **Raised** (standina gelen destek, Robux), **Donated** (baskalarina verdigin), **Level** (yumurta
+seviyesi). Sure gecmekle puan/XP YOKTUR; yumurta yalnizca destekle buyur: seviye arttikca fiziksel olarak buyur
+(`Config.EggScale`, en fazla x2.2), Rare+ nadirliklerde surekli kivilcim/isik, seviye atlayinca gecici parcacik patlamasi.
+
+## Harita: Dogal Park (MapBuilder + MapFX)
+
+Gunesli dogal park; Please Donate tarzi stand meydani:
+- ortada cesme (8 fiskiyeli), kaldirim tasli meydan, 4 yonde parka acilan yollar, yol agizlarinda "WELCOME" kapilari
+- meydanin 4 kenarinda sira sira 24 renkli pazar tezgahi (her stand kendi renginde: tente, bayrakcik, isik dizisi, meyve
+  sepetleri, bagis kavanozu, saksilar); tabela on tarafta yuksekte, tabelanin ustunde yumurta (`BOOTHS_PER_SIDE` 6 ya da 8)
+- gercek Roblox arazisi (Terrain): kuzey-bati golu + iskele, guney-dogu kucuk gol, ikisini baglayan dere ve +X yolu
+  uzerinde ahsap kopru, tepeler; dolambacli tas patikalar, piknik alani, kosk, cicek cayirlari, kamis/nilufer/kayalar
+- 4 cins agac (mese/huş/kiraz/akcaagac), banklar, cop kutulari, lambalar, saksilar, kenarda kaya + agac siralari
+- arazi uretilemezse (Terrain hatasi) duz zemin parcasina geri doner
 
 **Onerilen: tek komutla kurulum.** `command_bar/InstallMap.lua` dosyasinin TAMAMINI Studio'da
 View > Command Bar'a yapistirip Enter'a bas ("Tehlikeli Komut" uyarisinda "Devam et"). Harita KALICI kurulur
@@ -48,7 +57,7 @@ uretilir; elle duzenleme. Onizlemeler `dev/previews/` altinda (gercek Roblox gor
 ```
 # Luau CLI: https://github.com/luau-lang/luau/releases (luau-ubuntu.zip)
 python3 dev/build_command_bar.py                 # command_bar/InstallMap.lua'yi yeniden uretir
-dev/run_tests.sh /yol/luau                       # 88 kontrol: kurulum komutu, yerlesim, stand, MapFX, kayit, bagis/makbuz
+dev/run_tests.sh /yol/luau                       # 106 kontrol: kurulum, yerlesim, arazi/su/kopru, stand, MapFX, kayit, bagis/makbuz, yumurta buyumesi
 dev/run_map.sh /yol/luau parts.txt               # haritayi kurup parca dokumunu yazar
 python3 dev/render_preview.py parts.txt cikti/   # (pillow, numpy) 3B onizleme PNG'leri
 ```
