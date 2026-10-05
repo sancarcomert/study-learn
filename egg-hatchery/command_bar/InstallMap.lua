@@ -328,7 +328,7 @@ local function buildTerrain()
 			terrain:SetMaterialColor(Mat.Rock, RGB(120, 122, 128))
 		end)
 		pcall(function()
-			terrain.Decoration = true
+			terrain.Decoration = false -- uzun cim yaprakciklari plazayi ve standlari gomuyordu
 			terrain.WaterColor = RGB(64, 150, 190)
 			terrain.WaterTransparency = 0.85
 			terrain.WaterReflectance = 0.5
