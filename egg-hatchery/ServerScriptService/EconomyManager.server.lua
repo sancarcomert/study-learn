@@ -199,19 +199,13 @@ task.spawn(function()
 	end
 end)
 
--- Oynama suresi XP'si: hareket eden (AFK olmayan) oyuncuya duzenli XP
+-- Oynama suresi XP'si: oyunda olan herkese (AFK dahil) duzenli XP
 task.spawn(function()
-	local lastPos = {}
 	while true do
 		task.wait(Config.PLAY_INTERVAL)
 		for _, player in ipairs(Players:GetPlayers()) do
-			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-			if root and player:GetAttribute("DataLoaded") then
-				local prev = lastPos[player]
-				lastPos[player] = root.Position
-				if prev and (root.Position - prev).Magnitude >= Config.PLAY_MIN_MOVE then
-					Hatchery.AddXP(player, Config.PLAY_XP)
-				end
+			if player:GetAttribute("DataLoaded") then
+				Hatchery.AddXP(player, Config.PLAY_XP)
 			end
 		end
 	end

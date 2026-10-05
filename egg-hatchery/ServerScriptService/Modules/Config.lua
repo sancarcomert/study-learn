@@ -20,11 +20,10 @@ Config.XP_BASE = 40
 Config.XP_EXP = 1.5
 Config.XP_PER_ROBUX = 20 -- 1 Robux bagis = stand sahibine 20 XP
 
--- Oynama suresi XP'si: her PLAY_INTERVAL saniyede PLAY_XP (hareket ediyorsan; AFK sayilmaz)
+-- Oynama suresi XP'si: her PLAY_INTERVAL saniyede PLAY_XP (AFK dahil, oyunda oldugun surece)
 -- 1 Robux bagis = 5 dk oynama: 300 sn / 15 sn * 1 XP = 20 XP = XP_PER_ROBUX
 Config.PLAY_XP = 1
 Config.PLAY_INTERVAL = 15
-Config.PLAY_MIN_MOVE = 2 -- bu aralikta en az bu kadar stud yer degistirmeli
 -- Bagis yapan kisiye gelen XP (her Robux icin) = 5 dk oynama
 Config.DONOR_XP_PER_ROBUX = 20
 
