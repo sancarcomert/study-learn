@@ -12,8 +12,6 @@ local Products = require(Modules.Products)
 local T = Config.TEXT
 local boothFolder = Workspace:WaitForChild(Config.BOOTH_FOLDER_NAME)
 
-local lastOwnFeed = {} -- [booth] = son kendi besleme zamani
-local lastFeed = {} -- [player] = { global = zaman, [booth] = zaman }
 local lastStyle = {} -- [player] = son stil degistirme zamani
 
 local function notify(player, text)
@@ -29,25 +27,6 @@ end
 ---------------------------------------------------------------------
 -- Panel verisi: istemcinin arayuzu icin tek bir tablo
 ---------------------------------------------------------------------
-local function feedSeconds(booth, viewer, owner)
-	local now = time()
-	if viewer == owner then
-		local last = lastOwnFeed[booth]
-		return last and math.max(0, math.ceil(Config.FEED_COOLDOWN_OWN - (now - last))) or 0
-	end
-	local rec = lastFeed[viewer]
-	if not rec then
-		return 0
-	end
-	local wait = 0
-	if rec[booth] then
-		wait = math.max(wait, math.ceil(Config.FEED_COOLDOWN_OTHER - (now - rec[booth])))
-	end
-	if rec.global then
-		wait = math.max(wait, math.ceil(Config.FEED_GLOBAL_COOLDOWN - (now - rec.global)))
-	end
-	return math.max(0, wait)
-end
 
 local function panelPayload(booth, viewer)
 	local owner = Registry.GetOwner(booth)
@@ -71,8 +50,6 @@ local function panelPayload(booth, viewer)
 		Message = owner:GetAttribute("BoothMessage") or "",
 		Style = owner:GetAttribute("BoothStyle") or "classic",
 		Color = owner:GetAttribute("BoothColor") or 1,
-		FeedXP = isOwner and Config.FEED_XP_OWN or Config.FEED_XP_OTHER,
-		FeedWait = feedSeconds(booth, viewer, owner),
 		Products = isOwner and {} or Products.Catalog(),
 		XPPerRobux = Config.XP_PER_ROBUX,
 	}
@@ -96,7 +73,6 @@ local function release(booth)
 	end
 	Registry.Release(booth)
 	booth:SetAttribute("OwnerUserId", nil)
-	lastOwnFeed[booth] = nil
 	Hatchery.SetUnclaimed(booth)
 end
 
@@ -117,45 +93,6 @@ local function claim(booth, player)
 	player:SetAttribute("HasBooth", true)
 	Hatchery.SetClaimed(booth, player)
 	notify(player, T.Claimed)
-end
-
----------------------------------------------------------------------
--- Bedava XP: besleme
----------------------------------------------------------------------
-local function feed(booth, player)
-	local owner = Registry.GetOwner(booth)
-	if not owner or not nearBooth(player, booth) then
-		return
-	end
-	local now = time()
-	if owner == player then
-		local last = lastOwnFeed[booth]
-		if last and now - last < Config.FEED_COOLDOWN_OWN then
-			notify(player, string.format(T.Full, math.ceil(Config.FEED_COOLDOWN_OWN - (now - last))))
-			return
-		end
-		lastOwnFeed[booth] = now
-		Hatchery.AddXP(owner, Config.FEED_XP_OWN)
-		notify(player, string.format(T.FedOwn, Config.FEED_XP_OWN))
-		return
-	end
-
-	local rec = lastFeed[player] or {}
-	lastFeed[player] = rec
-	if rec.global and now - rec.global < Config.FEED_GLOBAL_COOLDOWN then
-		return
-	end
-	if rec[booth] and now - rec[booth] < Config.FEED_COOLDOWN_OTHER then
-		notify(player, string.format(T.Full, math.ceil(Config.FEED_COOLDOWN_OTHER - (now - rec[booth]))))
-		return
-	end
-	rec.global, rec[booth] = now, now
-	Hatchery.AddXP(owner, Config.FEED_XP_OTHER)
-	if Registry.GetBooth(player) then
-		Hatchery.AddXP(player, Config.FEED_XP_FEEDER) -- iyilik karsiliksiz kalmaz
-	end
-	notify(player, string.format(T.FedOther, owner.DisplayName))
-	notify(owner, string.format(T.FedBy, player.DisplayName, Config.FEED_XP_OTHER))
 end
 
 ---------------------------------------------------------------------
@@ -248,9 +185,7 @@ Remotes.PanelAction.OnServerEvent:Connect(function(player, data)
 		Registry.ClearViewing(player)
 		return
 	end
-	if data.Action == "Feed" then
-		feed(booth, player)
-	elseif data.Action == "Style" then
+	if data.Action == "Style" then
 		if Registry.GetOwner(booth) ~= player then
 			return -- sadece sahibi kendi standini ozellestirir
 		end
@@ -275,7 +210,6 @@ Players.PlayerRemoving:Connect(function(player)
 		release(booth)
 	end
 	Registry.ClearViewing(player)
-	lastFeed[player] = nil
 	lastStyle[player] = nil
 end)
 

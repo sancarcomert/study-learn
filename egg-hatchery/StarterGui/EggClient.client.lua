@@ -1,5 +1,5 @@
 -- StarterGui/EggClient (LocalScript)
--- Oyun arayuzu: bildirimler, alt XP cubugu (HUD), stand paneli (besle / destek ol / stil sec), stil acilim kutlamasi.
+-- Oyun arayuzu: bildirimler, alt XP cubugu (HUD), stand paneli (destek ol / stil sec), stil acilim kutlamasi.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -214,7 +214,7 @@ local hud = new("Frame", {
 	Name = "Hud",
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -16),
-	Size = UDim2.fromOffset(380, 70),
+	Size = UDim2.fromOffset(400, 92),
 	BackgroundColor3 = C.bg,
 	BackgroundTransparency = 0.08,
 	BorderSizePixel = 0,
@@ -228,6 +228,12 @@ corner(hudBarBack, 5)
 local hudFill = new("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.green, BorderSizePixel = 0 }, hudBarBack)
 corner(hudFill, 5)
 local hudSub = label(hud, "", F.body, 13, C.muted, { Name = "Sub", Position = UDim2.fromOffset(60, 49), Size = UDim2.new(1, -76, 0, 18) })
+
+local PLAY_XP = remotes:GetAttribute("PlayXP") or 1
+local PLAY_INTERVAL = remotes:GetAttribute("PlayInterval") or 15
+local XP_PER_ROBUX = remotes:GetAttribute("XPPerRobux") or 20
+local DONOR_XP = remotes:GetAttribute("DonorXPPerRobux") or 20
+local hudInfo = label(hud, string.format("Her %d sn: +%d XP   •   1 Robux destek: +%d XP", PLAY_INTERVAL, PLAY_XP, DONOR_XP), F.body, 13, C.green, { Name = "Info", Position = UDim2.fromOffset(60, 68), Size = UDim2.new(1, -76, 0, 18) })
 
 local function refreshHud()
 	local ls = player:FindFirstChild("leaderstats")
@@ -356,13 +362,6 @@ local function buildPanel(p)
 
 	w.message = label(scroll, "", F.body, 16, C.gold, { Name = "Message", Size = UDim2.new(1, 0, 0, 22), LayoutOrder = 1, TextWrapped = true })
 
-	-- Besle
-	local feedSec = section(scroll, "ÜCRETSİZ", 2)
-	w.feed = button(feedSec, "", C.green, { Name = "FeedButton", Size = UDim2.new(1, 0, 0, 50), LayoutOrder = 1 })
-	w.feed.Activated:Connect(function()
-		remotes.PanelAction:FireServer({ Action = "Feed" })
-	end)
-
 	-- Destek ol (sahibi degilse)
 	w.supportSec = section(scroll, "DESTEK OL", 3)
 	w.supportSec.Visible = false
@@ -452,9 +451,6 @@ end
 local function updatePanel(p)
 	local w = panel.w
 	panel.level = p.Level
-	panel.feedWait = p.FeedWait
-	panel.feedAt = os.clock()
-	panel.feedXP = p.FeedXP
 	local col = p.RarityColor
 	w.egg.BackgroundColor3 = col
 	w.name.Text = p.OwnerName
@@ -476,7 +472,7 @@ local function updatePanel(p)
 		if #p.Products == 0 then
 			w.supportNote.Text = "Destek ürünleri yakında burada olacak."
 		else
-			w.supportNote.Text = "Her Robux standın sahibine " .. p.XPPerRobux .. " XP kazandırır."
+			w.supportNote.Text = "Her Robux standın sahibine " .. p.XPPerRobux .. " XP kazandırır, sana da +" .. DONOR_XP .. " XP."
 			for i, prod in ipairs(p.Products) do
 				local b = button(w.supportSec, string.format("%s   •   R$ %d   (+%d XP)", prod.Name, prod.Price, prod.Price * p.XPPerRobux), C.gold, {
 					Name = "Product_" .. prod.Id,
@@ -503,28 +499,11 @@ local function updatePanel(p)
 	end
 end
 
--- Besle dugmesi: sunucunun verdigi bekleme suresini yerelde geri sayar
-local function refreshFeedButton()
-	if not panel then
-		return
-	end
-	local left = math.max(0, math.ceil((panel.feedWait or 0) - (os.clock() - (panel.feedAt or 0))))
-	local b = panel.w.feed
-	if left > 0 then
-		b.Text = string.format("Yumurta tok  •  %d sn", left)
-		b.BackgroundColor3 = Color3.fromRGB(70, 78, 104)
-	else
-		b.Text = string.format("Yumurtayı Besle   +%d XP", panel.feedXP or 0)
-		b.BackgroundColor3 = C.green
-	end
-end
-
 remotes.OpenPanel.OnClientEvent:Connect(function(p)
 	if not panel or panel.booth ~= p.Booth then
 		buildPanel(p)
 	end
 	updatePanel(p)
-	refreshFeedButton()
 end)
 
 -- paneli sunucunun dogruladigi mesafeden once kapat; geri sayimi tazele
@@ -536,8 +515,6 @@ task.spawn(function()
 			local part = panel.booth and panel.booth.PrimaryPart
 			if root and part and (root.Position - part.Position).Magnitude > 22 then
 				closePanel(true)
-			else
-				refreshFeedButton()
 			end
 		end
 	end

@@ -55,13 +55,14 @@
 	local booth = workspace.Booths.Booth_5
 	local payload = {
 		Booth = booth, OwnerName = "LocalGuy", OwnerId = 9, IsOwner = true, Level = 3, XP = 60, Need = 207, Rarity = "Yaygın",
-		RarityColor = Config.RARITIES[1].Color, Message = "Merhaba", Style = "rug", Color = 2, FeedXP = 5, FeedWait = 0,
+		RarityColor = Config.RARITIES[1].Color, Message = "Merhaba", Style = "rug", Color = 2,
 		Products = {}, XPPerRobux = 20,
 	}
 	__fire(remotes.OpenPanel, "OnClientEvent", payload)
 	local panel = gui:FindFirstChild("BoothPanel")
 	check(panel ~= nil and panel.Head.BarBack.Fill ~= nil, "panel acildi")
-	check(byName(panel, "FeedButton").Text == "Yumurtayı Besle   +5 XP", "besle dugmesi hazir: " .. byName(panel, "FeedButton").Text)
+	check(byName(panel, "FeedButton") == nil, "panelde besle dugmesi yok")
+	check(byName(gui.Hud, "Info").Text == "Her 15 sn: +1 XP   •   1 Robux destek: +20 XP", "HUD: otomatik XP bilgisi: " .. byName(gui.Hud, "Info").Text)
 	local cards = 0
 	for _, s in ipairs(Config.STYLES) do
 		if byName(panel, "Style_" .. s.Id) then
@@ -93,13 +94,7 @@
 	local pa = sent(remotes.PanelAction)
 	local style = pa[#pa][1]
 	check(style.Action == "Style" and style.Style == "flags" and style.Color == 6 and #style.Text == 40, "Kaydet: {Style='flags', Color=6, Text 40 karaktere kisaltildi}")
-	-- besle
-	__fire(byName(panel, "FeedButton"), "Activated")
-	check(sent(remotes.PanelAction)[#sent(remotes.PanelAction)][1].Action == "Feed", "Besle dugmesi sunucuya {Action='Feed'} yollar")
-	-- bekleme gosterimi
-	payload.FeedWait = 12
 	__fire(remotes.OpenPanel, "OnClientEvent", payload)
-	check(byName(gui.BoothPanel, "FeedButton").Text:find("Yumurta tok  •  1[12] sn") ~= nil, "bekleme: " .. byName(gui.BoothPanel, "FeedButton").Text)
 	check(gui:FindFirstChild("BoothPanel") == panel, "ayni standa gelen guncelleme paneli yeniden olusturmaz (yazilan mesaj kaybolmaz)")
 	-- kapat
 	__fire(byName(panel, "CloseButton"), "Activated")
@@ -108,7 +103,7 @@
 	-- Panel: ziyaretci (destek urunleri)
 	local visitor = {
 		Booth = booth, OwnerName = "Ayşe", OwnerId = 55, IsOwner = false, Level = 12, XP = 5, Need = 5000, Rarity = "Efsanevi",
-		RarityColor = Config.RARITIES[3].Color, Message = "", Style = "gold", Color = 1, FeedXP = 3, FeedWait = 0,
+		RarityColor = Config.RARITIES[3].Color, Message = "", Style = "gold", Color = 1,
 		Products = { { Id = 111, Name = "Atıştırmalık", Price = 25 }, { Id = 222, Name = "Ziyafet", Price = 100 } }, XPPerRobux = 20,
 	}
 	__fire(remotes.OpenPanel, "OnClientEvent", visitor)
@@ -119,7 +114,7 @@
 	__fire(pbtn, "Activated")
 	local rp = sent(remotes.RequestPurchase)
 	check(rp[#rp][1] == 222, "urun dugmesi RequestPurchase(222) yollar")
-	check(byName(vp, "FeedButton").Text == "Yumurtayı Besle   +3 XP", "ziyaretci besleme XP'si 3")
+	check(byName(vp, "FeedButton") == nil, "ziyaretcide de besle dugmesi yok")
 	visitor.Products = {}
 	__fire(remotes.OpenPanel, "OnClientEvent", visitor)
 	check(byName(gui.BoothPanel, "Product_222") == nil and byName(gui.BoothPanel, "Note").Text:find("yakında") ~= nil, "urun yoksa 'yakinda' notu")

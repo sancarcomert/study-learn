@@ -107,8 +107,10 @@ do
 		table.insert(order, c.Name)
 	end
 	check(table.concat(order, ",") == "Raised,Donated,Level", "liderlik tablosu sirasi: " .. table.concat(order, ","))
-	__advance(5)
-	check(alice.EggData.EggXP.Value == 12, "sure gecmekle XP artmaz (yalnizca besleme/bagis)")
+	__advance(Config.PLAY_INTERVAL - 1)
+	check(alice.EggData.EggXP.Value == 12, "aralik dolmadan XP gelmez")
+	__advance(Config.PLAY_INTERVAL * 4)
+	check(alice.EggData.EggXP.Value == 12 + Config.PLAY_XP * 4, "oynama suresi XP'si otomatik gelir (AFK dahil): " .. alice.EggData.EggXP.Value)
 
 	print("== BoothManager: sahiplenme ve panel ==")
 	local b2, b3, b4 = workspace.Booths.Booth_2, workspace.Booths.Booth_3, workspace.Booths.Booth_4
@@ -132,7 +134,7 @@ do
 	placeChar(alice, b2)
 	press(alice, b2)
 	local pa = lastPanel(alice)
-	check(pa.IsOwner == true and #pa.Products == 0 and pa.FeedXP == Config.FEED_XP_OWN and pa.FeedWait == 0, "sahibin paneli: kendi stand, urun listesi yok, besleme hazir")
+	check(pa.IsOwner == true and #pa.Products == 0 and pa.FeedXP == nil and pa.FeedWait == nil, "sahibin paneli: kendi stand, urun listesi yok, besleme alani yok")
 	check(pa.Style == "rug" and pa.Color == 2, "panel mevcut stili ve rengi gosterir")
 
 	press(bob, b3)
@@ -140,50 +142,27 @@ do
 	press(bob, b4)
 	check(Registry.GetOwner(b4) == nil and lastNotify(bob) == T.AlreadyHave, "ayni oyuncu ikinci stand alamaz: " .. tostring(lastNotify(bob)))
 
-	print("== Bedava XP (besleme) ==")
+	print("== Besleme kaldirildi: sunucu eski Feed istegini yok sayar ==")
 	placeChar(alice, b2)
 	press(alice, b2)
 	local xp0 = alice.EggData.EggXP.Value
 	act(alice, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == xp0 + Config.FEED_XP_OWN, "kendi yumurtani beslemek +" .. Config.FEED_XP_OWN .. " XP")
-	check(lastPanel(alice).FeedWait > 0, "panel guncellendi: bekleme suresi " .. lastPanel(alice).FeedWait .. " sn")
-	act(alice, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == xp0 + Config.FEED_XP_OWN and lastNotify(alice):find("tok") ~= nil, "bekleme suresinde tekrar XP yok: " .. lastNotify(alice))
-	__advance(Config.FEED_COOLDOWN_OWN + 1)
-	act(alice, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == xp0 + 2 * Config.FEED_XP_OWN, "bekleme bitince tekrar +XP")
-
+	check(alice.EggData.EggXP.Value == xp0, "Feed istegi XP vermez")
 	local eve = newPlayer("Eve", 7007)
 	act(eve, { Action = "Feed" })
-	check(Registry.GetViewing(eve) == nil, "paneli acmadan besleme istegi yok sayildi")
+	check(Registry.GetViewing(eve) == nil and eve.EggData.EggXP.Value == 0, "paneli acmadan Feed istegi yok sayildi")
 	placeChar(alice, b2, 80)
-	act(alice, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == xp0 + 2 * Config.FEED_XP_OWN and Registry.GetViewing(alice) == nil, "standdan uzaklasinca besleme reddedilir ve panel kapanir")
+	act(alice, { Action = "Close" })
 	placeChar(alice, b2)
 	press(alice, b2)
 	act(alice, { Action = "Close" })
 	check(Registry.GetViewing(alice) == nil, "Close eylemi paneli kapatir")
-
-	-- Bob: Alice'in yumurtasini besler; kendi standi (b3) oldugu icin +1 XP alir
-	local axp, bxp = alice.EggData.EggXP.Value, bob.EggData.EggXP.Value
+	local axp = alice.EggData.EggXP.Value
 	press(bob, b2)
 	act(bob, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == axp + Config.FEED_XP_OTHER, "baskasinin yumurtasini beslemek sahibine +" .. Config.FEED_XP_OTHER .. " XP")
-	check(bob.EggData.EggXP.Value == bxp + Config.FEED_XP_FEEDER, "besleyen kendi yumurtasina +" .. Config.FEED_XP_FEEDER .. " XP aldi")
-	check(lastNotify(alice) == string.format(T.FedBy, "Bob", Config.FEED_XP_OTHER), "sahibe 'Bob yumurtani besledi' bildirimi: " .. tostring(lastNotify(alice)))
-	act(bob, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == axp + Config.FEED_XP_OTHER, "3 sn kuresel bekleme: spam yok sayildi")
-	__advance(Config.FEED_GLOBAL_COOLDOWN + 1)
-	act(bob, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == axp + Config.FEED_XP_OTHER and lastNotify(bob):find("tok") ~= nil, "ayni standi 30 sn icinde tekrar beslemek XP vermedi")
-	__advance(Config.FEED_COOLDOWN_OTHER)
-	act(bob, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == axp + 2 * Config.FEED_XP_OTHER, "bekleme bitince tekrar +XP")
-	local evexp = eve.EggData.EggXP.Value
+	check(alice.EggData.EggXP.Value == axp, "baskasi Feed gonderse bile sahibe XP gitmez")
 	placeChar(eve, b2)
 	press(eve, b2)
-	act(eve, { Action = "Feed" })
-	check(alice.EggData.EggXP.Value == axp + 3 * Config.FEED_XP_OTHER and eve.EggData.EggXP.Value == evexp, "standi olmayan besleyici sahibine XP verir, kendisi XP almaz")
 
 	print("== Stand stilleri (seviye ile acilir) ==")
 	local lvl = alice.leaderstats.Level.Value

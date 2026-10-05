@@ -31,14 +31,6 @@ function Config.XPRequired(level)
 	return math.floor(Config.XP_BASE * level ^ Config.XP_EXP)
 end
 
--- Bedava XP: yumurtayi beslemek
-Config.FEED_XP_OWN = 5 -- kendi yumurtani beslersen
-Config.FEED_COOLDOWN_OWN = 20
-Config.FEED_XP_OTHER = 3 -- baskasinin yumurtasini beslersen, sahibine gider
-Config.FEED_XP_FEEDER = 1 -- baskasini besleyen kendi yumurtasina da bu kadar alir (standi varsa)
-Config.FEED_COOLDOWN_OTHER = 30 -- ayni oyuncu ayni standi bu surede bir besleyebilir
-Config.FEED_GLOBAL_COOLDOWN = 3 -- bir oyuncu herhangi bir stand icin en az bu aralikla besleyebilir
-
 -- Nadirlik: seviyeye gore
 Config.RARITIES = {
 	{ Name = "Yaygın", MinLevel = 1, Color = Color3.fromRGB(200, 205, 214), BurstCount = 40, AuraRate = 0 },
@@ -159,10 +151,6 @@ Config.TEXT = {
 	AlreadyHave = "Zaten bir standın var!",
 	Loading = "Verilerin yükleniyor...",
 	NotNear = "Standa biraz daha yaklaş.",
-	FedOwn = "Yumurtanı besledin (+%d XP)",
-	FedOther = "%s oyuncusunun yumurtasını besledin!",
-	FedBy = "%s yumurtanı besledi (+%d XP)",
-	Full = "Yumurta tok! %d sn sonra tekrar dene.",
 	StyleSaved = "Stand ayarların kaydedildi!",
 	StyleLocked = "%s stili Seviye %d'de açılır.",
 	StyleTooFast = "Biraz yavaş! Birkaç saniye sonra tekrar dene.",

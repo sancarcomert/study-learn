@@ -31,6 +31,10 @@ folder:SetAttribute("XPExp", Config.XP_EXP)
 folder:SetAttribute("MaxLevel", Config.MAX_LEVEL)
 folder:SetAttribute("MaxMessage", Config.STYLE_MAX_LENGTH)
 folder:SetAttribute("TipText", Config.TEXT.Tip)
+folder:SetAttribute("PlayXP", Config.PLAY_XP)
+folder:SetAttribute("PlayInterval", Config.PLAY_INTERVAL)
+folder:SetAttribute("XPPerRobux", Config.XP_PER_ROBUX)
+folder:SetAttribute("DonorXPPerRobux", Config.DONOR_XP_PER_ROBUX)
 
 local function remote(name)
 	local existing = folder:FindFirstChild(name)
@@ -46,7 +50,7 @@ end
 return {
 	Notify = remote("Notify"), -- sunucu -> istemci: kisa bildirim
 	OpenPanel = remote("OpenPanel"), -- sunucu -> istemci: stand paneli verisi
-	PanelAction = remote("PanelAction"), -- istemci -> sunucu: {Action = "Feed" | "Style" | "Close", ...}
+	PanelAction = remote("PanelAction"), -- istemci -> sunucu: {Action = "Style" | "Close", ...}
 	RequestPurchase = remote("RequestPurchase"), -- istemci -> sunucu: bagis urunu ID'si
 	EggFeedback = remote("EggFeedback"), -- sunucu -> istemci: seviye atlama / stil acilimi duyurulari
 }
