@@ -101,7 +101,7 @@ do
 	local bobs = game:GetService("CollectionService"):GetTagged("FX_Bob")
 	check(#signs == 24 and #bobs == 24, "24 tabela etiketi ve 24 yumurta etiketi")
 	for _, b in ipairs(booths) do
-		for _, n in ipairs({ "Egg", "Counter", "CounterTop", "SignBoard", "Platform", "BackWall", "Base" }) do
+		for _, n in ipairs({ "Egg", "Counter", "CounterTop", "SignBoard", "Platform", "Base" }) do
 			assert(b:FindFirstChild(n), b.Name .. " icinde " .. n .. " yok")
 		end
 		local label = b.SignBoard.SurfaceGui.TextLabel
@@ -113,6 +113,19 @@ do
 		assert((egg.Position - board.Position).Magnitude < 6, b.Name .. ": yumurta tabeladan cok uzakta")
 	end
 	check(true, "her standda tezgah, tabela (numara dogru), yumurta (tabelanin ustunde), ankraj var")
+
+	-- stand sade ve alcak: az parca, karakterin ~2 kati yukseklik
+	for _, b in ipairs(booths) do
+		local n = #partsOf(b)
+		assert(n <= 14, b.Name .. ": cok parcali (" .. n .. ")")
+		local top = bounds(partsOf(b)).maxY
+		assert(top >= 9 and top <= 12, string.format("%s: yukseklik %.1f (9-12 olmali)", b.Name, top))
+		assert(b.SignBoard.Position.Y + b.SignBoard.Size.Y / 2 <= 7.5, b.Name .. ": tabela cok yuksek")
+		for _, bad in ipairs({ "Awning", "Post", "Valance", "Bulb", "Pennant", "Pot", "Basket", "Jar" }) do
+			assert(b:FindFirstChild(bad) == nil, b.Name .. ": sadelestirilmis standda " .. bad .. " olmamali")
+		end
+	end
+	check(true, "her stand sade: en fazla 14 parca, yukseklik 9-12 stud, tente/direk/susler yok")
 
 	-- ayakta duran bir karakter tezgahin ustunden gorur; tezgah en fazla 3.6 stud
 	local b1 = booths[1]
@@ -279,7 +292,7 @@ do
 	local prev
 	local distinct = {}
 	for idx, b in ipairs(list) do
-		local c = b.Awning.Color
+		local c = b.Counter.Color
 		local key = string.format("%.2f,%.2f,%.2f", c.R, c.G, c.B)
 		distinct[key] = true
 		if prev == key and (idx - 1) % 6 ~= 0 then

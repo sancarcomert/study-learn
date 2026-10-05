@@ -442,7 +442,8 @@ local function buildFountain()
 end
 
 ---------------------------------------------------------------------
--- Stand: renkli pazar tezgahi (her stand kendi rengi)
+-- Stand: alcak ve acik tezgah (yassi platform + onde alcak tezgah + arkada tek buyuk tabela)
+-- Toplam yukseklik ~11 stud (karakterin ~2 kati). Her standin tezgah rengi farkli.
 ---------------------------------------------------------------------
 local function buildBooth(i, cf)
 	local ac = STALL[(i * 3) % #STALL + 1]
@@ -453,81 +454,28 @@ local function buildBooth(i, cf)
 	local model = Instance.new("Model")
 	model.Name = "Booth_" .. i
 
-	-- zemin, basamak, duvarlar, direkler
-	part(model, "Platform", Vector3.new(17, 0.6, 11), L(0, 0.3, 0), C.woodLight, Mat.WoodPlanks)
-	part(model, "Step", Vector3.new(13.8, 0.3, 1.4), L(0, 0.15, -6.2), C.woodMid, Mat.WoodPlanks)
-	part(model, "BackWall", Vector3.new(16, 8.0, 0.6), L(0, 4.6, 4.7), C.woodDark, Mat.WoodPlanks)
-	part(model, "BackTrim", Vector3.new(16.4, 0.5, 0.8), L(0, 0.85, 4.6), C.woodMid, Mat.WoodPlanks)
-	for _, sx in ipairs({ -7.7, 7.7 }) do
-		part(model, "SideWall", Vector3.new(0.6, 6.4, 9.4), L(sx, 3.8, 0.1), C.woodDark, Mat.WoodPlanks)
-	end
-	for _, px in ipairs({ -7.6, 7.6 }) do
-		part(model, "Post", Vector3.new(0.9, 11.7, 0.9), L(px, 6.15, -5.2), C.woodMid, Mat.Wood)
-	end
+	-- yassi ahsap platform
+	part(model, "Platform", Vector3.new(17, 0.5, 8), L(0, 0.25, 0), C.woodLight, Mat.WoodPlanks)
 
-	-- tente: stand renginde seritler + sarkan kenar
-	local awning = L(0, 8.2, 4.4) * CFrame.Angles(-math.rad(9), 0, 0)
-	for s = 1, 8 do
-		local c = (s % 2 == 1) and ac or C.cream
-		part(model, "Awning", Vector3.new(2, 0.3, 10.6), awning * CFrame.new((s - 4.5) * 2, 0, -5.3), c, Mat.Fabric, SOFT)
-		part(model, "Valance", Vector3.new(2, 0.9, 0.25), awning * CFrame.new((s - 4.5) * 2, -0.55, -10.6), c, Mat.Fabric, SOFT)
-	end
-	-- tentenin altinda sicak isik dizisi
-	for k = 0, 6 do
-		ball(model, "Bulb", 0.5, L((k - 3) * 2, 5.75, -6.3), C.lamp, Mat.Neon, DECO)
-	end
+	-- onde alcak tezgah (ust yuzu 3.2 stud: karakter bel hizasi), stand renginde
+	part(model, "Counter", Vector3.new(12, 2.4, 1.6), L(0, 1.7, -2.6), ac, Mat.WoodPlanks)
+	part(model, "CounterTop", Vector3.new(13, 0.3, 2.4), L(0, 3.05, -2.6), C.woodLight, Mat.WoodPlanks)
 
-	-- tezgah
-	part(model, "Counter", Vector3.new(13, 2.5, 1.8), L(0, 1.85, -3.4), C.woodMid, Mat.WoodPlanks)
-	part(model, "CounterTop", Vector3.new(13.8, 0.35, 2.6), L(0, 3.275, -3.4), C.woodLight, Mat.WoodPlanks)
-	for k = -2, 2 do
-		part(model, "CounterSlat", Vector3.new(0.5, 2.1, 0.15), L(k * 2.4, 1.85, -4.35), ac, Mat.WoodPlanks)
+	-- arkada tek buyuk tabela panosu (iki kalin ayak uzerinde), plazaya bakar
+	for _, lx in ipairs({ -5.8, 5.8 }) do
+		part(model, "SignLeg", Vector3.new(0.8, 2.9, 0.6), L(lx, 1.95, 2.8), C.woodDark, Mat.WoodPlanks)
 	end
-	-- tezgah ustu: iki meyve sepeti + bagis kavanozu
-	for _, bx in ipairs({ -4.4, 4.4 }) do
-		part(model, "Basket", Vector3.new(2.2, 0.9, 1.4), L(bx, 3.9, -3.4), C.woodDark, Mat.Wood, DECO)
-		for f = 0, 3 do
-			ball(model, "Fruit", 0.7, L(bx + (f % 2 - 0.5) * 0.9, 4.5, -3.4 + (math.floor(f / 2) - 0.5) * 0.5),
-				(f % 2 == 0) and ac or RGB(250, 210, 70), Mat.SmoothPlastic, DECO)
-		end
-	end
-	cyl(model, "Jar", 1.1, 1.5, L(0, 4.2, -3.4), C.white, Mat.Glass, { solid = false, shadow = false, transparency = 0.5 })
-	for c = 0, 2 do
-		cyl(model, "Coin", 0.7, 0.12, L(0, 3.6 + c * 0.16, -3.4), C.gold, Mat.Metal, DECO)
-	end
-	cyl(model, "JarLid", 1.2, 0.2, L(0, 5.0, -3.4), C.woodDark, Mat.Wood, DECO)
-
-	-- tabela: iki yuksek direk arasinda, plazaya bakar; ustte stand renginde serit
-	part(model, "SignFrame", Vector3.new(14.2, 3.2, 0.6), L(0, 10.4, -5.2), C.woodDark, Mat.WoodPlanks)
-	part(model, "SignCrown", Vector3.new(14.6, 0.5, 0.8), L(0, 12.15, -5.2), ac, Mat.WoodPlanks)
-	local board = part(model, "SignBoard", Vector3.new(13.4, 2.6, 0.2), L(0, 10.4, -5.55), C.sign, Mat.WoodPlanks)
+	part(model, "SignFrame", Vector3.new(14, 4.2, 0.5), L(0, 5.4, 2.8), C.woodDark, Mat.WoodPlanks)
+	local board = part(model, "SignBoard", Vector3.new(13.2, 3.4, 0.2), L(0, 5.4, 2.45), C.sign, Mat.WoodPlanks)
 	local label = textOn(board, Enum.NormalId.Front, string.format("STAND %02d", i), RGB(84, 52, 28))
 	tag(label, "BoothSign", { BoothNumber = i })
 
-	-- bayrakcik dizisi (tabelanin altinda)
-	for k = 0, 8 do
-		local x = (k - 4) * 1.35
-		local sag = -0.35 * (1 - (x / 6.2) ^ 2)
-		part(model, "Pennant", Vector3.new(0.85, 0.85, 0.12), L(x, 8.0 + sag, -5.78) * CFrame.Angles(0, 0, math.rad(45)),
-			(k % 2 == 0) and ac or C.cream, Mat.Fabric, DECO)
-	end
-
-	-- on koselerde cicek saksilari
-	for _, px in ipairs({ -6.4, 6.4 }) do
-		cyl(model, "Pot", 1.7, 1.4, L(px, 0.82, -8.0), C.clay, Mat.Slate)
-		ball(model, "PotLeaves", 1.9, L(px, 1.95, -8.0), C.leafB, Mat.Grass, DECO)
-		for f = 0, 3 do
-			local a = f / 4 * TAU
-			ball(model, "PotFlower", 0.55, L(px + math.cos(a) * 0.55, 2.55, -8.0 + math.sin(a) * 0.55), (f % 2 == 0) and ac or RGB(250, 215, 80), Mat.SmoothPlastic, DECO)
-		end
-	end
-
 	-- yumurta: tabelanin ustunde, kucuk kaide uzerinde
-	cyl(model, "EggStand", 2.8, 0.5, L(0, 12.65, -5.2), C.woodDark, Mat.Wood)
-	local egg = ellipsoid(model, "Egg", Vector3.new(2.6, 3.6, 2.6), L(0, 14.75, -5.2), C.white, Mat.Neon, DECO)
+	cyl(model, "EggStand", 2.4, 0.4, L(0, 7.7, 2.8), C.woodDark, Mat.Wood)
+	local egg = ellipsoid(model, "Egg", Vector3.new(2.2, 3.0, 2.2), L(0, 9.4, 2.8), C.white, Mat.Neon, DECO)
 	tag(egg, "FX_Bob", { BobHeight = 0.2, BobSpeed = 1.2, BobPhase = rng:NextNumber(0, TAU) })
 
-	local base = anchorPart(model, "Base", Vector3.new(1, 1, 1), L(0, 4.4, -3.4))
+	local base = anchorPart(model, "Base", Vector3.new(1, 1, 1), L(0, 4.4, -2.6))
 	model.PrimaryPart = base
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	model.Parent = boothFolder

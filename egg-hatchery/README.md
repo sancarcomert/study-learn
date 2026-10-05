@@ -32,8 +32,8 @@ seviyesi). Sure gecmekle puan/XP YOKTUR; yumurta yalnizca destekle buyur: seviye
 
 Gunesli dogal park; Please Donate tarzi stand meydani:
 - ortada cesme (8 fiskiyeli), kaldirim tasli meydan, 4 yonde parka acilan yollar, yol agizlarinda "WELCOME" kapilari
-- meydanin 4 kenarinda sira sira 24 renkli pazar tezgahi (her stand kendi renginde: tente, bayrakcik, isik dizisi, meyve
-  sepetleri, bagis kavanozu, saksilar); tabela on tarafta yuksekte, tabelanin ustunde yumurta (`BOOTHS_PER_SIDE` 6 ya da 8)
+- meydanin 4 kenarinda sira sira 24 alcak acik tezgah (yassi platform, onde alcak renkli tezgah, arkada tek buyuk tabela,
+  tabelanin ustunde yumurta; toplam ~11 stud) (`BOOTHS_PER_SIDE` 6 ya da 8)
 - gercek Roblox arazisi (Terrain): kuzey-bati golu + iskele, guney-dogu kucuk gol, ikisini baglayan dere ve +X yolu
   uzerinde ahsap kopru, tepeler; dolambacli tas patikalar, piknik alani, kosk, cicek cayirlari, kamis/nilufer/kayalar
 - 4 cins agac (mese/huş/kiraz/akcaagac), banklar, cop kutulari, lambalar, saksilar, kenarda kaya + agac siralari
