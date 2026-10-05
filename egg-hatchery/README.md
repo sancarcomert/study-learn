@@ -20,7 +20,7 @@ destek satin alimlariyla buyur/evrilir. Harita "Celestial Hatchery" kodla kurulu
 
 Kurulum: Game Settings > Security > "Enable Studio Access to API Services" acik olmali.
 `Config.PRODUCTS` icine Developer Product ID'lerini yaz. `Workspace.Booths` klasorunu `MapBuilder` kendisi
-doldurur (stand sayisi ve ruh hali `MapBuilder` basindaki `BOOTH_COUNT` / `MOOD` ile degisir).
+doldurur (stand sayisi `MapBuilder` basindaki `BOOTHS_PER_SIDE` ile degisir).
 
 ## Harita: Sunny Park (MapBuilder + MapFX)
 

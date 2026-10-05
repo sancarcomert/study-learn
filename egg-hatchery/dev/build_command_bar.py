@@ -30,7 +30,7 @@ header = """-- ============================================================
 -- 1) Studio'da View > Command Bar'i ac (altta yazi kutusu cikar)
 -- 2) Bu dosyanin TAMAMINI kopyala, kutuya yapistir, Enter'a bas
 -- 3) Birkac saniye bekle; Output'ta "[Kurulum] Bitti" yazinca hazir
--- Ayarlari (stand sayisi, ruh hali, isik) asagidaki ilk satirlardan degistirip tekrar calistirabilirsin.
+-- Ayarlari (stand sayisi, isik kalitesi, kilit) asagidaki ilk satirlardan degistirip tekrar calistirabilirsin.
 -- ============================================================
 """
 
