@@ -58,7 +58,7 @@ LUA
     echo
     echo "end"
   done
-  for s in EconomyManager BoothManager MarketplaceHook; do
+  for s in EconomyManager BoothManager MarketplaceHook LeaderboardService; do
     echo "__scriptFns[\"$s\"] = function(script)"
     cat "$ROOT/ServerScriptService/$s.server.lua"
     echo

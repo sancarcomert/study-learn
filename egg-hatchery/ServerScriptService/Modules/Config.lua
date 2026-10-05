@@ -7,6 +7,16 @@ Config.MAX_LEVEL = 100
 Config.INTERACT_DISTANCE = 25
 Config.OWNER_CHECK_INTERVAL = 5
 Config.BOOTH_FOLDER_NAME = "Booths"
+Config.PURCHASE_COOLDOWN = 2 -- ayni oyuncu bu kadar saniyede bir satin alma baslatabilir
+Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
+Config.LEADERBOARD_REFRESH = 60 -- pano yenileme sikligi (sn)
+Config.LEADERBOARD_SIZE = 10
+-- Kucuk harf: Studio'da panoya bu adlarla Part koy (Board_Raised, Board_Donated, Board_Level)
+Config.LEADERBOARDS = {
+	Raised = { Store = "EggLB_Raised_v1", Title = "EN COK TOPLAYAN" },
+	Donated = { Store = "EggLB_Donated_v1", Title = "EN COK BAGISLAYAN" },
+	Level = { Store = "EggLB_Level_v1", Title = "EN YUKSEK YUMURTA" },
+}
 
 -- Developer Product ID'lerini buraya yaz (Roblox Creator Hub > Monetization > Developer Products)
 Config.PRODUCTS = {

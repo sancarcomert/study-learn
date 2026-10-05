@@ -54,6 +54,16 @@ Config.MAX_LEVEL = 100
 Config.INTERACT_DISTANCE = 25
 Config.OWNER_CHECK_INTERVAL = 5
 Config.BOOTH_FOLDER_NAME = "Booths"
+Config.PURCHASE_COOLDOWN = 2 -- ayni oyuncu bu kadar saniyede bir satin alma baslatabilir
+Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
+Config.LEADERBOARD_REFRESH = 60 -- pano yenileme sikligi (sn)
+Config.LEADERBOARD_SIZE = 10
+-- Kucuk harf: Studio'da panoya bu adlarla Part koy (Board_Raised, Board_Donated, Board_Level)
+Config.LEADERBOARDS = {
+	Raised = { Store = "EggLB_Raised_v1", Title = "EN COK TOPLAYAN" },
+	Donated = { Store = "EggLB_Donated_v1", Title = "EN COK BAGISLAYAN" },
+	Level = { Store = "EggLB_Level_v1", Title = "EN YUKSEK YUMURTA" },
+}
 
 -- Developer Product ID'lerini buraya yaz (Roblox Creator Hub > Monetization > Developer Products)
 Config.PRODUCTS = {
@@ -411,8 +421,11 @@ local DataStoreService = game:GetService("DataStoreService")
 
 local Modules = script.Parent:WaitForChild("Modules")
 local Config = require(Modules.Config)
+local Hatchery = require(Modules.HatcheryService)
 
 local store = DataStoreService:GetDataStore(Config.DATASTORE_NAME)
+local pendingStore = DataStoreService:GetDataStore(Config.PENDING_STORE)
+local lastPublished = {} -- [userId][stat] = son gonderilen deger (gereksiz yazmayi onler)
 
 local pendingSaves = 0
 local finalSaveStarted = {}
@@ -460,6 +473,43 @@ local function createValues(player)
 	newValue("EggXP", data, 0)
 end
 
+-- Kucuk, hata verirse oyunu bozmayan: global siralama tablolarina yaz
+local function publish(player)
+	local sent = lastPublished[player.UserId] or {}
+	lastPublished[player.UserId] = sent
+	for stat, cfg in pairs(Config.LEADERBOARDS) do
+		local value = math.floor(player.leaderstats[stat].Value)
+		if sent[stat] ~= value then
+			local ok = pcall(function()
+				DataStoreService:GetOrderedDataStore(cfg.Store):SetAsync(tostring(player.UserId), value)
+			end)
+			if ok then
+				sent[stat] = value
+			end
+		end
+	end
+end
+
+-- Sahibi cevrimdisiyken gelen bagislari (MarketplaceHook biriktirir) oyuncu girince uygular
+local function applyPending(player)
+	local taken
+	local ok = pcall(function()
+		pendingStore:UpdateAsync(tostring(player.UserId), function(old)
+			if old and ((old.XP or 0) > 0 or (old.Raised or 0) > 0) then
+				taken = old
+				return { XP = 0, Raised = 0 }
+			end
+			return nil -- degisiklik yok
+		end)
+	end)
+	if not (ok and taken) or not player.Parent then
+		return
+	end
+	player.leaderstats.Raised.Value += taken.Raised or 0
+	Hatchery.AddXP(player, taken.XP or 0)
+	print(string.format("[Economy] %s: cevrimdisiyken gelen bagislar uygulandi (+%d R$, +%d XP)", player.Name, taken.Raised or 0, taken.XP or 0))
+end
+
 local function onPlayerAdded(player)
 	createValues(player)
 
@@ -478,6 +528,7 @@ local function onPlayerAdded(player)
 		player.leaderstats.Level.Value = math.max(saved.Level or saved.EggLevel or 1, 1)
 		player.EggData.EggXP.Value = saved.EggXP or 0
 		player:SetAttribute("DataLoaded", true)
+		applyPending(player)
 	else
 		warn("[Economy] " .. player.Name .. " verisi yuklenemedi, bu oturumda kayit kapali.")
 	end
@@ -498,6 +549,9 @@ local function save(player)
 			return data
 		end)
 	end, 3)
+	if ok then
+		publish(player)
+	end
 	return ok
 end
 
@@ -520,6 +574,7 @@ Players.PlayerRemoving:Connect(function(player)
 	finalSave(player)
 	finalSaveStarted[player.UserId] = nil
 	autosaveBusy[player.UserId] = nil
+	lastPublished[player.UserId] = nil
 end)
 
 game:BindToClose(function()
@@ -564,6 +619,7 @@ local Hatchery = require(Modules.HatcheryService)
 
 -- Ayni makbuz iki kere islenmesin diye kayit tutulur
 local receiptStore = DataStoreService:GetDataStore("EggReceipts_v1")
+local pendingStore = DataStoreService:GetDataStore(Config.PENDING_STORE)
 
 local productById = {}
 for _, product in ipairs(Config.PRODUCTS) do
@@ -575,6 +631,7 @@ end
 local priceCache = {}
 local menuBooth = {}
 local pending = {}
+local lastRequest = {} -- [player] = son satin alma istegi zamani (spam korumasi)
 
 local function getPrice(productId)
 	if priceCache[productId] then
@@ -640,11 +697,16 @@ Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, productId)
 	if typeof(productId) ~= "number" or not productById[productId] then
 		return
 	end
+	local now = time()
+	if lastRequest[donor] and now - lastRequest[donor] < Config.PURCHASE_COOLDOWN then
+		return -- cok sik istek (spam)
+	end
 	local booth = menuBooth[donor]
 	local owner = booth and Registry.GetOwner(booth)
 	if not (booth and owner) or owner == donor or not nearBooth(donor, booth) then
 		return
 	end
+	lastRequest[donor] = now
 
 	pending[donor.UserId] = {
 		ProductId = productId,
@@ -683,25 +745,51 @@ MarketplaceService.ProcessReceipt = function(info)
 
 	local donor = Players:GetPlayerByUserId(info.PlayerId)
 	local record = donor and pending[donor.UserId]
-	pending[info.PlayerId] = nil
+	pending[info.PlayerId] = nil -- kesin sonuc cikinca temizlenir; gecici hatada asagida geri konur
 	if not (donor and record and record.ProductId == info.ProductId) then
 		warn("[Marketplace] Bekleyen bagis kaydi yok, makbuz onaylandi: " .. tostring(info.PurchaseId))
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
 	local robux = info.CurrencySpent or getPrice(info.ProductId) or 0
-	if donor:FindFirstChild("leaderstats") then
-		donor.leaderstats.Donated.Value += robux
-	end
-
+	local xp = robux * Config.XP_PER_ROBUX
 	local owner = Registry.GetOwner(record.Booth)
+
 	if not owner or owner.UserId ~= record.OwnerUserId then
-		warn("[Marketplace] Stand sahibi cikmis, XP verilemedi.")
+		-- Sahibi satin alma sirasinda cikti: bagis kaybolmasin, sahip tekrar girince uygulanir
+		local queued = false
+		for attempt = 1, 3 do
+			local ok = pcall(function()
+				pendingStore:UpdateAsync(tostring(record.OwnerUserId), function(old)
+					old = old or { XP = 0, Raised = 0 }
+					old.XP = (old.XP or 0) + xp
+					old.Raised = (old.Raised or 0) + robux
+					return old
+				end)
+			end)
+			if ok then
+				queued = true
+				break
+			end
+			task.wait(attempt)
+		end
+		if not queued then
+			pcall(function()
+				receiptStore:RemoveAsync(tostring(info.PurchaseId))
+			end)
+			pending[info.PlayerId] = record -- Roblox makbuzu tekrar gonderecek; kayit korunmali
+			return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox tekrar dener
+		end
+		if donor:FindFirstChild("leaderstats") then
+			donor.leaderstats.Donated.Value += robux
+		end
+		warn("[Marketplace] Stand sahibi cikmis; bagis sahibine biriktirildi (+" .. xp .. " XP).")
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
-	local xp = robux * Config.XP_PER_ROBUX
-
+	if donor:FindFirstChild("leaderstats") then
+		donor.leaderstats.Donated.Value += robux
+	end
 	owner.leaderstats.Raised.Value += robux
 
 	Remotes.EggFeedback:FireAllClients({
@@ -719,6 +807,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	menuBooth[player] = nil
 	pending[player.UserId] = nil
+	lastRequest[player] = nil
 end)
 ]=])
 

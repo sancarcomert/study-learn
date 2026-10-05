@@ -142,17 +142,42 @@ do
 
 	print("== Uc durumlar ==")
 	__fire(Remotes.RequestPurchase, "OnServerEvent", donor, 333)
-	check(#MS.prompts == 2, "ikinci satin alma (tekrar bagis serbest)")
+	check(#MS.prompts == 1, "spam korumasi: 2 sn dolmadan ikinci istek yok sayildi")
+	__advance(Config.PURCHASE_COOLDOWN + 0.5)
+	__fire(Remotes.RequestPurchase, "OnServerEvent", donor, 333)
+	check(#MS.prompts == 2, "bekleme bitince ikinci satin alma serbest")
+	__advance(3)
+	__fire(Remotes.RequestPurchase, "OnServerEvent", donor, 333)
+	check(#MS.prompts == 3, "3. satin alma baslatildi (sahip cikmadan hemen once)")
 	local raisedBeforeLeave = alice.leaderstats.Raised.Value
 	leave(alice)
 	check(Registry.GetOwner(b2) == nil, "sahip cikinca stand sifirlandi")
 	check(b2.Egg.HatcheryGui.Title.Text:find("Unclaimed") ~= nil, "baslik tekrar 'Unclaimed'")
 	check(b2:GetAttribute("OwnerUserId") == nil, "OwnerUserId temizlendi")
+	local pst = __store(Config.PENDING_STORE)
+	local rs2 = __store("EggReceipts_v1")
+	pst.fail = true
+	local dFail = MS.ProcessReceipt({ PlayerId = 3003, ProductId = 333, PurchaseId = "p4", CurrencySpent = 500 })
+	check(dFail == Enum.ProductPurchaseDecision.NotProcessedYet and rs2.data["p4"] == nil, "sahip cikmis + biriktirme coktu: NotProcessedYet ve makbuz kaydi geri alindi")
+	check(donor.leaderstats.Donated.Value == 100, "basarisiz denemede bagiscinin Donated'i artmadi")
+	pst.fail = false
 	local d5 = MS.ProcessReceipt({ PlayerId = 3003, ProductId = 333, PurchaseId = "p4", CurrencySpent = 500 })
 	check(d5 == Enum.ProductPurchaseDecision.PurchaseGranted, "sahibi cikmis standa bagis: cokmedi, makbuz onaylandi")
 	check(donor.leaderstats.Donated.Value == 600, "sahibi cikmis olsa da bagiscinin Donated'i artti (100+500)")
 	local saved = st.data["Player_1001"]
 	check(saved ~= nil and saved.Raised == raisedBeforeLeave and saved.Level == alice.leaderstats.Level.Value, "ayrilan oyuncunun verisi kaydedildi (Raised=" .. tostring(saved and saved.Raised) .. ")")
+
+	local pend = pst.data["1001"]
+	check(pend ~= nil and pend.XP == 10000 and pend.Raised == 500, "sahibi cikmis bagis kaybolmadi: bekleyen XP=10000, Raised=500")
+	-- sahip geri gelir: bekleyen bagis uygulanir, bir kere
+	local alice2 = newPlayer("Alice", 1001)
+	check(alice2.leaderstats.Raised.Value == saved.Raised + 500, "geri donen sahibe bekleyen Raised eklendi (" .. alice2.leaderstats.Raised.Value .. ")")
+	check(alice2.leaderstats.Level.Value > saved.Level, "bekleyen XP ile yumurta evrildi: Level " .. saved.Level .. " -> " .. alice2.leaderstats.Level.Value)
+	check(pst.data["1001"].XP == 0 and pst.data["1001"].Raised == 0, "bekleyen kayit sifirlandi")
+	leave(alice2)
+	local alice3 = newPlayer("Alice", 1001)
+	check(alice3.leaderstats.Raised.Value == alice2.leaderstats.Raised.Value, "ikinci girista bagis tekrar EKLENMEDI")
+	leave(alice3)
 
 	-- veri yuklenemezse kayit KAPALI olmali (eski veri silinmesin)
 	st.fail = true
@@ -183,4 +208,26 @@ do
 		fn()
 	end
 	check(st.data["Player_5005"].Raised == 777, "BindToClose: acik oyuncular kaydedildi")
+
+	print("== Liderlik panolari ==")
+	local lb = __store("EggLB_Raised_v1")
+	check(lb.data["5005"] == 777 and lb.data["1001"] ~= nil, "Raised siralamasi OrderedDataStore'a yazildi (Erin=777)")
+	check(__store("EggLB_Level_v1").data["5005"] ~= nil and __store("EggLB_Donated_v1").data["5005"] ~= nil, "Donated ve Level siralamalari da yazildi")
+	local b1 = Instance.new("Part") b1.Name = "Board_Raised" b1.Parent = workspace
+	local b2 = Instance.new("Part") b2.Name = "Wall" b2.Parent = workspace
+	local b3 = Instance.new("Part") b3.Name = "Whatever" b3.Parent = workspace
+	game:GetService("CollectionService"):AddTag(b3, "LeaderboardBoard")
+	b3:SetAttribute("Stat", "Level")
+	runScript("LeaderboardService")
+	local body = b1.LB.Frame.Body.Text
+	local lines = {}
+	for l in body:gmatch("[^\n]+") do table.insert(lines, l) end
+	check(lines[1]:find("User5005") ~= nil and lines[1]:find("777") ~= nil, "1. sirada en cok toplayan: " .. lines[1])
+	check(#lines >= 2 and lines[2]:find("User1001") ~= nil, "2. sirada Alice: " .. (lines[2] or "yok"))
+	check(b2:FindFirstChild("LB") == nil, "pano olmayan Part'a dokunulmadi")
+	check(b3.LB.Frame.Title.Text == Config.LEADERBOARDS.Level.Title and b3.LB.Frame.Body.Text ~= "Yukleniyor...", "etiketli (Stat=Level) pano da dolduruldu")
+	lb.fail = true
+	__advance(Config.LEADERBOARD_REFRESH + 1)
+	check(b1.LB.Frame.Body.Text == body, "okuma hatasinda pano eski yaziyi korudu")
+	lb.fail = false
 end

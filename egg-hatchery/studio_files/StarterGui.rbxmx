@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<roblox version="4"><Item class="LocalScript" referent="RBX9"><Properties><string name="Name">EggClient</string><ProtectedString name="Source"><![CDATA[local Players = game:GetService("Players")
+<roblox version="4"><Item class="LocalScript" referent="RBX10"><Properties><string name="Name">EggClient</string><ProtectedString name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 

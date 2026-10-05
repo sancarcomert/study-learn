@@ -8,6 +8,16 @@ Config.MAX_LEVEL = 100
 Config.INTERACT_DISTANCE = 25
 Config.OWNER_CHECK_INTERVAL = 5
 Config.BOOTH_FOLDER_NAME = "Booths"
+Config.PURCHASE_COOLDOWN = 2 -- ayni oyuncu bu kadar saniyede bir satin alma baslatabilir
+Config.PENDING_STORE = "EggPending_v1" -- sahibi cevrimdisiyken gelen bagislar burada bekler
+Config.LEADERBOARD_REFRESH = 60 -- pano yenileme sikligi (sn)
+Config.LEADERBOARD_SIZE = 10
+-- Kucuk harf: Studio'da panoya bu adlarla Part koy (Board_Raised, Board_Donated, Board_Level)
+Config.LEADERBOARDS = {
+	Raised = { Store = "EggLB_Raised_v1", Title = "EN COK TOPLAYAN" },
+	Donated = { Store = "EggLB_Donated_v1", Title = "EN COK BAGISLAYAN" },
+	Level = { Store = "EggLB_Level_v1", Title = "EN YUKSEK YUMURTA" },
+}
 
 -- Developer Product ID'lerini buraya yaz (Roblox Creator Hub > Monetization > Developer Products)
 Config.PRODUCTS = {
@@ -416,8 +426,11 @@ local DataStoreService = game:GetService("DataStoreService")
 
 local Modules = script.Parent:WaitForChild("Modules")
 local Config = require(Modules.Config)
+local Hatchery = require(Modules.HatcheryService)
 
 local store = DataStoreService:GetDataStore(Config.DATASTORE_NAME)
+local pendingStore = DataStoreService:GetDataStore(Config.PENDING_STORE)
+local lastPublished = {} -- [userId][stat] = son gonderilen deger (gereksiz yazmayi onler)
 
 local pendingSaves = 0
 local finalSaveStarted = {}
@@ -465,6 +478,43 @@ local function createValues(player)
 	newValue("EggXP", data, 0)
 end
 
+-- Kucuk, hata verirse oyunu bozmayan: global siralama tablolarina yaz
+local function publish(player)
+	local sent = lastPublished[player.UserId] or {}
+	lastPublished[player.UserId] = sent
+	for stat, cfg in pairs(Config.LEADERBOARDS) do
+		local value = math.floor(player.leaderstats[stat].Value)
+		if sent[stat] ~= value then
+			local ok = pcall(function()
+				DataStoreService:GetOrderedDataStore(cfg.Store):SetAsync(tostring(player.UserId), value)
+			end)
+			if ok then
+				sent[stat] = value
+			end
+		end
+	end
+end
+
+-- Sahibi cevrimdisiyken gelen bagislari (MarketplaceHook biriktirir) oyuncu girince uygular
+local function applyPending(player)
+	local taken
+	local ok = pcall(function()
+		pendingStore:UpdateAsync(tostring(player.UserId), function(old)
+			if old and ((old.XP or 0) > 0 or (old.Raised or 0) > 0) then
+				taken = old
+				return { XP = 0, Raised = 0 }
+			end
+			return nil -- degisiklik yok
+		end)
+	end)
+	if not (ok and taken) or not player.Parent then
+		return
+	end
+	player.leaderstats.Raised.Value += taken.Raised or 0
+	Hatchery.AddXP(player, taken.XP or 0)
+	print(string.format("[Economy] %s: cevrimdisiyken gelen bagislar uygulandi (+%d R$, +%d XP)", player.Name, taken.Raised or 0, taken.XP or 0))
+end
+
 local function onPlayerAdded(player)
 	createValues(player)
 
@@ -483,6 +533,7 @@ local function onPlayerAdded(player)
 		player.leaderstats.Level.Value = math.max(saved.Level or saved.EggLevel or 1, 1)
 		player.EggData.EggXP.Value = saved.EggXP or 0
 		player:SetAttribute("DataLoaded", true)
+		applyPending(player)
 	else
 		warn("[Economy] " .. player.Name .. " verisi yuklenemedi, bu oturumda kayit kapali.")
 	end
@@ -503,6 +554,9 @@ local function save(player)
 			return data
 		end)
 	end, 3)
+	if ok then
+		publish(player)
+	end
 	return ok
 end
 
@@ -525,6 +579,7 @@ Players.PlayerRemoving:Connect(function(player)
 	finalSave(player)
 	finalSaveStarted[player.UserId] = nil
 	autosaveBusy[player.UserId] = nil
+	lastPublished[player.UserId] = nil
 end)
 
 game:BindToClose(function()
@@ -740,6 +795,7 @@ local Hatchery = require(Modules.HatcheryService)
 
 -- Ayni makbuz iki kere islenmesin diye kayit tutulur
 local receiptStore = DataStoreService:GetDataStore("EggReceipts_v1")
+local pendingStore = DataStoreService:GetDataStore(Config.PENDING_STORE)
 
 local productById = {}
 for _, product in ipairs(Config.PRODUCTS) do
@@ -751,6 +807,7 @@ end
 local priceCache = {}
 local menuBooth = {}
 local pending = {}
+local lastRequest = {} -- [player] = son satin alma istegi zamani (spam korumasi)
 
 local function getPrice(productId)
 	if priceCache[productId] then
@@ -816,11 +873,16 @@ Remotes.RequestPurchase.OnServerEvent:Connect(function(donor, productId)
 	if typeof(productId) ~= "number" or not productById[productId] then
 		return
 	end
+	local now = time()
+	if lastRequest[donor] and now - lastRequest[donor] < Config.PURCHASE_COOLDOWN then
+		return -- cok sik istek (spam)
+	end
 	local booth = menuBooth[donor]
 	local owner = booth and Registry.GetOwner(booth)
 	if not (booth and owner) or owner == donor or not nearBooth(donor, booth) then
 		return
 	end
+	lastRequest[donor] = now
 
 	pending[donor.UserId] = {
 		ProductId = productId,
@@ -859,25 +921,51 @@ MarketplaceService.ProcessReceipt = function(info)
 
 	local donor = Players:GetPlayerByUserId(info.PlayerId)
 	local record = donor and pending[donor.UserId]
-	pending[info.PlayerId] = nil
+	pending[info.PlayerId] = nil -- kesin sonuc cikinca temizlenir; gecici hatada asagida geri konur
 	if not (donor and record and record.ProductId == info.ProductId) then
 		warn("[Marketplace] Bekleyen bagis kaydi yok, makbuz onaylandi: " .. tostring(info.PurchaseId))
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
 	local robux = info.CurrencySpent or getPrice(info.ProductId) or 0
-	if donor:FindFirstChild("leaderstats") then
-		donor.leaderstats.Donated.Value += robux
-	end
-
+	local xp = robux * Config.XP_PER_ROBUX
 	local owner = Registry.GetOwner(record.Booth)
+
 	if not owner or owner.UserId ~= record.OwnerUserId then
-		warn("[Marketplace] Stand sahibi cikmis, XP verilemedi.")
+		-- Sahibi satin alma sirasinda cikti: bagis kaybolmasin, sahip tekrar girince uygulanir
+		local queued = false
+		for attempt = 1, 3 do
+			local ok = pcall(function()
+				pendingStore:UpdateAsync(tostring(record.OwnerUserId), function(old)
+					old = old or { XP = 0, Raised = 0 }
+					old.XP = (old.XP or 0) + xp
+					old.Raised = (old.Raised or 0) + robux
+					return old
+				end)
+			end)
+			if ok then
+				queued = true
+				break
+			end
+			task.wait(attempt)
+		end
+		if not queued then
+			pcall(function()
+				receiptStore:RemoveAsync(tostring(info.PurchaseId))
+			end)
+			pending[info.PlayerId] = record -- Roblox makbuzu tekrar gonderecek; kayit korunmali
+			return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox tekrar dener
+		end
+		if donor:FindFirstChild("leaderstats") then
+			donor.leaderstats.Donated.Value += robux
+		end
+		warn("[Marketplace] Stand sahibi cikmis; bagis sahibine biriktirildi (+" .. xp .. " XP).")
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
-	local xp = robux * Config.XP_PER_ROBUX
-
+	if donor:FindFirstChild("leaderstats") then
+		donor.leaderstats.Donated.Value += robux
+	end
 	owner.leaderstats.Raised.Value += robux
 
 	Remotes.EggFeedback:FireAllClients({
@@ -895,5 +983,151 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	menuBooth[player] = nil
 	pending[player.UserId] = nil
+	lastRequest[player] = nil
+end)
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX9"><Properties><string name="Name">LeaderboardService</string><ProtectedString name="Source"><![CDATA[-- ServerScriptService/LeaderboardService (Script)
+--
+-- Haritadaki panolara kucuk bir "ilk 10" tablosu cizer.
+-- Pano = Workspace'te herhangi bir yerde, adi Board_Raised / Board_Donated / Board_Level olan Part
+--        (ya da "LeaderboardBoard" etiketi + "Stat" attribute'u olan Part).
+-- Veri EconomyManager'in yazdigi OrderedDataStore'lardan okunur; her Config.LEADERBOARD_REFRESH sn'de yenilenir.
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local DataStoreService = game:GetService("DataStoreService")
+local CollectionService = game:GetService("CollectionService")
+
+local Modules = script.Parent:WaitForChild("Modules")
+local Config = require(Modules.Config)
+
+local nameCache = {}
+local function nameOf(userId)
+	if nameCache[userId] then
+		return nameCache[userId]
+	end
+	local ok, name = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	nameCache[userId] = ok and name or ("Oyuncu" .. userId)
+	return nameCache[userId]
+end
+
+-- panoyu bul: ad veya etiket ile
+local function statOf(part)
+	for stat in pairs(Config.LEADERBOARDS) do
+		if part.Name == "Board_" .. stat then
+			return stat
+		end
+	end
+	if CollectionService:HasTag(part, "LeaderboardBoard") then
+		local s = part:GetAttribute("Stat")
+		if Config.LEADERBOARDS[s] then
+			return s
+		end
+	end
+	return nil
+end
+
+local function makeGui(part, stat)
+	local old = part:FindFirstChild("LB")
+	if old then
+		old:Destroy()
+	end
+	local sg = Instance.new("SurfaceGui")
+	sg.Name = "LB"
+	sg.Face = Enum.NormalId.Front
+	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	sg.PixelsPerStud = 40
+	sg.LightInfluence = 0
+	sg.Parent = part
+
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Color3.fromRGB(34, 40, 52)
+	bg.BorderSizePixel = 0
+	bg.Parent = sg
+
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.fromScale(1, 0.14)
+	title.BackgroundColor3 = Color3.fromRGB(255, 200, 60)
+	title.BorderSizePixel = 0
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.TextColor3 = Color3.fromRGB(50, 36, 20)
+	title.Text = Config.LEADERBOARDS[stat].Title
+	title.Parent = bg
+
+	local body = Instance.new("TextLabel")
+	body.Name = "Body"
+	body.Position = UDim2.fromScale(0.05, 0.17)
+	body.Size = UDim2.fromScale(0.9, 0.8)
+	body.BackgroundTransparency = 1
+	body.Font = Enum.Font.GothamBold
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.TextScaled = true
+	body.TextColor3 = Color3.fromRGB(240, 244, 250)
+	body.Text = "Yukleniyor..."
+	body.Parent = bg
+	return body
+end
+
+local function format(n)
+	local s = tostring(math.floor(n))
+	local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return (out:gsub("^,", ""))
+end
+
+local boards = {} -- [part] = { stat, body }
+
+local function register(part)
+	if boards[part] or not part:IsA("BasePart") then
+		return
+	end
+	local stat = statOf(part)
+	if stat then
+		boards[part] = { stat = stat, body = makeGui(part, stat) }
+	end
+end
+
+for _, d in ipairs(Workspace:GetDescendants()) do
+	register(d)
+end
+Workspace.DescendantAdded:Connect(register)
+
+local function refresh()
+	local cache = {} -- ayni stat icin tek okuma
+	for part, b in pairs(boards) do
+		if not part.Parent then
+			boards[part] = nil
+		else
+			if not cache[b.stat] then
+				local ok, page = pcall(function()
+					return DataStoreService:GetOrderedDataStore(Config.LEADERBOARDS[b.stat].Store):GetSortedAsync(false, Config.LEADERBOARD_SIZE):GetCurrentPage()
+				end)
+				cache[b.stat] = ok and page or false
+			end
+			local page = cache[b.stat]
+			if page == false then
+				-- hata: eski yaziyi birak (bos kalmasin)
+			elseif #page == 0 then
+				b.body.Text = "Henuz kimse yok"
+			else
+				local lines = {}
+				for i, entry in ipairs(page) do
+					table.insert(lines, string.format("%d. %s  -  %s", i, nameOf(tonumber(entry.key) or 0), format(entry.value)))
+				end
+				b.body.Text = table.concat(lines, "\n")
+			end
+		end
+	end
+end
+
+task.spawn(function()
+	while true do
+		refresh()
+		task.wait(Config.LEADERBOARD_REFRESH)
+	end
 end)
 ]]></ProtectedString></Properties></Item></roblox>

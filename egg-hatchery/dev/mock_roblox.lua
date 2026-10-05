@@ -324,6 +324,8 @@ local ENUMS = {
 	SurfaceType = "Smooth Glue Weld Studs Inlet Universal Hinge Motor SteppingMotor SmoothNoOutlines",
 	MeshType = "Head Torso Wedge Prism Pyramid ParallelRamp RightAngleRamp CornerWedge Brick Sphere Cylinder FileMesh",
 	NormalId = "Top Bottom Back Front Right Left",
+	TextXAlignment = "Left Center Right",
+	TextYAlignment = "Top Center Bottom",
 	SurfaceGuiSizingMode = "FixedSize PixelsPerStud",
 	ModelStreamingMode = "Default Atomic Persistent PersistentPerPlayer Nonatomic",
 	ParticleEmitterShape = "Box Sphere Cylinder Disc",
@@ -581,6 +583,9 @@ local SCHEMA = {
 		TextSize = tNum(1),
 		TextStrokeTransparency = tNum(0, 1),
 		AnchorPoint = tT("Vector2"),
+		BorderSizePixel = tNum(0),
+		TextXAlignment = tEnum("TextXAlignment"),
+		TextYAlignment = tEnum("TextYAlignment"),
 		Visible = tBool,
 	},
 	Frame = {
@@ -771,7 +776,7 @@ IMT.__index = function(self, key)
 		return data.props.CFrame.Position
 	end
 	if key == "ChildAdded" or key == "ChildRemoved" or key == "Changed" or key == "Triggered" or key == "OnServerEvent"
-		or key == "Destroying" or key == "PlayerAdded" or key == "PlayerRemoving" or key == "OnClientEvent" then
+		or key == "Destroying" or key == "DescendantAdded" or key == "PlayerAdded" or key == "PlayerRemoving" or key == "OnClientEvent" then
 		return getSignal(self, key)
 	end
 	if Methods[key] then
@@ -805,6 +810,14 @@ IMT.__newindex = function(self, key, value)
 			local sig = d(value).signals.ChildAdded
 			if sig then
 				sig:Fire(self)
+			end
+			local anc = value
+			while anc do
+				local ds = d(anc).signals.DescendantAdded
+				if ds then
+					ds:Fire(self)
+				end
+				anc = d(anc).parent
 			end
 		end
 		return
@@ -1063,6 +1076,11 @@ function Methods.GetPlayers(self)
 	end
 	return out
 end
+__names = {}
+function Methods.GetNameFromUserIdAsync(self, id)
+	assert(type(id) == "number", "GetNameFromUserIdAsync: sayi bekler")
+	return __names[id] or ("User" .. id)
+end
 function Methods.GetPlayerByUserId(self, id)
 	for _, c in ipairs(d(self).children) do
 		if d(c).class == "Player" and d(c).props.UserId == id then
@@ -1213,16 +1231,34 @@ services.Debris = {
 	AddItem = function() end,
 }
 local stores = {}
+local function newStore(name)
+	stores[name] = stores[name] or { data = {}, saves = 0, fail = false }
+	return stores[name]
+end
 services.DataStoreService = {
 	GetDataStore = function(_, name)
-		stores[name] = stores[name] or { data = {}, saves = 0, fail = false }
-		local st = stores[name]
+		local st = newStore(name)
 		return {
 			GetAsync = function(_, key)
 				if st.fail then
 					error("mock datastore hatasi (GetAsync)")
 				end
 				return st.data[key]
+			end,
+			SetAsync = function(_, key, value)
+				if st.fail then
+					error("mock datastore hatasi (SetAsync)")
+				end
+				st.data[key] = value
+				st.saves = st.saves + 1
+			end,
+			RemoveAsync = function(_, key)
+				if st.fail then
+					error("mock datastore hatasi (RemoveAsync)")
+				end
+				local old = st.data[key]
+				st.data[key] = nil
+				return old
 			end,
 			UpdateAsync = function(_, key, fn)
 				if st.fail then
@@ -1234,6 +1270,42 @@ services.DataStoreService = {
 					st.saves = st.saves + 1
 				end
 				return new
+			end,
+		}
+	end,
+	GetOrderedDataStore = function(_, name)
+		local st = newStore(name)
+		return {
+			SetAsync = function(_, key, value)
+				if st.fail then
+					error("mock ordered datastore hatasi (SetAsync)")
+				end
+				assert(type(key) == "string" and type(value) == "number" and value == math.floor(value), "OrderedDataStore: anahtar string, deger tamsayi olmali")
+				st.data[key] = value
+				st.saves = st.saves + 1
+			end,
+			GetSortedAsync = function(_, ascending, pageSize)
+				if st.fail then
+					error("mock ordered datastore hatasi (GetSortedAsync)")
+				end
+				local list = {}
+				for k, v in pairs(st.data) do
+					table.insert(list, { key = k, value = v })
+				end
+				table.sort(list, function(a, b)
+					if a.value == b.value then
+						return a.key < b.key
+					end
+					if ascending then
+						return a.value < b.value
+					end
+					return a.value > b.value
+				end)
+				local page = {}
+				for i = 1, math.min(pageSize, #list) do
+					page[i] = list[i]
+				end
+				return { GetCurrentPage = function() return page end }
 			end,
 		}
 	end,
@@ -1315,6 +1387,9 @@ task = {
 		return t
 	end,
 }
+time = function()
+	return nowT
+end
 -- Sanal zamani ilerletir, uyanma zamani gelen coroutine'leri sirayla calistirir
 function __advance(dt)
 	local target = nowT + dt
