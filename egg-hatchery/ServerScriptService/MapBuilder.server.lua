@@ -59,15 +59,15 @@ local C = {
 	sign = RGB(228, 194, 140),
 	awningGreen = RGB(86, 160, 72),
 	cream = RGB(246, 240, 222),
-	plaza = RGB(212, 204, 186),
-	plazaLine = RGB(190, 182, 164),
-	medallion = RGB(224, 217, 200),
-	curb = RGB(172, 166, 154),
-	stone = RGB(190, 184, 168),
+	plaza = RGB(196, 178, 148),
+	plazaLine = RGB(170, 152, 124),
+	medallion = RGB(214, 198, 168),
+	curb = RGB(140, 128, 110),
+	stone = RGB(176, 166, 148),
 	soil = RGB(92, 64, 44),
 	metal = RGB(56, 60, 66),
 	water = RGB(118, 196, 238),
-	lamp = RGB(255, 240, 190),
+	lamp = RGB(255, 214, 140),
 	white = RGB(244, 247, 250),
 }
 local FLOWERS = { RGB(255, 128, 170), RGB(255, 224, 90), RGB(250, 250, 250), RGB(235, 80, 80), RGB(180, 120, 230) }
@@ -318,30 +318,40 @@ local function buildBooth(i, cf)
 	local model = Instance.new("Model")
 	model.Name = "Booth_" .. i
 
-	-- zemin platformu, arka duvar, yan duvarlar, on direkler
+	-- zemin: ahsap kat + on basamak
 	part(model, "Platform", Vector3.new(17, 0.6, 11), L(0, 0.3, 0), C.woodLight, Mat.WoodPlanks)
-	part(model, "BackWall", Vector3.new(16, 6.4, 0.6), L(0, 3.8, 4.7), C.woodDark, Mat.WoodPlanks)
+	part(model, "Step", Vector3.new(13.8, 0.3, 1.4), L(0, 0.15, -6.2), C.woodMid, Mat.WoodPlanks)
+
+	-- arka duvar + yan duvarlar + alt pervaz
+	part(model, "BackWall", Vector3.new(16, 8.0, 0.6), L(0, 4.6, 4.7), C.woodDark, Mat.WoodPlanks)
+	part(model, "BackTrim", Vector3.new(16.4, 0.5, 0.8), L(0, 0.85, 4.6), C.woodMid, Mat.WoodPlanks)
 	for _, sx in ipairs({ -7.7, 7.7 }) do
-		part(model, "SideWall", Vector3.new(0.6, 3.4, 9.4), L(sx, 2.3, 0.1), C.woodDark, Mat.WoodPlanks)
+		part(model, "SideWall", Vector3.new(0.6, 6.4, 9.4), L(sx, 3.8, 0.1), C.woodDark, Mat.WoodPlanks)
 	end
+
+	-- on direkler: tabelayi tasimak icin yuksek
 	for _, px in ipairs({ -7.6, 7.6 }) do
-		part(model, "Post", Vector3.new(0.8, 4.7, 0.8), L(px, 2.95, -5.2), C.woodMid, Mat.Wood)
+		part(model, "Post", Vector3.new(0.9, 11.7, 0.9), L(px, 6.15, -5.2), C.woodMid, Mat.Wood)
 	end
 
-	-- cizgili tente (one dogru hafif egimli)
-	local awning = L(0, 7.0, 4.4) * CFrame.Angles(-math.rad(9), 0, 0)
+	-- tente: 8 seritli, one dogru hafif egimli, one sarkan kenar (valans)
+	local awning = L(0, 8.2, 4.4) * CFrame.Angles(-math.rad(9), 0, 0)
 	for s = 1, 8 do
-		part(model, "Awning", Vector3.new(2, 0.3, 10.6), awning * CFrame.new((s - 4.5) * 2, 0, -5.3),
-			(s % 2 == 1) and C.awningGreen or C.cream, Mat.Fabric, SOFT)
+		local c = (s % 2 == 1) and C.awningGreen or C.cream
+		part(model, "Awning", Vector3.new(2, 0.3, 10.6), awning * CFrame.new((s - 4.5) * 2, 0, -5.3), c, Mat.Fabric, SOFT)
+		part(model, "Valance", Vector3.new(2, 0.9, 0.25), awning * CFrame.new((s - 4.5) * 2, -0.55, -10.6), c, Mat.Fabric, SOFT)
 	end
 
-	-- tezgah
+	-- tezgah: govde + ust tahta + 5 dikey tahta (derinlik)
 	part(model, "Counter", Vector3.new(13, 2.5, 1.8), L(0, 1.85, -3.4), C.woodMid, Mat.WoodPlanks)
 	part(model, "CounterTop", Vector3.new(13.8, 0.35, 2.6), L(0, 3.275, -3.4), C.woodLight, Mat.WoodPlanks)
+	for k = -2, 2 do
+		part(model, "CounterSlat", Vector3.new(0.5, 2.1, 0.15), L(k * 2.4, 1.85, -4.35), C.woodDark, Mat.WoodPlanks)
+	end
 
-	-- isim tabelasi (MapFX: sahipsiz = "STAND 07", sahipli = oyuncu adi)
-	part(model, "SignFrame", Vector3.new(11.6, 2.8, 0.5), L(0, 8.4, 4.75), C.woodDark, Mat.WoodPlanks)
-	local board = part(model, "SignBoard", Vector3.new(11, 2.2, 0.2), L(0, 8.4, 4.35), C.sign, Mat.WoodPlanks)
+	-- tabela: iki yuksek direk arasinda, plazaya bakar
+	part(model, "SignFrame", Vector3.new(14.2, 3.2, 0.6), L(0, 10.4, -5.2), C.woodDark, Mat.WoodPlanks)
+	local board = part(model, "SignBoard", Vector3.new(13.4, 2.6, 0.2), L(0, 10.4, -5.55), C.sign, Mat.WoodPlanks)
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = Enum.NormalId.Front
 	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
@@ -358,12 +368,11 @@ local function buildBooth(i, cf)
 	label.Parent = sg
 	tag(label, "BoothSign", { BoothNumber = i })
 
-	-- tabelanin ustunde kucuk yumurta (HatcheryService "Egg" adli parcayi bulup kullanir)
-	cyl(model, "EggStand", 2.2, 0.5, L(0, 10.05, 4.75), C.woodDark, Mat.Wood)
-	local egg = ellipsoid(model, "Egg", Vector3.new(2.2, 3.0, 2.2), L(0, 12.0, 4.75), C.white, Mat.Neon, DECO)
+	-- yumurta: tabelanin ustunde, kucuk kaide uzerinde
+	cyl(model, "EggStand", 2.8, 0.5, L(0, 12.25, -5.2), C.woodDark, Mat.Wood)
+	local egg = ellipsoid(model, "Egg", Vector3.new(2.6, 3.6, 2.6), L(0, 14.35, -5.2), C.white, Mat.Neon, DECO)
 	tag(egg, "FX_Bob", { BobHeight = 0.2, BobSpeed = 1.2, BobPhase = rng:NextNumber(0, TAU) })
 
-	-- Istem prompt'larinin baglanacagi gorunmez ankraj (PrimaryPart = "Base")
 	local base = anchorPart(model, "Base", Vector3.new(1, 1, 1), L(0, 4.4, -3.4))
 	model.PrimaryPart = base
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
@@ -547,7 +556,7 @@ end
 ---------------------------------------------------------------------
 local function applyLighting()
 	Lighting.ClockTime = 14
-	Lighting.Brightness = 3
+	Lighting.Brightness = 2.4
 	Lighting.ExposureCompensation = 0
 	Lighting.Ambient = RGB(120, 124, 132)
 	Lighting.OutdoorAmbient = RGB(150, 160, 175)
@@ -570,9 +579,9 @@ local function applyLighting()
 	atm.Parent = Lighting
 
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.3
+	bloom.Intensity = 0.12
 	bloom.Size = 24
-	bloom.Threshold = 1.2
+	bloom.Threshold = 1.8
 	bloom.Parent = Lighting
 
 	local cc = Instance.new("ColorCorrectionEffect")

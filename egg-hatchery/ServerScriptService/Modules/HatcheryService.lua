@@ -28,6 +28,14 @@ local function makePrompt(parent, name, action, enabled)
 	return prompt
 end
 
+-- sahipsiz stand: tek satir; sahipli stand: baslik + XP cubugu + ilerleme
+local function layoutGui(gui, claimed)
+	gui.BarBack.Visible = claimed
+	gui.Progress.Visible = claimed
+	gui.Title.Size = claimed and UDim2.fromScale(1, 0.45) or UDim2.fromScale(1, 0.6)
+	gui.Title.Position = claimed and UDim2.fromScale(0, 0) or UDim2.fromScale(0, 0.2)
+end
+
 local function makeLabel(parent, name, pos, size)
 	local label = Instance.new("TextLabel")
 	label.Name = name
@@ -64,9 +72,9 @@ function HatcheryService.BuildBooth(booth)
 	if not egg:FindFirstChild("HatcheryGui") then
 		local gui = Instance.new("BillboardGui")
 		gui.Name = "HatcheryGui"
-		gui.Size = UDim2.fromOffset(340, 90)
-		gui.StudsOffset = Vector3.new(0, 4.5, 0)
-		gui.MaxDistance = 120
+		gui.Size = UDim2.fromOffset(260, 66)
+		gui.StudsOffset = Vector3.new(0, 3.4, 0)
+		gui.MaxDistance = 45 -- uzaktan 24 yazi ust uste binmesin
 		gui.Parent = egg
 
 		makeLabel(gui, "Title", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.45))
@@ -124,6 +132,7 @@ function HatcheryService.Refresh(player)
 	local need = Config.XPRequired(level)
 	local rarity = Config.GetRarity(level)
 
+	layoutGui(gui, true)
 	gui.Title.Text = string.format("%s's Hatchery - Level %d", player.Name, level)
 	gui.Progress.Text = string.format("%s  |  %d / %d XP", rarity.Name, xp, need)
 	gui.BarBack.Fill.BackgroundColor3 = rarity.Color
@@ -147,6 +156,7 @@ function HatcheryService.SetUnclaimed(booth)
 
 	local egg = booth:FindFirstChild("Egg")
 	local gui = egg.HatcheryGui
+	layoutGui(gui, false)
 	gui.Title.Text = "Unclaimed - Press E to claim!"
 	gui.Progress.Text = ""
 	gui.BarBack.Fill.Size = UDim2.fromScale(0, 1)

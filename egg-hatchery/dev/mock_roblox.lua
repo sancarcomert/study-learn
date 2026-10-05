@@ -580,6 +580,7 @@ local SCHEMA = {
 		TextSize = tNum(1),
 		TextStrokeTransparency = tNum(0, 1),
 		AnchorPoint = tT("Vector2"),
+		Visible = tBool,
 	},
 	Frame = {
 		Position = tT("UDim2"),
@@ -588,6 +589,7 @@ local SCHEMA = {
 		BackgroundTransparency = tNum(0, 1),
 		BorderSizePixel = tNum(0),
 		AnchorPoint = tT("Vector2"),
+		Visible = tBool,
 	},
 	UICorner = { CornerRadius = tT("UDim") },
 	ProximityPrompt = {
