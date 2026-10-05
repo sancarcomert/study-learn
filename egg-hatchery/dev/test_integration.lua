@@ -39,12 +39,12 @@ do
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
 	ls.Parent = player
-	for _, n in ipairs({ "TimePoints", "EggLevel" }) do
+	for _, n in ipairs({ "Raised", "Donated", "Level" }) do
 		local v = Instance.new("IntValue")
 		v.Name = n
 		v.Parent = ls
 	end
-	ls.EggLevel.Value = 1
+	ls.Level.Value = 1
 	local data = Instance.new("Folder")
 	data.Name = "EggData"
 	data.Parent = player
@@ -59,12 +59,20 @@ do
 	check(b1.PrimaryPart.ClaimPrompt.Enabled == false and b1.PrimaryPart.DonatePrompt.Enabled == true, "sahipli standda Claim kapali, Donate acik")
 
 	Hatchery.AddXP(player, 250)
-	check(ls.EggLevel.Value == 2 and xp.Value == 150, "250 XP: seviye 2, kalan 150 (gercek: " .. ls.EggLevel.Value .. "/" .. xp.Value .. ")")
+	check(ls.Level.Value == 2 and xp.Value == 150, "250 XP: seviye 2, kalan 150 (gercek: " .. ls.Level.Value .. "/" .. xp.Value .. ")")
 	local colorBefore = b1.Egg.Color
 	Hatchery.AddXP(player, 200000)
-	check(ls.EggLevel.Value >= 20, "buyuk XP coklu evrim: seviye " .. ls.EggLevel.Value)
-	check(Config.GetRarity(ls.EggLevel.Value).Name == "Mythic", "Mythic nadirlige ulasildi")
+	check(ls.Level.Value >= 20, "buyuk XP coklu evrim: seviye " .. ls.Level.Value)
+	check(Config.GetRarity(ls.Level.Value).Name == "Mythic", "Mythic nadirlige ulasildi")
 	check(b1.Egg.Color ~= colorBefore, "yumurta rengi nadirlige gore degisti")
+	__advance(1)
+	local baseSize = b1.Egg:GetAttribute("BaseSize")
+	check(baseSize ~= nil, "yumurtanin 1. seviye boyutu (BaseSize) kayitli")
+	local want = Config.EggScale(ls.Level.Value)
+	check(want > 1.5 and math.abs(b1.Egg.Size.Y - baseSize.Y * want) < 0.05, string.format("yumurta seviyeyle buyudu: x%.2f", b1.Egg.Size.Y / baseSize.Y))
+	check(b1.Egg.Aura.Enabled == true and b1.Egg.Aura.Rate == 18, "Mythic yumurtada surekli kivilcim (Aura) acik")
+	check(b1.Egg.HatcheryGui.StudsOffset.Y > baseSize.Y * want / 2, "yazi buyuyen yumurtanin ustunde kaliyor")
+	check(Config.EggScale(1) == 1 and Config.EggScale(100) <= 2.2, "buyume sinirli: seviye 1 = x1, en fazla x2.2")
 	local fired = rawget(Remotes.EggFeedback, "_d").fired
 	check(fired ~= nil and #fired >= 2, "EggFeedback duyurulari gonderildi (" .. tostring(fired and #fired) .. ")")
 	check(rawget(b1.Egg:FindFirstChild("ParticleEmitter") or b1.Egg:FindFirstChildOfClass("ParticleEmitter"), "_d") ~= nil, "yumurtada ParticleEmitter var")

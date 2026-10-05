@@ -32,6 +32,7 @@ watch("FX_Bob", function(inst)
 	if bobbers[inst] == nil then
 		bobbers[inst] = {
 			base = inst.CFrame,
+			sizeY = inst.Size.Y, -- yumurta buyuyunce alt kenari sabit kalsin
 			height = inst:GetAttribute("BobHeight") or 0.3,
 			speed = inst:GetAttribute("BobSpeed") or 1,
 			phase = inst:GetAttribute("BobPhase") or 0,
@@ -45,7 +46,7 @@ RunService.Heartbeat:Connect(function()
 	local t = Workspace:GetServerTimeNow()
 	for inst, d in pairs(bobbers) do
 		if inst.Parent then
-			inst.CFrame = d.base + Vector3.new(0, math.sin(t * d.speed + d.phase) * d.height, 0)
+			inst.CFrame = d.base + Vector3.new(0, (inst.Size.Y - d.sizeY) / 2 + math.sin(t * d.speed + d.phase) * d.height, 0)
 		end
 	end
 end)

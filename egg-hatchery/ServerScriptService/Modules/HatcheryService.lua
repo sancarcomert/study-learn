@@ -68,12 +68,38 @@ function HatcheryService.BuildBooth(booth)
 	egg.Anchored = true
 	egg.CanCollide = false
 	egg.Color = DEFAULT_COLOR
+	if egg:GetAttribute("BaseSize") == nil then
+		egg:SetAttribute("BaseSize", egg.Size) -- 1. seviye boyutu; buyume buna gore hesaplanir
+	end
+
+	if not egg:FindFirstChild("Glow") then
+		local glow = Instance.new("PointLight")
+		glow.Name = "Glow"
+		glow.Range = 14
+		glow.Brightness = 0
+		glow.Color = DEFAULT_COLOR
+		glow.Shadows = false
+		glow.Parent = egg
+	end
+	if not egg:FindFirstChild("Aura") then
+		local aura = Instance.new("ParticleEmitter")
+		aura.Name = "Aura"
+		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		aura.LightEmission = 1
+		aura.Lifetime = NumberRange.new(1.2, 2)
+		aura.Speed = NumberRange.new(1, 3)
+		aura.SpreadAngle = Vector2.new(180, 180)
+		aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		aura.Rate = 0
+		aura.Enabled = false
+		aura.Parent = egg
+	end
 
 	if not egg:FindFirstChild("HatcheryGui") then
 		local gui = Instance.new("BillboardGui")
 		gui.Name = "HatcheryGui"
 		gui.Size = UDim2.fromOffset(260, 66)
-		gui.StudsOffset = Vector3.new(0, 3.4, 0)
+		gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth seviyeye gore ayarlar
 		gui.MaxDistance = 45 -- uzaktan 24 yazi ust uste binmesin
 		gui.Parent = egg
 
@@ -113,7 +139,7 @@ local function getStats(player)
 	if not (ls and data) then
 		return nil, nil
 	end
-	return ls:FindFirstChild("EggLevel"), data:FindFirstChild("EggXP")
+	return ls:FindFirstChild("Level"), data:FindFirstChild("EggXP")
 end
 
 function HatcheryService.Refresh(player)
@@ -140,6 +166,33 @@ function HatcheryService.Refresh(player)
 		Size = UDim2.fromScale(math.clamp(xp / need, 0, 1), 1),
 	}):Play()
 	egg.Color = rarity.Color
+
+	HatcheryService.ApplyGrowth(egg, level, rarity)
+end
+
+-- Yumurta seviye ile buyur; nadirlige gore parlar (Rare+ surekli kivilcim)
+function HatcheryService.ApplyGrowth(egg, level, rarity)
+	local base = egg:GetAttribute("BaseSize")
+	if base then
+		TweenService:Create(egg, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = base * Config.EggScale(level),
+		}):Play()
+		local gui = egg:FindFirstChild("HatcheryGui")
+		if gui then
+			gui.StudsOffset = Vector3.new(0, base.Y * Config.EggScale(level) / 2 + 1.6, 0) -- yazi yumurtanin ustunde kalsin
+		end
+	end
+	local aura = egg:FindFirstChild("Aura")
+	if aura then
+		aura.Color = ColorSequence.new(rarity.Color, Color3.new(1, 1, 1))
+		aura.Rate = rarity.AuraRate or 0
+		aura.Enabled = (rarity.AuraRate or 0) > 0
+	end
+	local glow = egg:FindFirstChild("Glow")
+	if glow then
+		glow.Color = rarity.Color
+		glow.Brightness = (rarity.AuraRate or 0) > 0 and 0.6 or 0
+	end
 end
 
 function HatcheryService.SetClaimed(booth, player)
@@ -162,6 +215,7 @@ function HatcheryService.SetUnclaimed(booth)
 	gui.BarBack.Fill.Size = UDim2.fromScale(0, 1)
 	gui.BarBack.Fill.BackgroundColor3 = DEFAULT_COLOR
 	egg.Color = DEFAULT_COLOR
+	HatcheryService.ApplyGrowth(egg, 1, Config.RARITIES[1])
 end
 
 function HatcheryService.BurstParticles(egg, rarity)
@@ -181,10 +235,15 @@ function HatcheryService.BurstParticles(egg, rarity)
 	emitter:Emit(rarity.BurstCount)
 	Debris:AddItem(emitter, 3)
 
-	local original = egg.Size
-	TweenService:Create(egg, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true), {
-		Size = original * 1.35,
-	}):Play()
+	-- kisa isik patlamasi (boyut animasyonu buyume ile carpismasin diye isikla)
+	local glow = egg:FindFirstChild("Glow")
+	if glow then
+		glow.Color = rarity.Color
+		glow.Brightness = 6
+		TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Brightness = (rarity.AuraRate or 0) > 0 and 0.6 or 0,
+		}):Play()
+	end
 end
 
 function HatcheryService.AddXP(player, amount)

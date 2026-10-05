@@ -108,7 +108,7 @@ MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, produc
 	end
 end)
 
--- 3) Satin alma tamamlaninca: XP + Raised (Roblox makbuz sistemi)
+-- 3) Satin alma tamamlaninca: XP + Raised (sahip) + Donated (bagisci) (Roblox makbuz sistemi)
 MarketplaceService.ProcessReceipt = function(info)
 	-- Bu makbuz daha once islendi mi?
 	local alreadyDone = false
@@ -136,13 +136,17 @@ MarketplaceService.ProcessReceipt = function(info)
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
+	local robux = info.CurrencySpent or getPrice(info.ProductId) or 0
+	if donor:FindFirstChild("leaderstats") then
+		donor.leaderstats.Donated.Value += robux
+	end
+
 	local owner = Registry.GetOwner(record.Booth)
 	if not owner or owner.UserId ~= record.OwnerUserId then
 		warn("[Marketplace] Stand sahibi cikmis, XP verilemedi.")
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
-	local robux = info.CurrencySpent or getPrice(info.ProductId) or 0
 	local xp = robux * Config.XP_PER_ROBUX
 
 	owner.leaderstats.Raised.Value += robux

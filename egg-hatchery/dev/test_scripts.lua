@@ -42,7 +42,7 @@ do
 		__setProductPrice(ids[i], prices[i])
 	end
 	local st = __store(Config.DATASTORE_NAME)
-	st.data["Player_1001"] = { TimePoints = 50, EggLevel = 3, EggXP = 12, Raised = 7 }
+	st.data["Player_1001"] = { EggLevel = 3, EggXP = 12, Raised = 7 } -- eski kayit bicimi (EggLevel) yeni Level'e tasinmali
 	runScript("EconomyManager")
 	runScript("BoothManager")
 	runScript("MarketplaceHook")
@@ -50,11 +50,16 @@ do
 	print("== EconomyManager: yukleme ==")
 	local alice = newPlayer("Alice", 1001)
 	check(alice:GetAttribute("DataLoaded") == true, "kayitli veri yuklendi, DataLoaded=true")
-	check(alice.leaderstats.TimePoints.Value == 50 and alice.leaderstats.EggLevel.Value == 3, "TimePoints=50, EggLevel=3")
+	check(alice.leaderstats.Level.Value == 3 and alice.leaderstats.Donated.Value == 0, "eski EggLevel=3 -> Level=3, Donated=0")
 	check(alice.leaderstats.Raised.Value == 7 and alice.EggData.EggXP.Value == 12, "Raised=7, EggXP=12")
-	__advance(1)
-	check(alice.leaderstats.TimePoints.Value == 51, "her saniye +1 TimePoints")
-	check(alice.EggData.EggXP.Value == 12, "standi yokken pasif XP yok")
+	check(alice.leaderstats:FindFirstChild("TimePoints") == nil, "TimePoints artik yok")
+	local order = {}
+	for _, c in ipairs(alice.leaderstats:GetChildren()) do
+		table.insert(order, c.Name)
+	end
+	check(table.concat(order, ",") == "Raised,Donated,Level", "liderlik tablosu sirasi: " .. table.concat(order, ","))
+	__advance(5)
+	check(alice.EggData.EggXP.Value == 12, "sure gecmekle XP artmaz (yalnizca bagis buyutur)")
 
 	print("== BoothManager: sahiplenme ==")
 	local b2 = workspace.Booths.Booth_2
@@ -63,8 +68,7 @@ do
 	check(b2:GetAttribute("OwnerUserId") == 1001, "Booth_2 OwnerUserId attribute'u (MapFX huzmesi icin)")
 	check(b2.Egg.HatcheryGui.Title.Text == "Alice's Hatchery - Level 3", "baslik: " .. b2.Egg.HatcheryGui.Title.Text)
 	__advance(10)
-	check(alice.leaderstats.TimePoints.Value == 61, "10 sn sonra TimePoints=61")
-	check(alice.EggData.EggXP.Value == 22, "standi varken pasif XP: 12 -> 22")
+	check(alice.EggData.EggXP.Value == 12, "standi varken de sure XP vermez")
 
 	local bob = newPlayer("Bob", 2002)
 	__fire(b2.PrimaryPart.ClaimPrompt, "Triggered", bob)
@@ -107,11 +111,12 @@ do
 	__fire(Remotes.RequestPurchase, "OnServerEvent", donor, 222)
 	check(#MS.prompts == 1 and MS.prompts[1].id == 222 and MS.prompts[1].player == donor, "satin alma penceresi sunucudan acildi")
 
-	local levelBefore, raisedBefore = alice.leaderstats.EggLevel.Value, alice.leaderstats.Raised.Value
+	local levelBefore, raisedBefore = alice.leaderstats.Level.Value, alice.leaderstats.Raised.Value
 	local d1 = MS.ProcessReceipt({ PlayerId = 3003, ProductId = 222, PurchaseId = "p1", CurrencySpent = 100 })
 	check(d1 == Enum.ProductPurchaseDecision.PurchaseGranted, "makbuz onaylandi")
 	check(alice.leaderstats.Raised.Value == raisedBefore + 100, "Raised +100 (ego sayaci)")
-	check(alice.leaderstats.EggLevel.Value > levelBefore, "2000 XP: yumurta evrildi (seviye " .. levelBefore .. " -> " .. alice.leaderstats.EggLevel.Value .. ")")
+	check(donor.leaderstats.Donated.Value == 100, "bagiscinin Donated'i +100")
+	check(alice.leaderstats.Level.Value > levelBefore, "2000 XP: yumurta evrildi (seviye " .. levelBefore .. " -> " .. alice.leaderstats.Level.Value .. ")")
 	local feed = firedOf(Remotes.EggFeedback)
 	local sawDonation = false
 	for _, f in ipairs(feed) do
@@ -124,6 +129,7 @@ do
 	local raisedNow = alice.leaderstats.Raised.Value
 	local d2 = MS.ProcessReceipt({ PlayerId = 3003, ProductId = 222, PurchaseId = "p1", CurrencySpent = 100 })
 	check(d2 == Enum.ProductPurchaseDecision.PurchaseGranted and alice.leaderstats.Raised.Value == raisedNow, "ayni makbuz ikinci kez ISLENMEDI (cift odeme yok)")
+	check(donor.leaderstats.Donated.Value == 100, "ayni makbuz Donated'i ikinci kez artirmadi")
 
 	local d3 = MS.ProcessReceipt({ PlayerId = 3003, ProductId = 222, PurchaseId = "p2", CurrencySpent = 100 })
 	check(d3 == Enum.ProductPurchaseDecision.PurchaseGranted and alice.leaderstats.Raised.Value == raisedNow, "bekleyen kaydi olmayan makbuz: onaylandi, XP verilmedi")
@@ -144,8 +150,9 @@ do
 	check(b2:GetAttribute("OwnerUserId") == nil, "OwnerUserId temizlendi")
 	local d5 = MS.ProcessReceipt({ PlayerId = 3003, ProductId = 333, PurchaseId = "p4", CurrencySpent = 500 })
 	check(d5 == Enum.ProductPurchaseDecision.PurchaseGranted, "sahibi cikmis standa bagis: cokmedi, makbuz onaylandi")
+	check(donor.leaderstats.Donated.Value == 600, "sahibi cikmis olsa da bagiscinin Donated'i artti (100+500)")
 	local saved = st.data["Player_1001"]
-	check(saved ~= nil and saved.Raised == raisedBeforeLeave and saved.TimePoints == 61, "ayrilan oyuncunun verisi kaydedildi (Raised=" .. tostring(saved and saved.Raised) .. ")")
+	check(saved ~= nil and saved.Raised == raisedBeforeLeave and saved.Level == alice.leaderstats.Level.Value, "ayrilan oyuncunun verisi kaydedildi (Raised=" .. tostring(saved and saved.Raised) .. ")")
 
 	-- veri yuklenemezse kayit KAPALI olmali (eski veri silinmesin)
 	st.fail = true
@@ -165,13 +172,15 @@ do
 	-- otomatik kayit
 	local erin = newPlayer("Erin", 5005)
 	__advance(125)
-	check(st.data["Player_5005"] ~= nil and st.data["Player_5005"].TimePoints > 50, "otomatik kayit (120 sn) calisti: TimePoints=" .. tostring(st.data["Player_5005"] and st.data["Player_5005"].TimePoints))
+	erin.leaderstats.Donated.Value = 42
+	__advance(125)
+	check(st.data["Player_5005"] ~= nil and st.data["Player_5005"].Donated == 42, "otomatik kayit (120 sn) calisti: Donated=" .. tostring(st.data["Player_5005"] and st.data["Player_5005"].Donated))
 
 	-- sunucu kapanisi
-	local tpBefore = erin.leaderstats.TimePoints.Value
+	erin.leaderstats.Raised.Value = 777
 	__advance(7)
 	for _, fn in ipairs(__closeFns) do
 		fn()
 	end
-	check(st.data["Player_5005"].TimePoints == erin.leaderstats.TimePoints.Value and erin.leaderstats.TimePoints.Value > tpBefore, "BindToClose: acik oyuncular kaydedildi")
+	check(st.data["Player_5005"].Raised == 777, "BindToClose: acik oyuncular kaydedildi")
 end

@@ -4,8 +4,6 @@ local DataStoreService = game:GetService("DataStoreService")
 
 local Modules = script.Parent:WaitForChild("Modules")
 local Config = require(Modules.Config)
-local Registry = require(Modules.BoothRegistry)
-local Hatchery = require(Modules.HatcheryService)
 
 local store = DataStoreService:GetDataStore(Config.DATASTORE_NAME)
 
@@ -44,9 +42,10 @@ local function createValues(player)
 	ls.Name = "leaderstats"
 	ls.Parent = player
 
-	newValue("TimePoints", ls, 0)
-	newValue("EggLevel", ls, 1)
-	newValue("Raised", ls, 0)
+	-- Siralama: Roblox liderlik tablosu ilk degere gore dizer
+	newValue("Raised", ls, 0) -- standina gelen destek (Robux)
+	newValue("Donated", ls, 0) -- baskalarina verdigin destek (Robux)
+	newValue("Level", ls, 1) -- yumurta seviyesi
 
 	local data = Instance.new("Folder")
 	data.Name = "EggData"
@@ -67,9 +66,9 @@ local function onPlayerAdded(player)
 
 	if ok then
 		saved = saved or {}
-		player.leaderstats.TimePoints.Value = saved.TimePoints or 0
-		player.leaderstats.EggLevel.Value = math.max(saved.EggLevel or 1, 1)
 		player.leaderstats.Raised.Value = saved.Raised or 0
+		player.leaderstats.Donated.Value = saved.Donated or 0
+		player.leaderstats.Level.Value = math.max(saved.Level or saved.EggLevel or 1, 1)
 		player.EggData.EggXP.Value = saved.EggXP or 0
 		player:SetAttribute("DataLoaded", true)
 	else
@@ -82,9 +81,9 @@ local function save(player)
 		return false
 	end
 	local data = {
-		TimePoints = player.leaderstats.TimePoints.Value,
-		EggLevel = player.leaderstats.EggLevel.Value,
 		Raised = player.leaderstats.Raised.Value,
+		Donated = player.leaderstats.Donated.Value,
+		Level = player.leaderstats.Level.Value,
 		EggXP = player.EggData.EggXP.Value,
 	}
 	local ok = withRetry(function()
@@ -138,20 +137,6 @@ task.spawn(function()
 					autosaveBusy[uid] = nil
 				end)
 				task.wait(0.5)
-			end
-		end
-	end
-end)
-
-task.spawn(function()
-	while true do
-		task.wait(1)
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player:GetAttribute("DataLoaded") then
-				player.leaderstats.TimePoints.Value += 1
-				if Registry.GetBooth(player) then
-					Hatchery.AddXP(player, Config.PASSIVE_XP_PER_SECOND)
-				end
 			end
 		end
 	end
