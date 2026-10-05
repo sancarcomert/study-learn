@@ -10,7 +10,8 @@ do
 		local p, look = b.Base.Position, b.Base.CFrame.LookVector
 		local toC = Vector3.new(cx - p.X, 0, cz - p.Z).Unit
 		assert(look:Dot(toC) > 0.999, b.Name .. " merkeze bakmiyor")
-		local d = math.sqrt((p.X - cx) ^ 2 + (p.Z - cz) ^ 2)
+		local pp = b.Platform.Position
+		local d = math.sqrt((pp.X - cx) ^ 2 + (pp.Z - cz) ^ 2)
 		assert(math.abs(d - 84) < 0.01, b.Name .. " yaricap yanlis " .. d)
 		assert(math.abs(b.Platform.Position.Y - (fy + 0.25)) < 0.01, b.Name .. " zeminde degil")
 	end
