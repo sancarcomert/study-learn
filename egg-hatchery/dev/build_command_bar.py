@@ -26,7 +26,7 @@ while ("]" + "=" * level + "]") in mapfx:
 eq = "=" * level
 
 header = """-- ============================================================
--- CELESTIAL HATCHERY - tek komutla kurulum (Studio Command Bar)
+-- SUNNY PARK - tek komutla kurulum (Studio Command Bar)
 -- 1) Studio'da View > Command Bar'i ac (altta yazi kutusu cikar)
 -- 2) Bu dosyanin TAMAMINI kopyala, kutuya yapistir, Enter'a bas
 -- 3) Birkac saniye bekle; Output'ta "[Kurulum] Bitti" yazinca hazir
@@ -65,7 +65,7 @@ do
 end
 
 pcall(function()
-	Workspace.CurrentCamera.CFrame = CFrame.lookAt(Vector3.new(0, 175, 310), Vector3.new(0, 18, 0))
+	Workspace.CurrentCamera.CFrame = CFrame.lookAt(Vector3.new(0, 210, 360), Vector3.new(0, 0, 10))
 end)
 pcall(function()
 	game:GetService("Selection"):Set({{ map }})

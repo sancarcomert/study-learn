@@ -20,7 +20,7 @@ do
 	check(__SSS:FindFirstChild("MapBuilder") == nil, "eski MapBuilder scripti silindi")
 	check(workspace:FindFirstChild("Baseplate") == nil, "eski Baseplate silindi")
 	check(workspace:FindFirstChild("SpawnLocation") == nil, "eski SpawnLocation silindi")
-	check(workspace.Booths:FindFirstChild("OldBooth") == nil and #workspace.Booths:GetChildren() == 16, "eski stand modelleri silindi, 16 yeni stand var")
+	check(workspace.Booths:FindFirstChild("OldBooth") == nil and #workspace.Booths:GetChildren() == 24, "eski stand modelleri silindi, 24 yeni stand var")
 	local atm = 0
 	for _, c in ipairs(game:GetService("Lighting"):GetChildren()) do
 		if c:IsA("Atmosphere") then
@@ -28,10 +28,12 @@ do
 		end
 	end
 	check(atm == 1, "Lighting'te tek Atmosphere var (eski EH_Atmosphere silindi)")
-	check(workspace.Map.Floor.Floor.Locked == true and workspace.Spawn1.Locked == true, "parcalar kilitli")
+	check(workspace.Map.Ground.Grass.Locked == true and workspace.Spawn1.Locked == true, "parcalar kilitli")
 	local cp = workspace.CurrentCamera.CFrame.Position
-	check(cp.X == 0 and cp.Y == 175 and cp.Z == 310, "kamera adaya cevrildi")
+	check(cp.X == 0 and cp.Y == 210 and cp.Z == 360, "kamera parka cevrildi")
 	check(selectionSet ~= nil and selectionSet[1] == workspace.Map, "Map klasoru secildi (F ile odaklanilir)")
-	local tagged = game:GetService("CollectionService"):GetTagged("FX_Spin")
-	check(#tagged == 5, "kalici haritada FX_Spin etiketli 5 model var (3 jiroskop + 2 gokyuzu halkasi)")
+	local cs = game:GetService("CollectionService")
+	check(#cs:GetTagged("FX_Bob") == 24 and #cs:GetTagged("BoothSign") == 24, "kalici haritada 24 yumurta ve 24 tabela etiketi var")
+	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	check(clouds ~= nil and #workspace.Terrain:GetChildren() == 1, "gokyuzunde tek bir Clouds nesnesi var (eskisi silindi)")
 end

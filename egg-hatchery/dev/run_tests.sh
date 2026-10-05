@@ -71,6 +71,7 @@ LUA
   cat "$ROOT/command_bar/InstallMap.lua"
   echo "end"
   cat "$HERE/test_installer.lua"
+  cat "$HERE/test_layout.lua"
   cat "$HERE/test_integration.lua"
   echo "do"
   cat "$ROOT/StarterPlayer/StarterPlayerScripts/MapFX.client.lua"

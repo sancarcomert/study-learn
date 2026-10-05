@@ -1,14 +1,13 @@
 -- ServerScriptService/MapBuilder  (Script)
 --
--- CELESTIAL HATCHERY: gokyuzunde yuzen kozmik bir kulucka adasi.
--- Oyun baslarken haritanin tamamini kodla kurar (elle hicbir sey yerlestirmen gerekmez):
---   * N adet stand (kaide, ay kapisi, direkler, kristaller, yildizlara uzanan isik huzmesi)
---   * ortada donen halkalarin icinde yuzen "Genesis" yumurtasi
---   * gokkusagi halkasi, yuzen adaciklar, uzak monolitler, gokyuzu halkalari (derinlik)
---   * isiklandirma, atmosfer, bloom, alan derinligi
+-- SUNNY PARK: gunesli, yesil bir park meydani. Please Donate tarzi stand haritasi.
+--   * ortada cesme, genis tasli meydan, 4 yonde cimenlik parka acilan yollar
+--   * meydanin 4 kenarinda sira sira dizili sade ahsap kulubeler (tezgah + isim tabelasi + kucuk yumurta)
+--   * agaclar, calilar, cicek yataklari, banklar, lamba direkleri, citlik, uzakta tepeler
+--   * gunesli gokyuzu isiklandirmasi
 -- Standlar Workspace.Booths icine "Booth_1..N" adiyla konur; BoothManager bunlari otomatik kullanir.
--- Donme/yuzme animasyonlari MapFX LocalScript'i ile istemcide calisir.
--- Iki sekilde kullanilir: Studio Command Bar'a yapistirinca harita KALICI kurulur (command_bar/InstallMap.lua),
+-- Yumurta yuzmesi ve tabeladaki sahip adi MapFX LocalScript'i ile istemcide calisir.
+-- Command Bar'a yapistirinca harita KALICI kurulur (command_bar/InstallMap.lua);
 -- Script olarak calistirilirsa her oyun basinda kurulur.
 
 local Workspace = game:GetService("Workspace")
@@ -18,64 +17,63 @@ local CollectionService = game:GetService("CollectionService")
 ---------------------------------------------------------------------
 -- AYARLAR
 ---------------------------------------------------------------------
-local BOOTH_COUNT = 16 -- stand sayisi (8 - 24)
-local MOOD = "twilight" -- "twilight" (alacakaranlik) | "night" (gece) | "day" (gunduz)
+local BOOTHS_PER_SIDE = 6 -- her kenardaki stand sayisi: 6 (toplam 24) ya da 8 (toplam 32)
 local BOOTH_FOLDER_NAME = "Booths"
 local USE_FUTURE_LIGHTING = false -- true: daha guzel isik/golge (mobilde daha agir). Sadece Command Bar'dan calisir
 local LOCK_PARTS = true -- true: parcalar kilitli olur, viewport'ta yanlislikla tasimazsin
+local SEED = 11
 
-local BOOTH_RADIUS = 80 -- standlarin merkeze uzakligi
-local ISLAND_RADIUS = 130
-local SEED = 7
+BOOTHS_PER_SIDE = (BOOTHS_PER_SIDE >= 8) and 8 or 6
 
-BOOTH_COUNT = math.clamp(math.floor(BOOTH_COUNT), 8, 24)
+---------------------------------------------------------------------
+-- OLCULER (hepsi stud)
+---------------------------------------------------------------------
+local PATH_HALF = 8 -- 4 yonlu yolun yari genisligi (stand aralarindaki giris boslugu)
+local BOOTH_HALF = 8 -- stand yari genisligi
+local BOOTH_STEP = 24 -- stand merkezleri arasi mesafe
+local FIRST_BOOTH = PATH_HALF + BOOTH_HALF + 1 -- girisin yanindaki ilk standin merkezi
+local PER_HALF = BOOTHS_PER_SIDE / 2
+local OUTER_EDGE = FIRST_BOOTH + (PER_HALF - 1) * BOOTH_STEP + BOOTH_HALF + 0.5
+local BOOTH_LINE = math.ceil((OUTER_EDGE + 14) / 2) * 2 -- stand sirasinin merkezden uzakligi (komsu kenarin on yuzune girmez)
+local PLAZA_HALF = BOOTH_LINE + 18 -- meydanin yari boyutu (6 stand: 88 ve 106)
+local PARK_HALF = 232 -- park (citlik) yari boyutu
+local GROUND_HALF = 560 -- cimen zemin yari boyutu (tepeler dahil)
 
 local TAU = math.pi * 2
 local rng = Random.new(SEED)
 local RGB = Color3.fromRGB
 local Mat = Enum.Material
 
-local MOODS = {
-	twilight = {
-		clock = 18.6, brightness = 2, exposure = 0.3,
-		ambient = RGB(84, 76, 126), outdoor = RGB(124, 108, 176),
-		atmColor = RGB(244, 166, 204), atmDecay = RGB(150, 100, 190),
-		density = 0.3, offset = 0.3, glare = 0.4, haze = 1.2,
-		bloom = 0.9, stars = 3500, rays = 0.1,
-	},
-	night = {
-		clock = 0, brightness = 1.2, exposure = 0.5,
-		ambient = RGB(52, 58, 104), outdoor = RGB(76, 86, 142),
-		atmColor = RGB(120, 140, 220), atmDecay = RGB(80, 70, 160),
-		density = 0.26, offset = 0.2, glare = 0, haze = 1.8,
-		bloom = 1.2, stars = 5000, rays = 0,
-	},
-	day = {
-		clock = 14.5, brightness = 3, exposure = 0,
-		ambient = RGB(120, 120, 140), outdoor = RGB(150, 150, 175),
-		atmColor = RGB(199, 220, 255), atmDecay = RGB(110, 140, 200),
-		density = 0.3, offset = 0.15, glare = 0.2, haze = 1.5,
-		bloom = 0.5, stars = 0, rays = 0.1,
-	},
+local C = {
+	grass = RGB(104, 172, 74),
+	grassLight = RGB(126, 190, 88),
+	grassDark = RGB(80, 148, 62),
+	hedge = RGB(58, 124, 52),
+	leafA = RGB(86, 164, 66),
+	leafB = RGB(106, 180, 74),
+	leafC = RGB(66, 142, 58),
+	trunk = RGB(112, 78, 50),
+	woodLight = RGB(190, 144, 94),
+	woodMid = RGB(160, 114, 74),
+	woodDark = RGB(118, 82, 52),
+	sign = RGB(228, 194, 140),
+	awningGreen = RGB(86, 160, 72),
+	cream = RGB(246, 240, 222),
+	plaza = RGB(212, 204, 186),
+	plazaLine = RGB(190, 182, 164),
+	medallion = RGB(224, 217, 200),
+	curb = RGB(172, 166, 154),
+	stone = RGB(190, 184, 168),
+	soil = RGB(92, 64, 44),
+	metal = RGB(56, 60, 66),
+	water = RGB(118, 196, 238),
+	lamp = RGB(255, 240, 190),
+	white = RGB(244, 247, 250),
 }
+local FLOWERS = { RGB(255, 128, 170), RGB(255, 224, 90), RGB(250, 250, 250), RGB(235, 80, 80), RGB(180, 120, 230) }
 
-local COLOR = {
-	floor = RGB(44, 42, 70),
-	floorMid = RGB(58, 54, 90),
-	path = RGB(88, 84, 128),
-	marble = RGB(200, 200, 226),
-	stoneDark = RGB(40, 38, 62),
-	stoneMid = RGB(70, 66, 100),
-	metal = RGB(32, 30, 54),
-	rock = RGB(54, 50, 76),
-	cyan = RGB(90, 230, 255),
-	magenta = RGB(255, 90, 215),
-	gold = RGB(255, 205, 100),
-	white = RGB(240, 245, 255),
-	grass = RGB(52, 128, 118),
-}
-
-local DECO = { solid = false, shadow = false } -- carpisma ve golge yok (sus)
+local DECO = { solid = false, shadow = false } -- carpisma ve golge yok (ince susler)
+local SOFT = { solid = false } -- golge var, carpisma yok (yapraklar, tente)
 
 ---------------------------------------------------------------------
 -- TEMIZLIK
@@ -93,6 +91,14 @@ for _, child in ipairs(Lighting:GetChildren()) do
 	if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("BloomEffect") or child:IsA("ColorCorrectionEffect")
 		or child:IsA("DepthOfFieldEffect") or child:IsA("SunRaysEffect") then
 		child:Destroy()
+	end
+end
+local terrain = Workspace:FindFirstChildOfClass("Terrain")
+if terrain then
+	for _, child in ipairs(terrain:GetChildren()) do
+		if child:IsA("Clouds") then
+			child:Destroy()
+		end
 	end
 end
 
@@ -113,28 +119,15 @@ local function subfolder(name)
 	f.Parent = map
 	return f
 end
-local floorF = subfolder("Floor")
-local centerF = subfolder("Center")
-local pathF = subfolder("Paths")
+local groundF = subfolder("Ground")
+local plazaF = subfolder("Plaza")
 local decorF = subfolder("Decor")
-local underF = subfolder("Underside")
-local farF = subfolder("FarScenery")
-local fxF = subfolder("Effects")
-local beamF = subfolder("SkyBeams")
+local treesF = subfolder("Trees")
+local sceneryF = subfolder("Scenery")
 
 ---------------------------------------------------------------------
 -- YARDIMCILAR
 ---------------------------------------------------------------------
-local function hsv(h, s, v)
-	return Color3.fromHSV(h % 1, s, v)
-end
-
-local function rainbow(sat)
-	return function(k, n)
-		return hsv(k / n, sat or 0.65, 1)
-	end
-end
-
 local function newPart(name, size, cf, color, material, o, shape)
 	o = o or {}
 	local p = Instance.new("Part")
@@ -189,7 +182,7 @@ local function ball(parent, name, diameter, cf, color, material, o)
 	return p
 end
 
--- Elipsoid: SpecialMesh(Sphere) ile esit olmayan olcude "yumurta/igne" sekilleri
+-- Elipsoid: SpecialMesh(Sphere) ile esit olmayan olcude yumurta/cali sekilleri
 local function ellipsoid(parent, name, size, cf, color, material, o)
 	local p = newPart(name, size, cf, color, material, o)
 	local mesh = Instance.new("SpecialMesh")
@@ -200,14 +193,7 @@ local function ellipsoid(parent, name, size, cf, color, material, o)
 end
 
 local function anchorPart(parent, name, size, cf)
-	return part(parent, name, size, cf, COLOR.white, Mat.SmoothPlastic, { transparency = 1, solid = false, shadow = false })
-end
-
-local function attach(p, name)
-	local a = Instance.new("Attachment")
-	a.Name = name
-	a.Parent = p
-	return a
+	return part(parent, name, size, cf, C.white, Mat.SmoothPlastic, { transparency = 1, solid = false, shadow = false })
 end
 
 local function tag(inst, tagName, attrs)
@@ -219,224 +205,112 @@ local function tag(inst, tagName, attrs)
 	end
 end
 
-local function addLight(parent, color, range, brightness)
-	local l = Instance.new("PointLight")
-	l.Color = color
-	l.Range = math.min(range, 60)
-	l.Brightness = brightness
-	l.Shadows = false
-	l.Parent = parent
-	return l
-end
-
-local function addSparkles(parent, color, rate, speedMin, speedMax, sizeMax, lifeMin, lifeMax)
-	local e = Instance.new("ParticleEmitter")
-	e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	e.Color = ColorSequence.new(color, COLOR.white)
-	e.LightEmission = 1
-	e.LightInfluence = 0
-	e.Rate = rate
-	e.Lifetime = NumberRange.new(lifeMin, lifeMax)
-	e.Speed = NumberRange.new(speedMin, speedMax)
-	e.SpreadAngle = Vector2.new(180, 180)
-	e.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.3, sizeMax),
-		NumberSequenceKeypoint.new(1, 0),
-	})
-	e.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.2, 0.2),
-		NumberSequenceKeypoint.new(0.8, 0.4),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	e.Parent = parent
-	return e
-end
-
-local function makeBeam(parent, a0, a1, c0, c1, w0, w1, t0)
-	local b = Instance.new("Beam")
-	b.Attachment0 = a0
-	b.Attachment1 = a1
-	b.Color = ColorSequence.new(c0, c1)
-	b.LightEmission = 1
-	b.LightInfluence = 0
-	b.FaceCamera = true
-	b.Segments = 1
-	b.Width0 = w0
-	b.Width1 = w1
-	b.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, t0), NumberSequenceKeypoint.new(1, 1) })
-	b.Parent = parent
-	return b
-end
-
--- Y ekseni etrafinda halka: parcalarin uzun kenari teget yonde. base = halkanin merkez CFrame'i.
--- color bir Color3 ya da function(k, n) -> Color3 olabilir.
+-- Y ekseni etrafinda halka (parcalarin uzun kenari teget yonde). base = halkanin merkez CFrame'i.
 local function ringSegments(parent, name, base, radius, count, radial, height, color, material, o)
 	local chord = 2 * radius * math.sin(math.pi / count) * 1.06
 	for k = 0, count - 1 do
 		local a = k / count * TAU
 		local lc = CFrame.new(math.cos(a) * radius, 0, math.sin(a) * radius) * CFrame.Angles(0, -a, 0)
-		local c = color
-		if typeof(c) == "function" then
-			c = color(k, count)
+		part(parent, name, Vector3.new(radial, height, chord), base * lc, color, material, o)
+	end
+end
+
+local function pick(list)
+	return list[rng:NextInteger(1, #list)]
+end
+
+local function sideRot(side)
+	return CFrame.Angles(0, math.rad(90 * side), 0)
+end
+
+---------------------------------------------------------------------
+-- ZEMIN: cimen, meydan, yollar, kaldirim
+---------------------------------------------------------------------
+local PLAZA_TOP = 0.12
+
+local function buildGround()
+	part(groundF, "Grass", Vector3.new(GROUND_HALF * 2, 2, GROUND_HALF * 2), CFrame.new(0, -1, 0), C.grass, Mat.Grass)
+	-- cimen renk lekeleri (park disinda, yollarin uzerine gelmeyecek sekilde)
+	local placed = 0
+	local tries = 0
+	while placed < 26 and tries < 400 do
+		tries = tries + 1
+		local x = rng:NextNumber(-PARK_HALF + 20, PARK_HALF - 20)
+		local z = rng:NextNumber(-PARK_HALF + 20, PARK_HALF - 20)
+		local d = rng:NextNumber(16, 44)
+		if math.max(math.abs(x), math.abs(z)) > PLAZA_HALF + d / 2 + 2 and math.min(math.abs(x), math.abs(z)) > PATH_HALF + d / 2 + 2 then
+			placed = placed + 1
+			local color = (placed % 2 == 0) and C.grassLight or C.grassDark
+			cyl(groundF, "GrassPatch", d, 0.1, CFrame.new(x, 0.05, z), color, Mat.Grass, DECO)
 		end
-		part(parent, name, Vector3.new(radial, height, chord), base * lc, c, material, o)
 	end
 end
 
--- Yere yapisik ince neon halka (ust yuzey y = 0.16)
-local function neonRing(parent, name, radius, width, color, segLen)
-	local count = math.max(16, math.floor(TAU * radius / (segLen or 7)))
-	ringSegments(parent, name, CFrame.new(0, 0.08, 0), radius, count, width, 0.16, color, Mat.Neon, DECO)
-end
+local function buildPlaza()
+	local size = PLAZA_HALF * 2
+	part(plazaF, "PlazaFloor", Vector3.new(size, 0.4, size), CFrame.new(0, PLAZA_TOP - 0.2, 0), C.plaza, Mat.Concrete)
 
-local function boothAccent(i)
-	return hsv((i - 1) / BOOTH_COUNT, 0.62, 1)
-end
-
----------------------------------------------------------------------
--- ZEMIN: gokyuzu adasi, meydan, neon kakmalar
----------------------------------------------------------------------
-local function buildFloor()
-	cyl(floorF, "Floor", ISLAND_RADIUS * 2, 2, CFrame.new(0, -1, 0), COLOR.floor, Mat.Slate)
-	cyl(floorF, "FloorMid", 208, 0.1, CFrame.new(0, 0, 0), COLOR.floorMid, Mat.Slate, DECO)
-	cyl(floorF, "FloorInner", 92, 0.1, CFrame.new(0, 0.05, 0), COLOR.marble, Mat.Marble, DECO)
-
-	neonRing(floorF, "InnerRing", 46.5, 0.5, COLOR.cyan, 8)
-	neonRing(floorF, "RainbowRing", 96, 0.7, rainbow(0.65), 5)
-	neonRing(floorF, "MidRing", 103.5, 0.4, COLOR.white, 8)
-	neonRing(floorF, "EdgeRing", 122, 0.6, COLOR.gold, 8)
-end
-
--- Merkezden standa uzanan yol
-local function buildPath(i)
-	local accent = boothAccent(i)
-	local a = (i - 1) / BOOTH_COUNT * TAU
-	local dir = Vector3.new(math.cos(a), 0, math.sin(a))
-	local r0, r1 = 26, BOOTH_RADIUS - 9.6
-	local len = r1 - r0
-	local mid = dir * ((r0 + r1) / 2)
-	local frame = CFrame.lookAt(mid, mid + dir)
-	part(pathF, "Path", Vector3.new(7, 0.2, len), frame * CFrame.new(0, 0.1, 0), COLOR.path, Mat.Slate, DECO)
-	for _, sx in ipairs({ -3.5, 3.5 }) do
-		part(pathF, "PathEdge", Vector3.new(0.35, 0.26, len), frame * CFrame.new(sx, 0.13, 0), accent, Mat.Neon, DECO)
+	-- tas doseme izgaralari (12 stud arayla ince cizgiler)
+	local lines = math.floor(PLAZA_HALF / 12)
+	for k = -lines, lines do
+		local c = k * 12
+		part(plazaF, "TileLine", Vector3.new(size, 0.06, 0.3), CFrame.new(0, PLAZA_TOP + 0.03, c), C.plazaLine, Mat.Concrete, DECO)
+		part(plazaF, "TileLine", Vector3.new(0.3, 0.06, size), CFrame.new(c, PLAZA_TOP + 0.03, 0), C.plazaLine, Mat.Concrete, DECO)
 	end
-	local dots = 6
-	for n = 1, dots do
-		local z = -len / 2 + n * len / (dots + 1)
-		cyl(pathF, "PathDot", 0.9, 0.26, frame * CFrame.new(0, 0.13, z), accent, Mat.Neon, DECO)
+
+	-- ortadaki madalyon ve halkalari
+	cyl(plazaF, "Medallion", 60, 0.08, CFrame.new(0, PLAZA_TOP + 0.04, 0), C.medallion, Mat.Concrete, DECO)
+	ringSegments(plazaF, "MedallionRing", CFrame.new(0, PLAZA_TOP + 0.08, 0), 30, 44, 0.6, 0.08, C.curb, Mat.Concrete, DECO)
+	ringSegments(plazaF, "MedallionRing", CFrame.new(0, PLAZA_TOP + 0.08, 0), 17, 28, 0.5, 0.08, C.curb, Mat.Concrete, DECO)
+
+	-- 4 yonde parka acilan yollar
+	local pathLen = PARK_HALF - 14 - PLAZA_HALF
+	for side = 0, 3 do
+		local rot = sideRot(side)
+		part(plazaF, "Path", Vector3.new(PATH_HALF * 2, 0.4, pathLen), rot * CFrame.new(0, PLAZA_TOP - 0.2, -(PLAZA_HALF + pathLen / 2)), C.plaza, Mat.Concrete)
+		-- kaldirim: giris disinda meydanin kenari
+		local len = PLAZA_HALF - PATH_HALF
+		for _, sx in ipairs({ -1, 1 }) do
+			part(plazaF, "Curb", Vector3.new(len, 0.55, 1.2), rot * CFrame.new(sx * (PATH_HALF + len / 2), 0.275, -PLAZA_HALF), C.curb, Mat.Concrete)
+		end
 	end
 end
 
 ---------------------------------------------------------------------
--- MERKEZ: sunak, donen halkalar, yuzen Genesis yumurtasi, obeliskler
+-- CESME (meydanin ortasi)
 ---------------------------------------------------------------------
-local EGG_Y = 34
+local function buildFountain()
+	local y0 = PLAZA_TOP
+	cyl(plazaF, "BasinFloor", 24, 0.5, CFrame.new(0, y0 + 0.25, 0), C.stone, Mat.Concrete)
+	ringSegments(plazaF, "BasinWall", CFrame.new(0, y0 + 0.8, 0), 11.4, 32, 1.2, 1.6, C.stone, Mat.Concrete)
+	cyl(plazaF, "Water", 21.6, 0.2, CFrame.new(0, y0 + 1.1, 0), C.water, Mat.Glass,
+		{ solid = false, shadow = false, transparency = 0.35, reflectance = 0.1 })
+	cyl(plazaF, "Pedestal", 5, 2.6, CFrame.new(0, y0 + 1.8, 0), C.stone, Mat.Concrete)
+	cyl(plazaF, "Bowl", 9, 0.5, CFrame.new(0, y0 + 3.35, 0), C.stone, Mat.Concrete)
+	cyl(plazaF, "Column", 1.4, 2.6, CFrame.new(0, y0 + 4.9, 0), C.stone, Mat.Concrete)
+	ball(plazaF, "Finial", 2.4, CFrame.new(0, y0 + 6.5, 0), C.stone, Mat.Concrete)
 
-local function gyroRing(name, radius, count, tilt, spin, hue0)
-	local model = Instance.new("Model")
-	model.Name = name
-	local base = CFrame.new(0, EGG_Y, 0) * tilt
-	model.PrimaryPart = anchorPart(model, "Pivot", Vector3.new(1, 1, 1), base)
-	local function glow(k, n)
-		return hsv(hue0 + 0.45 * k / n, 0.55, 1)
-	end
-	ringSegments(model, "Body", base, radius, count, 1.2, 1.5, COLOR.metal, Mat.Metal, DECO)
-	ringSegments(model, "Glow", base * CFrame.new(0, 0.9, 0), radius, count, 0.5, 0.3, glow, Mat.Neon, DECO)
-	for k = 0, count - 1, 6 do -- donusun gorunmesi icin boncuklar
-		local a = k / count * TAU
-		local bc = base * CFrame.new(math.cos(a) * radius, 0, math.sin(a) * radius)
-		ball(model, "Bead", 2.2, bc, glow(k, count), Mat.Neon, DECO)
-	end
-	tag(model, "FX_Spin", { SpinSpeed = spin })
-	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	model.Parent = centerF
-end
-
-local function buildObelisk(a)
-	local pos = Vector3.new(math.cos(a) * 39, 0, math.sin(a) * 39)
-	local cf = CFrame.lookAt(pos, Vector3.new(0, 0, 0))
-	local c = hsv(a / TAU, 0.55, 1)
-	local function L(x, y, z)
-		return cf * CFrame.new(x, y, z)
-	end
-	part(centerF, "ObeliskBase", Vector3.new(4.4, 0.8, 4.4), L(0, 0.4, 0), COLOR.stoneMid, Mat.Slate)
-	part(centerF, "ObeliskShaft", Vector3.new(2.4, 15, 2.4), L(0, 8.3, 0), COLOR.metal, Mat.Metal)
-	part(centerF, "ObeliskCap", Vector3.new(2.9, 0.5, 2.9), L(0, 16.05, 0), c, Mat.Neon, DECO)
-	for _, s in ipairs({ { 1.26, 0, 0.14, 0.5 }, { -1.26, 0, 0.14, 0.5 }, { 0, 1.26, 0.5, 0.14 }, { 0, -1.26, 0.5, 0.14 } }) do
-		part(centerF, "ObeliskGlow", Vector3.new(s[3], 11, s[4]), L(s[1], 8.3, s[2]), c, Mat.Neon, DECO)
-	end
-	local shard = ellipsoid(centerF, "ObeliskShard", Vector3.new(1.6, 4.8, 1.6), L(0, 21, 0), c, Mat.Neon, DECO)
-	tag(shard, "FX_Bob", { BobHeight = 0.8, BobSpeed = 0.9, BobPhase = a })
-end
-
-local function buildCenter()
-	local tiers = {
-		{ d = 56, top = 0.8, glow = COLOR.cyan },
-		{ d = 42, top = 1.6, glow = RGB(150, 160, 255) },
-		{ d = 28, top = 2.4, glow = COLOR.magenta },
-	}
-	for i, t in ipairs(tiers) do
-		cyl(centerF, "Tier" .. i, t.d, 0.8, CFrame.new(0, t.top - 0.4, 0), COLOR.marble, Mat.Marble)
-		local r = t.d / 2 - 0.5
-		ringSegments(centerF, "TierGlow" .. i, CFrame.new(0, t.top + 0.02, 0), r, math.floor(TAU * r / 5), 0.45, 0.1, t.glow, Mat.Neon, DECO)
-	end
-
-	cyl(centerF, "Altar", 14, 2, CFrame.new(0, 3.4, 0), COLOR.metal, Mat.Metal)
-	cyl(centerF, "AltarBand", 14.6, 0.35, CFrame.new(0, 3.7, 0), COLOR.cyan, Mat.Neon, DECO)
-	cyl(centerF, "AltarTop", 11, 0.12, CFrame.new(0, 4.46, 0), COLOR.cyan, Mat.Neon, DECO)
-
-	-- Genesis yumurtasi + cam kabuk
-	local egg = ellipsoid(centerF, "GenesisEgg", Vector3.new(9.5, 13, 9.5), CFrame.new(0, EGG_Y, 0), COLOR.cyan, Mat.Neon, DECO)
-	addLight(egg, COLOR.cyan, 60, 2.5)
-	addSparkles(egg, COLOR.cyan, 14, 2, 6, 0.9, 2, 4)
-	tag(egg, "FX_Bob", { BobHeight = 1.4, BobSpeed = 0.8, BobPhase = 0 })
-	local shell = ellipsoid(centerF, "GenesisShell", Vector3.new(11.6, 15.6, 11.6), CFrame.new(0, EGG_Y, 0), COLOR.white, Mat.Glass,
-		{ solid = false, shadow = false, transparency = 0.55, reflectance = 0.2 })
-	tag(shell, "FX_Bob", { BobHeight = 1.4, BobSpeed = 0.8, BobPhase = 0 })
-
-	-- Sunaktan yumurtaya enerji huzmesi ve gokyuzune uzanan sutun
-	local low = anchorPart(centerF, "BeamLow", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 4.6, 0))
-	local mid = anchorPart(centerF, "BeamMid", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 29, 0))
-	makeBeam(low, attach(low, "A0"), attach(mid, "A1"), COLOR.cyan, COLOR.white, 1.6, 3.2, 0.25)
-	local up0 = anchorPart(centerF, "BeamUp0", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 41, 0))
-	local up1 = anchorPart(centerF, "BeamUp1", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 430, 0))
-	makeBeam(up0, attach(up0, "A0"), attach(up1, "A1"), COLOR.cyan, COLOR.magenta, 7, 2, 0.3)
-	local core0 = anchorPart(centerF, "BeamCore0", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 41, 0))
-	makeBeam(core0, attach(core0, "A0"), attach(up1, "A2"), COLOR.white, COLOR.white, 2.4, 0.8, 0.05)
-
-	gyroRing("GyroA", 14, 28, CFrame.Angles(math.rad(72), 0, 0), 0.55, 0.45)
-	gyroRing("GyroB", 18, 36, CFrame.Angles(0, 0, math.rad(68)), -0.4, 0.6)
-	gyroRing("GyroC", 22, 44, CFrame.Angles(math.rad(28), math.rad(40), math.rad(30)), 0.3, 0.75)
-
-	for k = 1, 8 do
-		local shard = ellipsoid(centerF, "OrbitShard", Vector3.new(1.4, 4.2, 1.4), CFrame.new(0, EGG_Y, 0),
-			hsv(0.45 + 0.4 * k / 8, 0.6, 1), Mat.Neon, DECO)
-		tag(shard, "FX_Orbit", {
-			OrbitCenter = Vector3.new(0, EGG_Y, 0),
-			OrbitRadius = 9 + (k % 3) * 1.4,
-			OrbitSpeed = 0.5 + (k % 3) * 0.12,
-			OrbitPhase = k / 8 * TAU,
-			OrbitHeight = (k % 4 - 1.5) * 2.2,
-			OrbitBob = 0.6,
-		})
-	end
-
-	-- Standlarin arasina (yollara degil) obeliskler
-	for j = 0, BOOTH_COUNT - 1, 2 do
-		buildObelisk((j + 0.5) / BOOTH_COUNT * TAU)
-	end
+	-- su fiskirmasi
+	local spray = anchorPart(plazaF, "Spray", Vector3.new(0.5, 0.5, 0.5), CFrame.new(0, y0 + 7.8, 0))
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Color = ColorSequence.new(C.white, C.water)
+	e.LightEmission = 0.3
+	e.Rate = 60
+	e.Lifetime = NumberRange.new(1.4, 1.8)
+	e.Speed = NumberRange.new(16, 20)
+	e.SpreadAngle = Vector2.new(10, 10)
+	e.Acceleration = Vector3.new(0, -32, 0)
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0.3) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	e.Parent = spray
 end
 
 ---------------------------------------------------------------------
--- STAND: ay kapili kulucka kaidesi
+-- STAND: sade ahsap kulube (tezgah + isim tabelasi + ustunde kucuk yumurta)
+-- Yerel eksen: -Z on yuz (meydan merkezine), +Z arka.
 ---------------------------------------------------------------------
-local function buildBooth(i)
-	local a = (i - 1) / BOOTH_COUNT * TAU
-	local pos = Vector3.new(math.cos(a) * BOOTH_RADIUS, 0, math.sin(a) * BOOTH_RADIUS)
-	local cf = CFrame.lookAt(pos, Vector3.new(0, 0, 0)) -- on yuz merkeze (-Z) bakar
-	local accent = boothAccent(i)
+local function buildBooth(i, cf)
 	local function L(x, y, z)
 		return cf * CFrame.new(x, y, z)
 	end
@@ -444,317 +318,281 @@ local function buildBooth(i)
 	local model = Instance.new("Model")
 	model.Name = "Booth_" .. i
 
-	-- Basamak, kaide, neon kakmalar
-	cyl(model, "Step", 19, 0.5, L(0, 0.25, 0), COLOR.stoneMid, Mat.Slate)
-	cyl(model, "Dais", 16, 0.9, L(0, 0.75, 0), COLOR.stoneDark, Mat.Slate)
-	ringSegments(model, "DaisInlay", L(0, 1.18, 0), 7.2, 20, 0.45, 0.1, accent, Mat.Neon, DECO)
-	cyl(model, "DaisCore", 10, 0.1, L(0, 1.2, 0), COLOR.metal, Mat.Metal, DECO)
-	cyl(model, "DaisRune", 5.2, 0.06, L(0, 1.26, 0), accent, Mat.Neon, { solid = false, shadow = false, transparency = 0.3 })
-	ringSegments(model, "FloorGlow", L(0, 0.08, 0), 9.9, 20, 0.35, 0.16, accent, Mat.Neon, DECO)
+	-- zemin platformu, arka duvar, yan duvarlar, on direkler
+	part(model, "Platform", Vector3.new(17, 0.6, 11), L(0, 0.3, 0), C.woodLight, Mat.WoodPlanks)
+	part(model, "BackWall", Vector3.new(16, 6.4, 0.6), L(0, 3.8, 4.7), C.woodDark, Mat.WoodPlanks)
+	for _, sx in ipairs({ -7.7, 7.7 }) do
+		part(model, "SideWall", Vector3.new(0.6, 3.4, 9.4), L(sx, 2.3, 0.1), C.woodDark, Mat.WoodPlanks)
+	end
+	for _, px in ipairs({ -7.6, 7.6 }) do
+		part(model, "Post", Vector3.new(0.8, 4.7, 0.8), L(px, 2.95, -5.2), C.woodMid, Mat.Wood)
+	end
 
-	-- Destek sunagi (on) + stand numarasi
-	part(model, "PlinthBase", Vector3.new(3.6, 0.35, 3.6), L(0, 1.375, -5), COLOR.metal, Mat.Metal)
-	local plinth = part(model, "Plinth", Vector3.new(3, 2.4, 3), L(0, 2.75, -5), COLOR.stoneDark, Mat.Slate)
-	part(model, "PlinthCap", Vector3.new(3.3, 0.16, 3.3), L(0, 4.03, -5), accent, Mat.Neon, DECO)
+	-- cizgili tente (one dogru hafif egimli)
+	local awning = L(0, 7.0, 4.4) * CFrame.Angles(-math.rad(9), 0, 0)
+	for s = 1, 8 do
+		part(model, "Awning", Vector3.new(2, 0.3, 10.6), awning * CFrame.new((s - 4.5) * 2, 0, -5.3),
+			(s % 2 == 1) and C.awningGreen or C.cream, Mat.Fabric, SOFT)
+	end
+
+	-- tezgah
+	part(model, "Counter", Vector3.new(13, 2.5, 1.8), L(0, 1.85, -3.4), C.woodMid, Mat.WoodPlanks)
+	part(model, "CounterTop", Vector3.new(13.8, 0.35, 2.6), L(0, 3.275, -3.4), C.woodLight, Mat.WoodPlanks)
+
+	-- isim tabelasi (MapFX: sahipsiz = "STAND 07", sahipli = oyuncu adi)
+	part(model, "SignFrame", Vector3.new(11.6, 2.8, 0.5), L(0, 8.4, 4.75), C.woodDark, Mat.WoodPlanks)
+	local board = part(model, "SignBoard", Vector3.new(11, 2.2, 0.2), L(0, 8.4, 4.35), C.sign, Mat.WoodPlanks)
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = Enum.NormalId.Front
 	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	sg.PixelsPerStud = 60
+	sg.PixelsPerStud = 50
 	sg.LightInfluence = 0
-	sg.Parent = plinth
-	local num = Instance.new("TextLabel")
-	num.Size = UDim2.fromScale(1, 1)
-	num.BackgroundTransparency = 1
-	num.Font = Enum.Font.GothamBlack
-	num.TextScaled = true
-	num.Text = string.format("%02d", i)
-	num.TextColor3 = accent
-	num.Parent = sg
+	sg.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = RGB(84, 52, 28)
+	label.Text = string.format("STAND %02d", i)
+	label.Parent = sg
+	tag(label, "BoothSign", { BoothNumber = i })
 
-	-- Ay kapisi: yumurtanin arkasinda dikey halka (on taraf tamamen acik)
-	local gate = L(0, 7.4, 3.2) * CFrame.Angles(math.rad(90), 0, 0)
-	ringSegments(model, "GateFrame", gate, 6, 20, 0.8, 0.9, COLOR.metal, Mat.Metal, DECO)
-	ringSegments(model, "GateGlow", gate * CFrame.new(0, -0.5, 0), 6, 20, 0.28, 0.2, accent, Mat.Neon, DECO)
-	part(model, "GateBase", Vector3.new(2.2, 0.3, 1.4), L(0, 1.35, 3.2), COLOR.metal, Mat.Metal, DECO)
-	ball(model, "GateKeystone", 1.3, L(0, 13.9, 3.2), accent, Mat.Neon, DECO)
-
-	-- Yan direkler + kucuk kristal kumeleri
-	for _, sx in ipairs({ -6.6, 6.6 }) do
-		local side = sx > 0 and 1 or -1
-		cyl(model, "PylonBase", 1.8, 0.6, L(sx, 1.5, 1.2), COLOR.metal, Mat.Metal, DECO)
-		cyl(model, "Pylon", 1.0, 10, L(sx, 6.2, 1.2), COLOR.metal, Mat.Metal, DECO)
-		cyl(model, "PylonGlow", 0.25, 8.4, L(sx, 6.2, 0.65), accent, Mat.Neon, DECO)
-		ball(model, "PylonOrb", 1.4, L(sx, 11.9, 1.2), accent, Mat.Neon, DECO)
-		ellipsoid(model, "Crystal", Vector3.new(1.0, 3.4, 1.0), L(side * 5.2, 2.9, 2.2) * CFrame.Angles(0, 0, math.rad(-14 * side)), accent, Mat.Neon, DECO)
-		ellipsoid(model, "Crystal", Vector3.new(0.8, 2.4, 0.8), L(side * 4.5, 2.4, 3.4) * CFrame.Angles(0, 0, math.rad(12 * side)), accent, Mat.Neon, DECO)
-	end
-
-	-- Yumurta (HatcheryService bu parcayi bulup kullanir) + isik + yuzen yorungeler
-	local egg = ellipsoid(model, "Egg", Vector3.new(3.4, 4.6, 3.4), L(0, 6.8, 0), COLOR.white, Mat.Neon, DECO)
-	addLight(egg, accent, 20, 1.6)
-	addSparkles(egg, accent, 5, 1, 3, 0.45, 1.5, 3)
-	tag(egg, "FX_Bob", { BobHeight = 0.45, BobSpeed = 1.1, BobPhase = rng:NextNumber(0, TAU) })
-	for k = 1, 3 do
-		local orb = ball(model, "Orbiter", 0.7, L(0, 6.8, 0), accent, Mat.Neon, DECO)
-		tag(orb, "FX_Orbit", {
-			OrbitCenter = L(0, 6.8, 0).Position,
-			OrbitRadius = 3.3 + k * 0.25,
-			OrbitSpeed = 1.1 + k * 0.2,
-			OrbitPhase = k / 3 * TAU,
-			OrbitHeight = (k - 2) * 0.9,
-			OrbitBob = 0.25,
-		})
-	end
-
-	-- Fenerler
-	for _, sx in ipairs({ -8.2, 8.2 }) do
-		cyl(model, "LanternPost", 0.35, 4.2, L(sx, 2.6, -3.6), COLOR.metal, Mat.Metal, DECO)
-		ball(model, "LanternLamp", 1.2, L(sx, 5.1, -3.6), accent, Mat.Neon, DECO)
-	end
-
-	-- Gokyuzune uzanan isik huzmesi (MapFX: sahipli standda parlak, bos standda soluk)
-	local bBase = anchorPart(model, "BeamBase", Vector3.new(0.4, 0.4, 0.4), L(0, 1.3, 0))
-	local bTop = anchorPart(beamF, "BeamTop_" .. i, Vector3.new(0.4, 0.4, 0.4), CFrame.new(pos + Vector3.new(0, 200, 0)))
-	local beam = makeBeam(bBase, attach(bBase, "A0"), attach(bTop, "A1"), accent, COLOR.white, 0.9, 0.3, 0.85)
-	beam.Name = "SkyBeam"
-	CollectionService:AddTag(beam, "BoothBeam")
+	-- tabelanin ustunde kucuk yumurta (HatcheryService "Egg" adli parcayi bulup kullanir)
+	cyl(model, "EggStand", 2.2, 0.5, L(0, 10.05, 4.75), C.woodDark, Mat.Wood)
+	local egg = ellipsoid(model, "Egg", Vector3.new(2.2, 3.0, 2.2), L(0, 12.0, 4.75), C.white, Mat.Neon, DECO)
+	tag(egg, "FX_Bob", { BobHeight = 0.2, BobSpeed = 1.2, BobPhase = rng:NextNumber(0, TAU) })
 
 	-- Istem prompt'larinin baglanacagi gorunmez ankraj (PrimaryPart = "Base")
-	local base = anchorPart(model, "Base", Vector3.new(2, 2, 2), L(0, 5.4, -5))
+	local base = anchorPart(model, "Base", Vector3.new(1, 1, 1), L(0, 4.4, -3.4))
 	model.PrimaryPart = base
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	model.Parent = boothFolder
 end
 
+local function buildBooths()
+	local offsets = {}
+	for j = PER_HALF, 1, -1 do
+		table.insert(offsets, -(FIRST_BOOTH + (j - 1) * BOOTH_STEP))
+	end
+	for j = 1, PER_HALF do
+		table.insert(offsets, FIRST_BOOTH + (j - 1) * BOOTH_STEP)
+	end
+	local i = 0
+	for side = 0, 3 do
+		local rot = sideRot(side)
+		for _, off in ipairs(offsets) do
+			i = i + 1
+			local pos = rot * Vector3.new(off, 0, -BOOTH_LINE)
+			-- sira sira: bir kenardaki tum standlar ayni yone (meydana dogru, kenara dik) bakar
+			buildBooth(i, CFrame.new(pos) * rot * CFrame.Angles(0, math.pi, 0))
+		end
+	end
+	return i
+end
+
 ---------------------------------------------------------------------
--- SUS: bahce halkasi, korkuluk, gorunmez sinir
+-- MOBILYA: bank, lamba, cicek yatagi, cali, agac
 ---------------------------------------------------------------------
-local function buildGarden()
-	for j = 0, BOOTH_COUNT - 1 do
-		local a = (j + 0.5) / BOOTH_COUNT * TAU
-		local pos = CFrame.new(math.cos(a) * 112, 0, math.sin(a) * 112)
-		local c = hsv((j + 0.5) / BOOTH_COUNT + 0.5, 0.6, 1)
-		cyl(decorF, "PlanterBase", 7.4, 1.0, pos * CFrame.new(0, 0.5, 0), COLOR.stoneMid, Mat.Slate)
-		cyl(decorF, "PlanterSoil", 6.4, 0.12, pos * CFrame.new(0, 1.0, 0), RGB(30, 26, 44), Mat.Slate, DECO)
-		cyl(decorF, "Trunk", 0.8, 5.5, pos * CFrame.new(0, 3.75, 0), COLOR.metal, Mat.Metal, DECO)
-		ball(decorF, "Canopy", 5.8, pos * CFrame.new(0, 8.3, 0), c, Mat.Neon, { solid = false, shadow = false, transparency = 0.15 })
-		for b = 1, 4 do
-			local ba = b / 4 * TAU
-			ellipsoid(decorF, "Bulb", Vector3.new(0.9, 1.6, 0.9), pos * CFrame.new(math.cos(ba) * 2.4, 1.8, math.sin(ba) * 2.4), c, Mat.Neon, DECO)
+local function bench(cf)
+	part(decorF, "BenchSeat", Vector3.new(4.6, 0.4, 1.6), cf * CFrame.new(0, 1.7, 0), C.woodMid, Mat.WoodPlanks)
+	part(decorF, "BenchBack", Vector3.new(4.6, 1.3, 0.3), cf * CFrame.new(0, 2.65, 0.7), C.woodMid, Mat.WoodPlanks, SOFT)
+	for _, sx in ipairs({ -2, 2 }) do
+		part(decorF, "BenchLeg", Vector3.new(0.5, 1.5, 1.4), cf * CFrame.new(sx, 0.75, 0), C.metal, Mat.Metal)
+	end
+end
+
+local function lamp(x, z)
+	local cf = CFrame.new(x, 0, z)
+	cyl(decorF, "LampBase", 1.4, 0.5, cf * CFrame.new(0, 0.25, 0), C.metal, Mat.Metal)
+	cyl(decorF, "LampPole", 0.5, 7, cf * CFrame.new(0, 3.5, 0), C.metal, Mat.Metal)
+	part(decorF, "LampHead", Vector3.new(1.3, 1.6, 1.3), cf * CFrame.new(0, 7.8, 0), C.lamp, Mat.Neon, DECO)
+	part(decorF, "LampCap", Vector3.new(1.9, 0.3, 1.9), cf * CFrame.new(0, 8.75, 0), C.metal, Mat.Metal, SOFT)
+end
+
+local function flowerBed(x, z)
+	local cf = CFrame.new(x, 0, z)
+	part(decorF, "BedSoil", Vector3.new(8, 0.5, 8), cf * CFrame.new(0, 0.25, 0), C.soil, Mat.Ground, DECO)
+	for _, e in ipairs({ { 0, -4, 9, 1 }, { 0, 4, 9, 1 }, { -4, 0, 1, 9 }, { 4, 0, 1, 9 } }) do
+		part(decorF, "BedBorder", Vector3.new(e[3], 0.9, e[4]), cf * CFrame.new(e[1], 0.45, e[2]), C.curb, Mat.Concrete)
+	end
+	for _ = 1, 26 do
+		local fx, fz = rng:NextNumber(-3.2, 3.2), rng:NextNumber(-3.2, 3.2)
+		ball(decorF, "Flower", 0.8, cf * CFrame.new(fx, 1.0, fz), pick(FLOWERS), Mat.SmoothPlastic, DECO)
+	end
+end
+
+local function bush(parent, x, z, s)
+	ellipsoid(parent, "Bush", Vector3.new(5 * s, 3.6 * s, 5 * s), CFrame.new(x, 1.5 * s, z), pick({ C.leafA, C.leafB, C.leafC }), Mat.Grass, SOFT)
+end
+
+local function tree(parent, x, z, s)
+	local h = 9 * s
+	local cf = CFrame.new(x, 0, z)
+	cyl(parent, "Trunk", 1.8 * s, h, cf * CFrame.new(0, h / 2, 0), C.trunk, Mat.Wood)
+	local colors = { C.leafA, C.leafB, C.leafC }
+	local k = rng:NextInteger(1, 3)
+	ball(parent, "Leaves", 13 * s, cf * CFrame.new(0, h + 3.5 * s, 0), colors[k], Mat.Grass, SOFT)
+	ball(parent, "Leaves", 9.5 * s, cf * CFrame.new(3.6 * s, h + 1.5 * s, 1.2 * s), colors[k % 3 + 1], Mat.Grass, SOFT)
+	ball(parent, "Leaves", 8.5 * s, cf * CFrame.new(-3.2 * s, h + 2 * s, -1.8 * s), colors[(k + 1) % 3 + 1], Mat.Grass, SOFT)
+end
+
+local function buildFurniture()
+	local rb, rl, rf = BOOTH_LINE - 38, BOOTH_LINE - 30, BOOTH_LINE - 18
+
+	-- cesmenin etrafinda 8 bank (merkeze bakar)
+	for k = 0, 7 do
+		local a = math.rad(22.5 + 45 * k)
+		local pos = Vector3.new(math.cos(a) * rb, 0, math.sin(a) * rb)
+		bench(CFrame.lookAt(pos, Vector3.new(0, 0, 0)))
+	end
+	-- caprazlarda lamba ve cicek yatagi
+	for k = 0, 3 do
+		local a = math.rad(45 + 90 * k)
+		lamp(math.cos(a) * rl, math.sin(a) * rl)
+		flowerBed(math.cos(a) * rf, math.sin(a) * rf)
+	end
+	-- giris agizlarinda lambalar ve meydan koselerinde agac
+	for side = 0, 3 do
+		local rot = sideRot(side)
+		for _, sx in ipairs({ -1, 1 }) do
+			local p = rot * Vector3.new(sx * (PATH_HALF + 2.5), 0, -(PLAZA_HALF - 3))
+			lamp(p.X, p.Z)
+		end
+	end
+	for _, sx in ipairs({ -1, 1 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			local x, z = sx * (PLAZA_HALF - 10), sz * (PLAZA_HALF - 10)
+			ringSegments(decorF, "TreeRing", CFrame.new(x, 0.3, z), 4.2, 14, 0.8, 0.6, C.curb, Mat.Concrete)
+			tree(treesF, x, z, 1.15)
+		end
+	end
+
+	-- park yollari boyunca lamba, bank ve cali
+	local t = PLAZA_HALF + 18
+	while t < PARK_HALF - 22 do
+		for side = 0, 3 do
+			local rot = sideRot(side)
+			for _, sx in ipairs({ -1, 1 }) do
+				local p = rot * Vector3.new(sx * 11, 0, -t)
+				lamp(p.X, p.Z)
+				local b = rot * Vector3.new(sx * 11, 0, -(t + 18))
+				bench(CFrame.lookAt(b, rot * Vector3.new(0, 0, -(t + 18)))) -- bank yola bakar
+				local q = rot * Vector3.new(sx * 16, 0, -(t + 9))
+				bush(treesF, q.X, q.Z, 1)
+			end
+		end
+		t = t + 36
+	end
+end
+
+local function buildTrees()
+	local placed = {}
+	local tries = 0
+	while #placed < 64 and tries < 3000 do
+		tries = tries + 1
+		local x = rng:NextNumber(-PARK_HALF + 14, PARK_HALF - 14)
+		local z = rng:NextNumber(-PARK_HALF + 14, PARK_HALF - 14)
+		local ax, az = math.abs(x), math.abs(z)
+		local ok = math.max(ax, az) >= PLAZA_HALF + 12 and math.min(ax, az) >= 22
+		if ok then
+			for _, p in ipairs(placed) do
+				if (p.x - x) ^ 2 + (p.z - z) ^ 2 < 16 * 16 then
+					ok = false
+					break
+				end
+			end
+		end
+		if ok then
+			table.insert(placed, { x = x, z = z })
+			tree(treesF, x, z, rng:NextNumber(0.85, 1.35))
+			if rng:NextInteger(1, 3) == 1 then
+				bush(treesF, x + rng:NextNumber(-7, 7), z + rng:NextNumber(5, 9), rng:NextNumber(0.8, 1.2))
+			end
 		end
 	end
 end
 
-local function buildParapet()
-	local r = ISLAND_RADIUS - 4
-	local count = math.floor(TAU * r / 8)
-	ringSegments(decorF, "WallBody", CFrame.new(0, 0.7, 0), r, count, 1.4, 1.4, COLOR.rock, Mat.Basalt)
-	ringSegments(decorF, "WallGlow", CFrame.new(0, 1.46, 0), r, count, 0.4, 0.12, COLOR.gold, Mat.Neon, DECO)
-	for k = 0, count - 1, 6 do
-		local a = k / count * TAU
-		local p = CFrame.new(math.cos(a) * r, 0, math.sin(a) * r)
-		cyl(decorF, "WallPost", 1.8, 5, p * CFrame.new(0, 2.5, 0), COLOR.stoneMid, Mat.Slate)
-		ball(decorF, "WallLamp", 1.7, p * CFrame.new(0, 5.6, 0), COLOR.gold, Mat.Neon, DECO)
-	end
-	-- Gorunmez yuksek sinir: oyuncular adadan dusmesin
-	local br = r + 2.8
-	ringSegments(decorF, "Barrier", CFrame.new(0, 20, 0), br, math.floor(TAU * br / 10), 1, 40, COLOR.white, Mat.SmoothPlastic,
-		{ transparency = 1, shadow = false })
-end
-
 ---------------------------------------------------------------------
--- ADANIN ALTI: kaya basamaklari, parcalar, sarkan kristaller
+-- SINIR: citlik + gorunmez duvar, uzakta tepeler
 ---------------------------------------------------------------------
-local function buildUnderside()
-	local layers = 15
-	local radii = {}
-	for k = 1, layers do
-		local r = ISLAND_RADIUS * (1 - k / (layers + 1)) ^ 1.15
-		radii[k] = r
-		local y = -6 - 8 * (k - 1)
-		local mat = (k % 2 == 0) and Mat.Slate or Mat.Basalt
-		cyl(underF, "Layer" .. k, r * 2, 8, CFrame.new(0, y, 0), COLOR.rock:Lerp(COLOR.stoneMid, rng:NextNumber()), mat, { solid = false })
-	end
-	for _ = 1, 70 do
-		local k = rng:NextInteger(1, layers)
-		local ang = rng:NextNumber(0, TAU)
-		local r = radii[k] * rng:NextNumber(0.55, 1.0)
-		local sx = rng:NextNumber(7, 20)
-		local sy = sx * rng:NextNumber(0.6, 1.2)
-		local sz = sx * rng:NextNumber(0.7, 1.3)
-		local extent = 0.5 * math.sqrt(sx * sx + sy * sy + sz * sz) -- donse bile zemini delmesin
-		local y = math.min(-6 - 8 * (k - 1) + rng:NextNumber(-3, 3), -2.5 - extent)
-		local rot = CFrame.Angles(rng:NextNumber(0, TAU), rng:NextNumber(0, TAU), rng:NextNumber(0, TAU))
-		local mat = (rng:NextInteger(0, 1) == 0) and Mat.Basalt or Mat.Slate
-		part(underF, "Chunk", Vector3.new(sx, sy, sz), CFrame.new(math.cos(ang) * r, y, math.sin(ang) * r) * rot,
-			COLOR.rock:Lerp(COLOR.stoneMid, rng:NextNumber()), mat, { solid = false })
-	end
-	for n = 1, 18 do
-		local ang = rng:NextNumber(0, TAU)
-		local r = rng:NextNumber(8, 62)
-		local len = rng:NextNumber(12, 30)
-		local top = rng:NextNumber(-60, -20)
-		local c = hsv(rng:NextNumber(0.45, 0.95), 0.6, 1)
-		local tilt = CFrame.Angles(rng:NextNumber(-0.2, 0.2), 0, rng:NextNumber(-0.2, 0.2))
-		local crystal = ellipsoid(underF, "HangingCrystal", Vector3.new(2.6, len, 2.6),
-			CFrame.new(math.cos(ang) * r, top - len / 2, math.sin(ang) * r) * tilt, c, Mat.Neon, DECO)
-		if n <= 6 then
-			addLight(crystal, c, 40, 1.2)
+local function buildBoundary()
+	for side = 0, 3 do
+		local rot = sideRot(side)
+		local c = -PARK_HALF + 7
+		while c <= PARK_HALF - 7 do
+			part(sceneryF, "Hedge", Vector3.new(14.4, 4.4, 3.4), rot * CFrame.new(c, 2.2, -PARK_HALF), C.hedge, Mat.Grass, SOFT)
+			c = c + 14
 		end
+		-- gorunmez yuksek duvar: oyuncular parktan cikmasin
+		part(sceneryF, "Barrier", Vector3.new(PARK_HALF * 2 + 12, 60, 2), rot * CFrame.new(0, 30, -(PARK_HALF + 3)), C.white, Mat.SmoothPlastic,
+			{ transparency = 1, shadow = false })
+	end
+end
+
+local function buildHills()
+	for k = 0, 13 do
+		local a = k / 14 * TAU + rng:NextNumber(-0.12, 0.12)
+		local r = rng:NextNumber(380, 520)
+		local w = rng:NextNumber(200, 340)
+		local h = rng:NextNumber(70, 140)
+		ellipsoid(sceneryF, "Hill", Vector3.new(w, h, w * rng:NextNumber(0.7, 1.0)),
+			CFrame.new(math.cos(a) * r, -h * 0.1, math.sin(a) * r) * CFrame.Angles(0, rng:NextNumber(0, TAU), 0),
+			(k % 2 == 0) and C.grassDark or C.grass, Mat.Grass, DECO)
 	end
 end
 
 ---------------------------------------------------------------------
--- UZAK MANZARA: yuzen adaciklar, monolitler, gokyuzu halkalari (derinlik)
+-- ISIKLANDIRMA (gunesli gun), DOGMA NOKTALARI
 ---------------------------------------------------------------------
-local function buildIslet(i)
-	local ang = i * 2.399963
-	local r = 190 + ((i - 1) % 4) * 48 + rng:NextNumber(0, 24)
-	local cy = rng:NextNumber(-40, 70)
-	local dia = rng:NextNumber(18, 34)
-	local base = CFrame.new(math.cos(ang) * r, cy, math.sin(ang) * r)
-	local hue = rng:NextNumber()
-	local glow = hsv(hue, 0.6, 1)
-
-	local model = Instance.new("Model")
-	model.Name = "Islet_" .. i
-	model.PrimaryPart = anchorPart(model, "Pivot", Vector3.new(1, 1, 1), base)
-
-	cyl(model, "Top", dia, 2.6, base * CFrame.new(0, -1.3, 0), COLOR.grass, Mat.Grass, { solid = false })
-	local fracs = { 0.8, 0.58, 0.34, 0.16 }
-	for k, f in ipairs(fracs) do
-		cyl(model, "Under" .. k, dia * f, 3, base * CFrame.new(0, -2.6 - 1.5 - 3 * (k - 1), 0), COLOR.rock, (k % 2 == 0) and Mat.Slate or Mat.Basalt, { solid = false })
-	end
-	local rim = dia / 2 - 0.4
-	ringSegments(model, "Rim", base * CFrame.new(0, 0.05, 0), rim, math.max(10, math.floor(TAU * rim / 4)), 0.5, 0.12, glow, Mat.Neon, DECO)
-
-	if i % 2 == 0 then
-		cyl(model, "Trunk", 1.3, 7, base * CFrame.new(0, 3.5, 0), RGB(70, 52, 60), Mat.Wood, DECO)
-		local leaf = hsv(hue + 0.1, 0.45, 0.95)
-		ball(model, "Leaves", 9, base * CFrame.new(0, 9.5, 0), leaf, Mat.SmoothPlastic, DECO)
-		ball(model, "Leaves", 7, base * CFrame.new(1.5, 12.5, 0.5), leaf, Mat.SmoothPlastic, DECO)
-		ball(model, "Leaves", 5, base * CFrame.new(-1, 15, -0.5), leaf, Mat.SmoothPlastic, DECO)
-		for b = 1, 6 do
-			local ba = b / 6 * TAU
-			ball(model, "Fruit", 0.9, base * CFrame.new(math.cos(ba) * 3.8, 9.2 + (b % 3), math.sin(ba) * 3.8), glow, Mat.Neon, DECO)
-		end
-	else
-		for k = 1, 4 do
-			local ca = k / 4 * TAU
-			local h = rng:NextNumber(8, 14)
-			ellipsoid(model, "Crystal", Vector3.new(2.4, h, 2.4),
-				base * CFrame.new(math.cos(ca) * 3, h / 2, math.sin(ca) * 3) * CFrame.Angles(math.cos(ca) * 0.2, 0, math.sin(ca) * 0.2),
-				glow, Mat.Neon, DECO)
-		end
-	end
-
-	tag(model, "FX_Bob", {
-		BobHeight = rng:NextNumber(1.5, 3.5),
-		BobSpeed = rng:NextNumber(0.25, 0.5),
-		BobPhase = rng:NextNumber(0, TAU),
-		SpinSpeed = rng:NextNumber(-0.04, 0.04),
-	})
-	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	model.Parent = farF
-end
-
-local function buildMonolith(i)
-	local ang = i * 2.399963 + 0.7
-	local r = rng:NextNumber(430, 640)
-	local y = rng:NextNumber(10, 170)
-	local w, h, dpt = rng:NextNumber(12, 20), rng:NextNumber(60, 130), rng:NextNumber(5, 8)
-	local center = Vector3.new(math.cos(ang) * r, y, math.sin(ang) * r)
-	local cf = CFrame.lookAt(center, Vector3.new(0, y, 0)) * CFrame.Angles(rng:NextNumber(-0.08, 0.08), 0, rng:NextNumber(-0.08, 0.08))
-	local c = hsv(rng:NextNumber(0.45, 0.95), 0.6, 1)
-
-	local model = Instance.new("Model")
-	model.Name = "Monolith_" .. i
-	model.PrimaryPart = anchorPart(model, "Pivot", Vector3.new(1, 1, 1), CFrame.new(center))
-	part(model, "Slab", Vector3.new(w, h, dpt), cf, RGB(26, 24, 44), Mat.Basalt, { solid = false })
-	part(model, "Glow", Vector3.new(0.7, h * 0.85, 0.3), cf * CFrame.new(0, 0, -(dpt / 2 + 0.1)), c, Mat.Neon, DECO)
-	part(model, "Cap", Vector3.new(w + 1, 1.2, dpt + 1), cf * CFrame.new(0, h / 2 + 0.6, 0), c, Mat.Neon, DECO)
-	tag(model, "FX_Bob", { BobHeight = 4, BobSpeed = 0.25, BobPhase = rng:NextNumber(0, TAU) })
-	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	model.Parent = farF
-end
-
-local function skyRing(name, radius, count, tilt, height, hueShift, spin)
-	local model = Instance.new("Model")
-	model.Name = name
-	local base = CFrame.new(0, height, 0) * tilt
-	model.PrimaryPart = anchorPart(model, "Pivot", Vector3.new(1, 1, 1), base)
-	ringSegments(model, "Seg", base, radius, count, 7, 7, function(k, n)
-		return hsv(hueShift + k / n, 0.7, 1)
-	end, Mat.Neon, DECO)
-	tag(model, "FX_Spin", { SpinSpeed = spin })
-	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	model.Parent = farF
-end
-
----------------------------------------------------------------------
--- EFEKTLER, ISIKLANDIRMA, DOGMA NOKTALARI
----------------------------------------------------------------------
-local function buildEffects()
-	local dust = anchorPart(fxF, "Stardust", Vector3.new(320, 70, 320), CFrame.new(0, 30, 0))
-	local e = addSparkles(dust, COLOR.white, 60, 0.4, 1.6, 0.6, 8, 14)
-	e.Shape = Enum.ParticleEmitterShape.Box
-	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
-	e.Acceleration = Vector3.new(0, 0.2, 0)
-
-	local motes = anchorPart(fxF, "CenterMotes", Vector3.new(44, 50, 44), CFrame.new(0, 26, 0))
-	local m = addSparkles(motes, COLOR.cyan, 18, 0.5, 2, 0.7, 4, 8)
-	m.Shape = Enum.ParticleEmitterShape.Box
-	m.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
-end
-
 local function applyLighting()
-	local m = MOODS[MOOD] or MOODS.twilight
-	Lighting.ClockTime = m.clock
-	Lighting.Brightness = m.brightness
-	Lighting.ExposureCompensation = m.exposure
-	Lighting.Ambient = m.ambient
-	Lighting.OutdoorAmbient = m.outdoor
+	Lighting.ClockTime = 14
+	Lighting.Brightness = 3
+	Lighting.ExposureCompensation = 0
+	Lighting.Ambient = RGB(120, 124, 132)
+	Lighting.OutdoorAmbient = RGB(150, 160, 175)
 	Lighting.EnvironmentDiffuseScale = 1
 	Lighting.EnvironmentSpecularScale = 1
 	Lighting.GlobalShadows = true
 
 	local sky = Instance.new("Sky")
-	sky.StarCount = m.stars
+	sky.StarCount = 3000
 	sky.CelestialBodiesShown = true
 	sky.Parent = Lighting
 
 	local atm = Instance.new("Atmosphere")
-	atm.Density = m.density
-	atm.Offset = m.offset
-	atm.Color = m.atmColor
-	atm.Decay = m.atmDecay
-	atm.Glare = m.glare
-	atm.Haze = m.haze
+	atm.Density = 0.3
+	atm.Offset = 0.15
+	atm.Color = RGB(199, 220, 255)
+	atm.Decay = RGB(110, 140, 200)
+	atm.Glare = 0.2
+	atm.Haze = 1
 	atm.Parent = Lighting
 
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = m.bloom
-	bloom.Size = 30
-	bloom.Threshold = 0.9
+	bloom.Intensity = 0.3
+	bloom.Size = 24
+	bloom.Threshold = 1.2
 	bloom.Parent = Lighting
 
 	local cc = Instance.new("ColorCorrectionEffect")
-	cc.Saturation = 0.2
-	cc.Contrast = 0.12
-	cc.TintColor = RGB(255, 246, 255)
+	cc.Saturation = 0.12
+	cc.Contrast = 0.06
+	cc.TintColor = RGB(255, 252, 245)
 	cc.Parent = Lighting
 
-	local dof = Instance.new("DepthOfFieldEffect")
-	dof.FarIntensity = 0.2
-	dof.FocusDistance = 100
-	dof.InFocusRadius = 180
-	dof.NearIntensity = 0
-	dof.Parent = Lighting
-
 	local rays = Instance.new("SunRaysEffect")
-	rays.Intensity = m.rays
+	rays.Intensity = 0.08
 	rays.Spread = 0.8
 	rays.Parent = Lighting
+
+	if terrain then
+		local clouds = Instance.new("Clouds")
+		clouds.Cover = 0.45
+		clouds.Density = 0.5
+		clouds.Color = RGB(255, 255, 255)
+		clouds.Parent = terrain
+	end
 
 	if USE_FUTURE_LIGHTING then
 		pcall(function()
@@ -765,14 +603,12 @@ end
 
 local function buildSpawns()
 	for k = 0, 3 do
-		local j = math.floor(BOOTH_COUNT * k / 4) -- yol uzerinde (obeliskler yarim adimda)
-		local a = j / BOOTH_COUNT * TAU
-		local x, z = math.cos(a) * 36, math.sin(a) * 36
+		local a = math.rad(90 * k)
 		local sp = Instance.new("SpawnLocation")
 		sp.Name = "Spawn" .. (k + 1)
 		sp.Anchored = true
-		sp.Size = Vector3.new(10, 0.2, 10)
-		sp.CFrame = CFrame.new(x, 0.1, z)
+		sp.Size = Vector3.new(8, 0.2, 8)
+		sp.CFrame = CFrame.new(math.cos(a) * 26, PLAZA_TOP + 0.1, math.sin(a) * 26)
 		sp.Transparency = 1
 		sp.CanCollide = false
 		sp.Neutral = true
@@ -781,33 +617,22 @@ local function buildSpawns()
 		sp.BottomSurface = Enum.SurfaceType.Smooth
 		sp.Locked = LOCK_PARTS
 		sp.Parent = Workspace
-		ringSegments(decorF, "SpawnRing", CFrame.new(x, 0.2, z), 4, 16, 0.4, 0.1, COLOR.gold, Mat.Neon, DECO)
 	end
 end
 
 ---------------------------------------------------------------------
 -- KUR
 ---------------------------------------------------------------------
-buildFloor()
-buildCenter()
-for i = 1, BOOTH_COUNT do
-	buildPath(i)
-	buildBooth(i)
-end
-buildGarden()
-buildParapet()
-buildUnderside()
-for i = 1, 12 do
-	buildIslet(i)
-end
-for i = 1, 14 do
-	buildMonolith(i)
-end
-skyRing("SkyRingA", 560, 64, CFrame.Angles(math.rad(18), 0, math.rad(8)), 260, 0, 0.012)
-skyRing("SkyRingB", 650, 72, CFrame.Angles(math.rad(-22), 0, math.rad(12)), 240, 0.5, -0.009)
-buildEffects()
+buildGround()
+buildPlaza()
+buildFountain()
+local boothCount = buildBooths()
+buildFurniture()
+buildTrees()
+buildBoundary()
+buildHills()
 buildSpawns()
 applyLighting()
 
 map.Parent = Workspace
-print(string.format("[MapBuilder] Celestial Hatchery hazir: %d stand", BOOTH_COUNT))
+print(string.format("[MapBuilder] Sunny Park hazir: %d stand", boothCount))

@@ -480,6 +480,8 @@ local PARENT = {
 	StarterGui = "Instance",
 	ServerScriptService = "Instance",
 	Camera = "Instance",
+	Clouds = "Instance",
+	Terrain = "Instance",
 }
 
 local SCHEMA = {
@@ -645,6 +647,7 @@ local SCHEMA = {
 	Script = { Source = tStr },
 	LocalScript = { Source = tStr },
 	Camera = { CFrame = tT("CFrame"), FieldOfView = tNum(1, 120) },
+	Clouds = { Cover = tNum(0, 1), Density = tNum(0, 1), Color = tT("Color3"), Enabled = tBool },
 	Player = { UserId = tNum(), Character = tInst },
 }
 
@@ -1058,6 +1061,9 @@ end
 services.StarterGui = Instance.new("StarterGui")
 services.StarterGui.Name = "StarterGui"
 do
+	local terr = Instance.new("Terrain")
+	terr.Name = "Terrain"
+	terr.Parent = workspaceInst
 	local cam = Instance.new("Camera")
 	cam.Name = "Camera"
 	cam.CFrame = CFrame.new(0, 20, 20)

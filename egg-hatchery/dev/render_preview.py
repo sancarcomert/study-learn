@@ -93,7 +93,7 @@ def unit_sphere(nu=12, nv=8):
 
 BOX, CYL, SPH = unit_box(), unit_cyl(), unit_sphere()
 
-LIGHT = np.array([-0.35, 0.8, 0.5])
+LIGHT = np.array([-0.4, 0.85, 0.35])
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 
 
@@ -189,20 +189,21 @@ def sky_background(cam):
     )
     dirs /= np.linalg.norm(dirs, axis=-1, keepdims=True)
     e = dirs[..., 1]
-    horizon = np.array([0.80, 0.45, 0.72])
-    zenith = np.array([0.06, 0.05, 0.20])
-    below = np.array([0.10, 0.07, 0.22])
-    t = np.clip(e, 0, 1) ** 0.55
+    horizon = np.array([0.80, 0.90, 0.99])
+    zenith = np.array([0.26, 0.50, 0.92])
+    t = np.clip(e, 0, 1) ** 0.5
     img = horizon[None, None, :] * (1 - t[..., None]) + zenith[None, None, :] * t[..., None]
-    neg = np.clip(-e * 2.2, 0, 1)
-    img = img * (1 - neg[..., None]) + below[None, None, :] * neg[..., None]
-    rng = np.random.default_rng(3)
-    stars = rng.random((H, W)) > 0.9985
-    img[stars & (e > 0.1)] = 1.0
+    # birkac yumusak bulut
+    az = np.arctan2(dirs[..., 2], dirs[..., 0])
+    for (a0, e0, sa, se, k) in [(0.4, 0.35, 0.35, 0.07, 0.8), (1.6, 0.5, 0.3, 0.06, 0.7), (2.5, 0.28, 0.4, 0.06, 0.8),
+                                (-0.6, 0.42, 0.33, 0.07, 0.75), (-1.8, 0.33, 0.4, 0.07, 0.8), (3.0, 0.55, 0.3, 0.05, 0.6)]:
+        da = np.angle(np.exp(1j * (az - a0)))
+        m = np.exp(-((da / sa) ** 2 + ((e - e0) / se) ** 2)) * k
+        img = img * (1 - m[..., None]) + np.array([1.0, 1.0, 1.0])[None, None, :] * m[..., None]
     return img
 
 
-def render(parts, cam, name, haze=0.0022):
+def render(parts, cam, name, haze=0.0010):
     img = sky_background(cam)
     sky = img.copy()
     zbuf = np.full((H, W), np.inf)
@@ -252,7 +253,7 @@ def render(parts, cam, name, haze=0.0022):
                 col = np.clip(p["color"] * 1.0, 0, 1)
             else:
                 lam = max(0.0, float(np.dot(n, LIGHT)))
-                shade = 0.50 + 0.62 * lam
+                shade = 0.58 + 0.50 * lam
                 col = np.clip(p["color"] * shade, 0, 1)
             tc = c[tri]
             if alpha < 0.999:
@@ -266,7 +267,7 @@ def render(parts, cam, name, haze=0.0022):
     # mesafe sisi
     finite = np.isfinite(zbuf)
     f = np.where(finite, 1 - np.exp(-np.where(finite, zbuf, 0) * haze), 0.0)
-    fog = np.array([0.55, 0.36, 0.62])
+    fog = np.array([0.80, 0.90, 0.98])
     img = img * (1 - f[..., None]) + fog[None, None, :] * f[..., None]
     img = np.where(finite[..., None], img, sky)
 
@@ -275,21 +276,37 @@ def render(parts, cam, name, haze=0.0022):
     b1 = gimg.filter(ImageFilter.GaussianBlur(5))
     b2 = gimg.filter(ImageFilter.GaussianBlur(16))
     out = Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8))
-    out = ImageChops.add(out, b1.point(lambda v: int(v * 0.55)))
-    out = ImageChops.add(out, b2.point(lambda v: int(v * 0.55)))
+    out = ImageChops.add(out, b1.point(lambda v: int(v * 0.30)))
+    out = ImageChops.add(out, b2.point(lambda v: int(v * 0.30)))
+    return out
+
+
+def avatar(x, z, face=0.0, color=(0.95, 0.55, 0.15)):
+    """Olcek icin R6 boyutunda basit bir karakter (yaklasik 5.2 stud)."""
+    c, sn = math.cos(face), math.sin(face)
+    rot = np.array([[c, 0, sn], [0, 1, 0], [-sn, 0, c]])
+    out = []
+    for (dx, dy, dz, sx, sy, sz, col) in [
+        (0, 1.0, 0, 2, 2, 1, (0.2, 0.3, 0.7)), (0, 3.0, 0, 2, 2, 1, color),
+        (-1.5, 3.0, 0, 1, 2, 1, color), (1.5, 3.0, 0, 1, 2, 1, color),
+        (0, 4.7, 0, 1.2, 1.2, 1.2, (0.96, 0.8, 0.6)),
+    ]:
+        out.append(dict(name="Avatar", shape="Block", mesh=0, size=np.array([sx, sy, sz], float),
+                        pos=np.array([x, 0, z]) + rot @ np.array([dx, dy, dz]), rot=rot, color=np.array(col),
+                        material="Plastic", transp=0.0, collide=0, group="Avatar"))
     return out
 
 
 VIEWS = {
-    # ad: (kamera konumu, hedef, fov)
-    "overview": ((0, 175, 310), (0, 18, 0), 62),
-    "ground_to_booth1": ((36, 4.5, 0), (80, 9, 0), 66),
-    "booth1_close": ((62, 5.5, 7), (80, 6.2, -1), 62),
-    "center": ((34, 7, 30), (0, 26, 0), 66),
-    "topdown": ((0, 340, 1), (0, 0, 0), 52),
-    "far_side": ((330, 22, 230), (0, 40, 0), 60),
-    "underside": ((250, -70, 250), (0, -25, 0), 62),
-    "plaza_wide": ((0, 9, 118), (0, 14, 0), 78),
+    # ad: (kamera konumu, hedef, fov, karakterler[(x, z, yon)])
+    "overview": ((0, 210, 360), (0, 0, 10), 60, []),
+    "plaza_eye": ((0, 5.5, 40), (-41, 9, -88), 70, [(-30, 24, 0.6), (12, 38, 2.4)]),
+    "booth_close": ((17, 5.6, -66), (17, 7.5, -88), 62, [(10, -76, 3.14), (24, -74, 3.3)]),
+    "booth_side": ((40, 9, -64), (17, 6.5, -88), 55, [(17, -77, 3.14)]),
+    "fountain": ((34, 7, 34), (0, 4.5, 0), 64, [(18, 14, 2.0)]),
+    "topdown": ((0, 440, 1), (0, 0, 0), 48, []),
+    "path_out": ((0, 5.5, 118), (0, 8, 240), 66, [(0, 132, 3.14)]),
+    "edge_hills": ((0, 14, 160), (0, 30, 490), 70, []),
 }
 
 if __name__ == "__main__":
@@ -298,7 +315,10 @@ if __name__ == "__main__":
     names = sys.argv[3:] or list(VIEWS)
     print(f"{len(parts)} parca")
     for n in names:
-        pos, tgt, fov = VIEWS[n]
-        img = render(parts, Camera(pos, tgt, fov), n)
+        pos, tgt, fov, avs = VIEWS[n]
+        extra = []
+        for (ax, az, af) in avs:
+            extra += avatar(ax, az, af)
+        img = render(parts + extra, Camera(pos, tgt, fov), n)
         img.save(f"{outdir}/{n}.png")
         print("yazildi", n)

@@ -9,13 +9,12 @@ do
 
 	print("== Booth yapisi ==")
 	local booths = workspace.Booths:GetChildren()
-	check(#booths == 16, "16 stand uretildi")
+	check(#booths == 24, "24 stand uretildi")
 	for _, b in ipairs(booths) do
 		assert(b.PrimaryPart and b.PrimaryPart.Name == "Base", b.Name .. " PrimaryPart=Base degil")
 		assert(b:FindFirstChild("Egg"), b.Name .. " Egg yok")
-		assert(b:FindFirstChild("BeamBase"), b.Name .. " BeamBase yok")
 	end
-	check(true, "her standda Base(PrimaryPart), Egg, BeamBase var")
+	check(true, "her standda Base(PrimaryPart) ve Egg var")
 	check(#workspace:GetChildren() > 0 and workspace:FindFirstChild("Spawn1") ~= nil, "SpawnLocation'lar var")
 
 	print("== HatcheryService entegrasyonu ==")
