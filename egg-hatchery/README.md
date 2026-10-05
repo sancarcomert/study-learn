@@ -3,7 +3,13 @@
 Please Donate tarzi bir stand oyunu: oyuncu bir stand sahiplenir, ustundeki yumurta zamanla ve
 destek satin alimlariyla buyur/evrilir. Harita (dogal park + gol) kodla kurulur.
 
-## Studio'ya yerlestirme
+## Sifirdan kurulum (kopyala-yapistir yok)
+
+`studio_files/` icindeki 3 dosya Studio'da Explorer'dan hedef servise sag tik > **Insert from File** ile eklenir:
+`ServerScriptService.rbxmx` > ServerScriptService, `StarterGui.rbxmx` > StarterGui, `StarterPlayerScripts.rbxmx` >
+StarterPlayer > StarterPlayerScripts. `python3 dev/build_rbxmx.py` bunlari depodaki scriptlerden uretir.
+
+## Studio'ya yerlestirme (elle)
 
 | Dosya | Studio konumu | Tur |
 |---|---|---|
