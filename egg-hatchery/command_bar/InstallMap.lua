@@ -1,5 +1,5 @@
 -- ============================================================
--- SUNNY PARK - tek komutla kurulum (Studio Command Bar)
+-- DOGAL PARK - tek komutla harita kurulumu (Studio Command Bar)
 -- 1) Studio'da View > Command Bar'i ac (altta yazi kutusu cikar)
 -- 2) Bu dosyanin TAMAMINI kopyala, kutuya yapistir, Enter'a bas
 -- 3) Birkac saniye bekle; Output'ta "[Kurulum] Bitti" yazinca hazir

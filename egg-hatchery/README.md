@@ -39,6 +39,10 @@ Gunesli dogal park; Please Donate tarzi stand meydani:
 - 4 cins agac (mese/huş/kiraz/akcaagac), banklar, cop kutulari, lambalar, saksilar, kenarda kaya + agac siralari
 - arazi uretilemezse (Terrain hatasi) duz zemin parcasina geri doner
 
+**Oyun scriptlerini guncelleme:** `command_bar/UpdateScripts.lua` dosyasini Command Bar'a yapistirirsan Config,
+HatcheryService, EconomyManager ve MarketplaceHook icerikleri depodakiyle degistirilir (elle yapistirma gerekmez;
+`Config.PRODUCTS` ID'lerini komuttan sonra gir). `python3 dev/build_command_bar.py` ikisini de uretir.
+
 **Onerilen: tek komutla kurulum.** `command_bar/InstallMap.lua` dosyasinin TAMAMINI Studio'da
 View > Command Bar'a yapistirip Enter'a bas ("Tehlikeli Komut" uyarisinda "Devam et"). Harita KALICI kurulur
 (Play'e basmadan gorunur), `MapFX` LocalScript'i otomatik olusturulur, eski `MapBuilder` scripti silinir,
@@ -57,7 +61,7 @@ uretilir; elle duzenleme. Onizlemeler `dev/previews/` altinda (gercek Roblox gor
 ```
 # Luau CLI: https://github.com/luau-lang/luau/releases (luau-ubuntu.zip)
 python3 dev/build_command_bar.py                 # command_bar/InstallMap.lua'yi yeniden uretir
-dev/run_tests.sh /yol/luau                       # 106 kontrol: kurulum, yerlesim, arazi/su/kopru, stand, MapFX, kayit, bagis/makbuz, yumurta buyumesi
+dev/run_tests.sh /yol/luau                       # 116 kontrol: kurulum, yerlesim, arazi/su/kopru, stand, MapFX, kayit, bagis/makbuz, yumurta buyumesi
 dev/run_map.sh /yol/luau parts.txt               # haritayi kurup parca dokumunu yazar
 python3 dev/render_preview.py parts.txt cikti/   # (pillow, numpy) 3B onizleme PNG'leri
 ```
