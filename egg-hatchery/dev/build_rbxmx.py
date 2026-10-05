@@ -39,7 +39,7 @@ def write(fname, items):
 
 mods = [item("ModuleScript", n, read(f"ServerScriptService/Modules/{n}.lua")) for n in ("Config", "Remotes", "BoothRegistry", "HatcheryService")]
 write("ServerScriptService.rbxmx", [item("Folder", "Modules", None, mods)] + [
-    item("Script", n, read(f"ServerScriptService/{n}.server.lua")) for n in ("EconomyManager", "BoothManager", "MarketplaceHook")
+    item("Script", n, read(f"ServerScriptService/{n}.server.lua")) for n in ("EconomyManager", "BoothAdapter", "BoothManager", "MarketplaceHook")
 ])
 write("StarterGui.rbxmx", [item("LocalScript", "EggClient", read("StarterGui/EggClient.client.lua"))])
 write("StarterPlayerScripts.rbxmx", [item("LocalScript", "MapFX", read("StarterPlayer/StarterPlayerScripts/MapFX.client.lua"))])
