@@ -2,7 +2,7 @@
 --
 -- CELESTIAL HATCHERY: gokyuzunde yuzen kozmik bir kulucka adasi.
 -- Oyun baslarken haritanin tamamini kodla kurar (elle hicbir sey yerlestirmen gerekmez):
---   * N adet stand (kaide, yaprak kubbe, kristaller, yildizlara uzanan isik huzmesi)
+--   * N adet stand (kaide, ay kapisi, direkler, kristaller, yildizlara uzanan isik huzmesi)
 --   * ortada donen halkalarin icinde yuzen "Genesis" yumurtasi
 --   * gokkusagi halkasi, yuzen adaciklar, uzak monolitler, gokyuzu halkalari (derinlik)
 --   * isiklandirma, atmosfer, bloom, alan derinligi
@@ -423,7 +423,7 @@ local function buildCenter()
 end
 
 ---------------------------------------------------------------------
--- STAND: yaprak kubbeli kulucka kaidesi
+-- STAND: ay kapili kulucka kaidesi
 ---------------------------------------------------------------------
 local function buildBooth(i)
 	local a = (i - 1) / BOOTH_COUNT * TAU
