@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 760" width="1000" height="760" font-family="DejaVu Sans, Arial, sans-serif">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#8d6e63" stroke-width="1.2"/></pattern>
+</defs>
+<rect width="1000" height="760" fill="#fff"/>
+<rect x="20" y="70" width="960" height="640" fill="#f3efe0" stroke="#333" stroke-width="2"/>
+<text x="500" y="38" text-anchor="middle" font-size="24" font-weight="bold">AKŞEHİR ÇEVRESİNİN NÜFUS MİKTARI HARİTASI</text>
+<text x="500" y="58" text-anchor="middle" font-size="13" fill="#444">(Orantılı daire yöntemi – şematik harita, nüfuslar yaklaşık değerdir)</text>
+<path d="M360 150 Q520 70 760 140 Q780 190 700 215 Q520 170 380 215 Z" fill="url(#hatch)" stroke="#8d6e63" stroke-width="1.5"/>
+<text x="565" y="168" text-anchor="middle" font-size="14" font-style="italic" fill="#5d4037" font-weight="bold">Sultan Dağları</text>
+<ellipse cx="410" cy="268" rx="95" ry="38" transform="rotate(-25 410 268)" fill="#bfe3f5" stroke="#4a90b8" stroke-width="1.5"/>
+<text x="405" y="275" text-anchor="middle" font-size="12" fill="#1b5e80" font-style="italic" transform="rotate(-25 405 271)">Akşehir Gölü</text>
+<ellipse cx="300" cy="215" rx="42" ry="22" transform="rotate(-20 300 215)" fill="#bfe3f5" stroke="#4a90b8" stroke-width="1.5"/>
+<text x="300" y="219" text-anchor="middle" font-size="11" fill="#1b5e80" font-style="italic" transform="rotate(-20 300 217)">Eber Gölü</text>
+<line x1="560" y1="400" x2="800" y2="320" stroke="#c0392b" stroke-width="2"/>
+<line x1="560" y1="400" x2="215" y2="330" stroke="#c0392b" stroke-width="2"/>
+<line x1="560" y1="400" x2="620" y2="535" stroke="#c0392b" stroke-width="2"/>
+<line x1="560" y1="400" x2="345" y2="500" stroke="#c0392b" stroke-width="2"/>
+<line x1="560" y1="400" x2="820" y2="520" stroke="#c0392b" stroke-width="2"/>
+<line x1="215" y1="330" x2="230" y2="130" stroke="#c0392b" stroke-width="2"/>
+<circle cx="470" cy="470" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="690" cy="430" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="500" cy="300" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="680" cy="250" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="300" cy="400" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="430" cy="540" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="720" cy="640" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="520" cy="640" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="150" cy="450" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="900" cy="420" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="880" cy="220" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="120" cy="230" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="450" cy="100" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="700" cy="480" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="740" cy="380" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="260" cy="560" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="850" cy="640" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="150" cy="620" r="3.5" fill="#1e88e5" stroke="#0d47a1" stroke-width="0.8"/>
+<circle cx="560" cy="400" r="34.0" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="560" y="358" text-anchor="middle" font-size="14" font-weight="bold">Akşehir</text>
+<text x="560" y="372" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">85.000</text>
+<text x="560" y="450" text-anchor="middle" font-size="12" fill="#222">85.000</text>
+<circle cx="800" cy="320" r="16.5" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="800" y="296" text-anchor="middle" font-size="14" font-weight="bold">Ilgın</text>
+<text x="800" y="310" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">20.000</text>
+<text x="800" y="352" text-anchor="middle" font-size="12" fill="#222">20.000</text>
+<circle cx="230" cy="130" r="24.7" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="230" y="97" text-anchor="middle" font-size="14" font-weight="bold">Bolvadin</text>
+<text x="230" y="111" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">45.000</text>
+<text x="230" y="171" text-anchor="middle" font-size="12" fill="#222">45.000</text>
+<circle cx="215" cy="330" r="15.2" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="215" y="307" text-anchor="middle" font-size="14" font-weight="bold">Çay</text>
+<text x="215" y="321" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">17.000</text>
+<text x="215" y="361" text-anchor="middle" font-size="12" fill="#222">17.000</text>
+<circle cx="620" cy="535" r="10.4" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="620" y="517" text-anchor="middle" font-size="14" font-weight="bold">Doğanhisar</text>
+<text x="620" y="531" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">8.000</text>
+<text x="620" y="561" text-anchor="middle" font-size="12" fill="#222">8.000</text>
+<circle cx="345" cy="500" r="8.2" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="345" y="484" text-anchor="middle" font-size="14" font-weight="bold">Sultandağı</text>
+<text x="345" y="498" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">5.000</text>
+<text x="345" y="524" text-anchor="middle" font-size="12" fill="#222">5.000</text>
+<circle cx="820" cy="520" r="7.4" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="820" y="505" text-anchor="middle" font-size="14" font-weight="bold">Tuzlukçu</text>
+<text x="820" y="519" text-anchor="middle" font-size="11" fill="#333" dy="-26" opacity="0">4.000</text>
+<text x="820" y="543" text-anchor="middle" font-size="12" fill="#222">4.000</text>
+<rect x="40" y="590" width="300" height="105" fill="#fff" stroke="#333"/>
+<text x="190" y="610" text-anchor="middle" font-size="13" font-weight="bold">NÜFUS (kişi)</text>
+<circle cx="80" cy="668.3" r="11.7" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="80" y="692" text-anchor="middle" font-size="11">10.000</text>
+<circle cx="160" cy="653.9" r="26.1" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="160" y="692" text-anchor="middle" font-size="11">50.000</text>
+<circle cx="265" cy="643.1" r="36.9" fill="#e53935" fill-opacity="0.75" stroke="#7f0000" stroke-width="1.5"/>
+<text x="265" y="692" text-anchor="middle" font-size="11">100.000</text>
+<rect x="360" y="590" width="270" height="105" fill="#fff" stroke="#333"/>
+<text x="375" y="612" font-size="13" font-weight="bold">İŞARETLER</text>
+<circle cx="385" cy="632" r="3.5" fill="#1e88e5" stroke="#0d47a1"/><text x="400" y="636" font-size="12">Köy (nüfus 2.000’den az)</text>
+<line x1="375" y1="652" x2="397" y2="652" stroke="#c0392b" stroke-width="2"/><text x="403" y="656" font-size="12">Ana karayolu</text>
+<rect x="375" y="663" width="22" height="12" fill="url(#hatch)" stroke="#8d6e63"/><text x="403" y="674" font-size="12">Dağlık alan</text>
+<rect x="375" y="680" width="22" height="10" fill="#bfe3f5" stroke="#4a90b8"/><text x="403" y="689" font-size="12">Göl</text>
+<g transform="translate(920,120)"><polygon points="0,-40 10,0 0,-8 -10,0" fill="#222"/><polygon points="0,40 10,0 0,8 -10,0" fill="#fff" stroke="#222"/><text x="0" y="-48" text-anchor="middle" font-size="16" font-weight="bold">K</text></g>
+<g transform="translate(700,670)"><line x1="0" y1="0" x2="200" y2="0" stroke="#000" stroke-width="3"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#000" stroke-width="2"/><line x1="100" y1="-6" x2="100" y2="6" stroke="#000" stroke-width="2"/><line x1="200" y1="-6" x2="200" y2="6" stroke="#000" stroke-width="2"/><text x="0" y="22" text-anchor="middle" font-size="11">0</text><text x="100" y="22" text-anchor="middle" font-size="11">20</text><text x="200" y="22" text-anchor="middle" font-size="11">40 km</text><text x="100" y="-12" text-anchor="middle" font-size="10" fill="#555">(yaklaşık)</text></g>
+</svg>
