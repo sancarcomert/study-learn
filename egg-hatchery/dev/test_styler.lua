@@ -54,6 +54,7 @@ do
 		local toFountain = (Vector3.new(0, 0, 0) - Vector3.new(F.frame.X, 0, F.frame.Z)).Unit
 		check(F.frame.LookVector:Dot(toFountain) > 0.999, "stand on yuzu cesmeye bakiyor")
 
+		local counts = {}
 		for _, style in ipairs(Config.STYLES) do
 			Styler.Apply(booth, style.Id, 2)
 			local decor = booth:FindFirstChild("StyleDecor")
@@ -69,7 +70,8 @@ do
 						-- hicbir sus standin arkasinda degil: on yone gore stand merkezinden ileride/yaninda
 					end
 				end
-				assert(n >= 3 and n <= 70, style.Id .. ": parca sayisi makul degil (" .. n .. ")")
+				assert(n >= 12 and n <= 140, style.Id .. ": parca sayisi makul degil (" .. n .. ")")
+				counts[style.Id] = n
 				-- on tarafta mi? en az bir sus parcasi standin onunde (cesmeye dogru)
 				local front = 0
 				for _, p in ipairs(decor:GetDescendants()) do
@@ -105,11 +107,38 @@ do
 		end
 		assert(lights == 2, "fenerli stilde 2 isik olmali")
 		Styler.Apply(booth, "legend", 1)
-		assert(booth.StyleDecor:FindFirstChild("LightBeam") and booth.StyleDecor.Sparkles.ParticleEmitter, "efsane stilde isik sutunu ve kivilcim olmali")
+		assert(booth.StyleDecor:FindFirstChild("Pillar") and booth.StyleDecor.Sparkles.ParticleEmitter, "efsane stilde isik sutunu ve kivilcim olmali")
+		-- bayrak ipi: her parca bir sonrakine dogru uzanir (ip yatay ve dogrultusu dogru)
+		Styler.Apply(booth, "flags", 1)
+		local ropes = 0
+		for _, d in ipairs(booth.StyleDecor:GetChildren()) do
+			if d.Name == "Rope" then
+				ropes = ropes + 1
+				local dir = d.CFrame.RightVector
+				assert(math.abs(dir:Dot(F.frame.RightVector)) > 0.9, "ip direkler arasinda yanal uzanmali")
+				assert(math.abs(d.Size.X - d.Size.Y) > 0.05 and d.Size.X > 0.3, "ip parcasi uzun ve ince olmali")
+			end
+		end
+		assert(ropes == 20, "20 ip parcasi olmali (" .. ropes .. ")")
+		-- susler yumurtanin kapladigi hacme girmemeli (yumurta Tier 4, olcek 2.2)
+		local EggModel = require(__SSS.Modules.EggModel)
+		local anchor = booth:GetAttribute("EggAnchor")
+		for _, style in ipairs(Config.STYLES) do
+			Styler.Apply(booth, style.Id, 3)
+			if booth:FindFirstChild("StyleDecor") then
+				for _, p in ipairs(booth.StyleDecor:GetDescendants()) do
+					if p:IsA("BasePart") and p.Transparency < 0.9 and p.Name ~= "Pillar" then
+						local off = p.Position - anchor.Position
+						local horizontal = math.sqrt(off.X ^ 2 + off.Z ^ 2)
+						assert(not (horizontal < 3.4 and off.Y > -0.5 and off.Y < 9), style.Id .. "." .. p.Name .. " yumurtanin icine giriyor")
+					end
+				end
+			end
+		end
 		Styler.Clear(booth)
 		assert(booth:FindFirstChild("StyleDecor") == nil, "Clear sus parcalarini siler")
 		booth:Destroy()
 	end
-	check(true, "7 stil x 4 farkli yon: carpismasiz, makul parca sayisi, on tarafta, tekrar uygulamada cogalmaz, olcum sabit")
+	check(true, "7 stil x 4 farkli yon: carpismasiz, makul parca sayisi, on tarafta, tekrar uygulamada cogalmaz, olcum sabit, yumurtaya girmez")
 	fountain:Destroy()
 end

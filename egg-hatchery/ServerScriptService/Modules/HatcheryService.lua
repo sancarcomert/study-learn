@@ -52,7 +52,7 @@ local function buildGui(core)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HatcheryGui"
 	gui.Size = UDim2.fromOffset(CLAIMED_W, CLAIMED_H)
-	gui.StudsOffset = Vector3.new(0, EggModel.Height + 1.5, 0) -- Refresh yumurta boyuna gore ayarlar
+	gui.StudsOffsetWorldSpace = Vector3.new(0, EggModel.Height + 1.5, 0) -- Refresh yumurta boyuna gore ayarlar
 	gui.MaxDistance = 55
 	gui.LightInfluence = 0
 	gui.Parent = core
@@ -174,7 +174,7 @@ function HatcheryService.BuildBooth(booth)
 		local F = Styler.Measure(booth)
 		assert(F, booth:GetFullName() .. " olculemedi")
 		-- yumurta: standin en ust noktasinin biraz uzerinde, on yone (cesme/merkez) donuk
-		local anchor = F.frame * CFrame.new(F.xc, F.height + 1.2, (F.front + F.back) / 2)
+		local anchor = F.frame * CFrame.new(F.xc, F.height + Config.EGG_LIFT, (F.front + F.back) / 2)
 		EggModel.Build(booth, anchor)
 	end
 	local core = EggModel.Core(booth)
@@ -252,7 +252,7 @@ function HatcheryService.Refresh(player)
 
 	local scale = Config.EggScale(level)
 	EggModel.Apply(booth, { Tier = EggModel.TierOf(level), Accent = accent, Scale = scale })
-	gui.StudsOffset = Vector3.new(0, EggModel.Height * scale + 1.5, 0) -- kart yumurtanin ustunde kalsin
+	gui.StudsOffsetWorldSpace = Vector3.new(0, EggModel.Height * scale + 1.5, 0) -- kart yumurtanin ustunde kalsin
 
 	local prompt = booth.PrimaryPart:FindFirstChild("BoothPrompt")
 	if prompt then
@@ -299,7 +299,7 @@ function HatcheryService.SetUnclaimed(booth)
 	Styler.Clear(booth)
 	booth:SetAttribute("AppliedStyle", nil)
 	EggModel.Apply(booth, { Tier = 0, Accent = DORMANT_COLOR, Scale = 0.8, Instant = true })
-	gui.StudsOffset = Vector3.new(0, EggModel.Height * 0.8 + 1.2, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, EggModel.Height * 0.8 + 1.2, 0)
 end
 
 ---------------------------------------------------------------------

@@ -21,7 +21,7 @@ do
 
 	-- konum: standin en ust noktasinin uzerinde, ortada, cesmeye bakar
 	local anchor = egg:GetAttribute("Anchor")
-	check(anchor ~= nil and anchor.Y > 10.5 and anchor.Y < 13, string.format("yumurta standin ustunde (y=%.2f)", anchor.Y))
+	check(anchor ~= nil and anchor.Y > 11 and anchor.Y < 13.5, string.format("yumurta standin ustunde (y=%.2f)", anchor.Y))
 	local boothCenter = booth.Platform.Position
 	local flat = Vector3.new(anchor.X - boothCenter.X, 0, anchor.Z - boothCenter.Z)
 	check(flat.Magnitude < 1.5, string.format("yumurta standin ortasinda (kayma %.2f)", flat.Magnitude))
@@ -52,16 +52,16 @@ do
 		table.insert(balls, { s.Position.Y - anchor.Y, s.Size.X / 2 })
 	end
 	local function profile(y)
-		local t = y / 1.55
-		return 1.15 * math.sqrt(math.max((1 - t * t) / (1 + 0.3 * t), 0))
+		local t = y / 1.8
+		return 1.35 * math.sqrt(math.max((1 - t * t) / (1 + 0.3 * t), 0))
 	end
 	local worst = 0
 	for i = 0, 400 do
-		local y = -1.55 + 3.1 * i / 400
+		local y = -1.8 + 3.6 * i / 400
 		local r = profile(y)
 		local best = math.huge
 		for _, b in ipairs(balls) do
-			best = math.min(best, math.abs(math.sqrt(r * r + (y + 0.8 + 1.55 - b[1]) ^ 2) - b[2]))
+			best = math.min(best, math.abs(math.sqrt(r * r + (y + 0.8 + 1.8 - b[1]) ^ 2) - b[2]))
 		end
 		worst = math.max(worst, best)
 	end
@@ -76,7 +76,7 @@ do
 		end
 		return e
 	end
-	check(envelope(0.8 + 1.55 + 0.9) < envelope(0.8 + 1.55 - 0.9) - 0.12, "yumurtanin ustu altindan dar (yumurta sekli, kure degil)")
+	check(envelope(0.8 + 1.8 + 0.9) < envelope(0.8 + 1.8 - 0.9) - 0.12, "yumurtanin ustu altindan dar (yumurta sekli, kure degil)")
 
 	-- nadirlik gorunumleri
 	local function count(prefix)

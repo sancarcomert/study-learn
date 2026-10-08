@@ -596,6 +596,7 @@ local SCHEMA = {
 	BillboardGui = {
 		Size = tT("UDim2"),
 		StudsOffset = tT("Vector3"),
+		StudsOffsetWorldSpace = tT("Vector3"),
 		MaxDistance = tNum(0),
 		AlwaysOnTop = tBool,
 		Adornee = tInst,
@@ -675,6 +676,8 @@ local SCHEMA = {
 		Visible = tBool,
 	},
 	Frame = {
+		Rotation = tNum(),
+		ZIndex = tNum(),
 		LayoutOrder = tNum(),
 		AutomaticSize = tEnum("AutomaticSize"),
 		Position = tT("UDim2"),

@@ -19,8 +19,8 @@ local EggModel = {}
 local RGB = Color3.fromRGB
 
 -- Yumurta olculeri (olcek 1'de, stud)
-local HALF_W = 1.15 -- yarim genislik
-local HALF_H = 1.55 -- yarim yukseklik
+local HALF_W = 1.35 -- yarim genislik
+local HALF_H = 1.8 -- yarim yukseklik
 local TAPER = 0.3 -- ust uca dogru daralma (gercek yumurta gibi: en genis nokta ortanin biraz altinda)
 local GAP = 0.8 -- zemin ile yumurtanin alt ucu arasi bosluk
 local SHELL_BALLS = 13
@@ -444,7 +444,7 @@ function EggModel.Flash(booth, duration)
 	local saved = {}
 	for _, p in ipairs(egg:GetChildren()) do
 		if p:IsA("BasePart") and string.sub(p.Name, 1, 5) == "Shell" then
-			saved[p] = { p.Color, p.Material }
+			saved[p] = { color = p.Color, material = p.Material }
 			p.Color = Color3.new(1, 1, 1)
 			p.Material = Enum.Material.Neon
 		end
@@ -452,7 +452,7 @@ function EggModel.Flash(booth, duration)
 	task.delay(duration, function()
 		for p, s in pairs(saved) do
 			if p.Parent then
-				p.Color, p.Material = s[1], s[2]
+				p.Color, p.Material = s.color, s.material
 			end
 		end
 	end)

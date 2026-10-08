@@ -1,0 +1,54 @@
+<title>Yumurta Standı Kurulum</title>
+<style>
+:root{--bg:#f4f6f1;--fg:#1d2a22;--mut:#5d6d62;--card:#ffffff;--line:#d5ddd2;--acc:#2f7d4f;--accfg:#ffffff;--code:#eef2ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121a15;--fg:#e6eee8;--mut:#9aab9f;--card:#1a251e;--line:#2c3b31;--acc:#5bc084;--accfg:#0e1812;--code:#101812;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121a15;--fg:#e6eee8;--mut:#9aab9f;--card:#1a251e;--line:#2c3b31;--acc:#5bc084;--accfg:#0e1812;--code:#101812;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;padding-inline:16px;padding-block:24px}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:1.6rem;margin:0;text-wrap:balance}
+p{margin:0;color:var(--mut);max-width:65ch}
+ol{margin:0;padding-left:1.2rem;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.f{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.top b{font-size:1.05rem}
+.tag{font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.where{color:var(--mut);font-size:.9rem;flex:1 1 200px;min-width:0}
+button{background:var(--acc);color:var(--accfg);border:0;border-radius:8px;padding:9px 16px;font:600 .95rem system-ui;cursor:pointer}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+button.done{background:var(--fg);color:var(--bg)}
+details summary{cursor:pointer;color:var(--mut);font-size:.9rem}
+pre{margin:8px 0 0;background:var(--code);border-radius:8px;padding:10px;overflow:auto;max-height:420px;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;user-select:all}
+.n{font-variant-numeric:tabular-nums;color:var(--mut);font-size:.85rem}
+</style>
+<main>
+<h1>Yumurta Standı Kurulum</h1>
+<p>Her dosya için: Kopyala'ya bas, Studio'da belirtilen yerde o isimde yeni script aç, içindekini sil (Ctrl+A, Delete), yapıştır (Ctrl+V). Sıra önemli değil, hepsi bitince F5. Toplam __TOTAL__ dosya.</p>
+<ol>
+<li>ServerScriptService içinde <b>Modules</b> adında bir Folder olmalı. Üstteki __MODULE_COUNT__ ModuleScript onun içine gider.</li>
+<li>Script türünü doğru seç: ModuleScript, Script (sunucu) ya da LocalScript.</li>
+<li>Adı tam yaz, uzantı (.lua) yazma. Eski aynı adlı scriptin içeriği yeni halle değişir.</li>
+<li>Haritada "propy's booth" modelleri hazır olmalı (BoothAdapter bunları kullanır).</li>
+</ol>
+<div id="list" style="display:flex;flex-direction:column;gap:14px"></div>
+</main>
+<script id="d" type="application/json">__PAYLOAD__</script>
+<script>
+var files=JSON.parse(document.getElementById('d').textContent),list=document.getElementById('list');
+files.forEach(function(f,i){
+ var c=document.createElement('div');c.className='f';
+ var lines=f.code.split('\n').length;
+ c.innerHTML='<div class="top"><b></b><span class="tag"></span><span class="where"></span><button type="button">Kopyala</button></div><div class="n"></div><details><summary>Kodu göster</summary><pre></pre></details>';
+ c.querySelector('b').textContent=(i+1)+'. '+f.name;
+ c.querySelector('.tag').textContent=f.type;
+ c.querySelector('.where').textContent='Yer: '+f.where;
+ c.querySelector('.n').textContent=lines+' satır';
+ var pre=c.querySelector('pre');pre.textContent=f.code;
+ var btn=c.querySelector('button');
+ btn.addEventListener('click',function(){
+  function ok(){btn.textContent='Kopyalandı';btn.className='done';setTimeout(function(){btn.textContent='Kopyala';btn.className=''},2000)}
+  function fb(){c.querySelector('details').open=true;var r=document.createRange();r.selectNodeContents(pre);var s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Seçildi, Ctrl+C'}
+  try{navigator.clipboard.writeText(f.code).then(ok,fb)}catch(e){fb()}
+ });
+ list.appendChild(c);
+});
+</script>

@@ -9,6 +9,7 @@ Config.AUTOSAVE_INTERVAL = 120
 Config.BOOTH_FOLDER_NAME = "Booths"
 Config.INTERACT_DISTANCE = 25 -- panel/aksiyon icin standa en fazla bu kadar uzaklik
 Config.OWNER_CHECK_INTERVAL = 5
+Config.EGG_LIFT = 2.0 -- yumurtanin zemin isiginin, standin en ust noktasindan yuksekligi (stud). Yumurta cok alcak/yuksek durursa bunu degistir
 
 ---------------------------------------------------------------------
 -- XP ve seviye
@@ -49,9 +50,9 @@ function Config.GetRarity(level)
 	return result
 end
 
--- Yumurta gorsel buyuklugu: seviye arttikca buyur, 2.2 kat ustune cikmaz
+-- Yumurta gorsel buyuklugu: seviye arttikca buyur, Seviye 31'de 1.8 kata ulasir ve orada durur
 function Config.EggScale(level)
-	return math.min(1 + (level - 1) * 0.04, 2.2)
+	return math.min(1 + (level - 1) * 0.0267, 1.8)
 end
 
 ---------------------------------------------------------------------
@@ -59,12 +60,12 @@ end
 ---------------------------------------------------------------------
 Config.STYLES = {
 	{ Id = "classic", Name = "Klasik", Level = 1, Desc = "Sade ve temiz bir başlangıç." },
-	{ Id = "rug", Name = "Halı", Level = 2, Desc = "Standının önüne renkli bir halı serilir." },
-	{ Id = "flags", Name = "Bayraklı", Level = 3, Desc = "Köşelere direk, aralarına renkli bayraklar." },
-	{ Id = "lantern", Name = "Fenerli", Level = 5, Desc = "Sıcak ışıklı iki fener standını aydınlatır." },
-	{ Id = "garden", Name = "Çiçekli", Level = 7, Desc = "Köşelerde çiçek saksıları." },
-	{ Id = "gold", Name = "Altın", Level = 10, Desc = "Altın direkler, yumurtanın altında parlak zemin." },
-	{ Id = "legend", Name = "Efsane", Level = 20, Desc = "Altın süs, ışık sütunu ve parıltı." },
+	{ Id = "rug", Name = "Halı", Level = 2, Desc = "Önüne desenli, saçaklı halı." },
+	{ Id = "flags", Name = "Bayraklı", Level = 3, Desc = "İple bağlı renkli flamalar." },
+	{ Id = "lantern", Name = "Fenerli", Level = 5, Desc = "Işıklı iki sokak feneri." },
+	{ Id = "garden", Name = "Çiçekli", Level = 7, Desc = "Çiçekli kemer ve saksılar." },
+	{ Id = "gold", Name = "Altın", Level = 10, Desc = "Altın sütunlar, para yığınları." },
+	{ Id = "legend", Name = "Efsane", Level = 20, Desc = "Işık sütunları, flamalar, parıltı." },
 }
 
 function Config.GetStyle(id)
