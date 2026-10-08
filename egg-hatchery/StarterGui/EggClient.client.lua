@@ -231,9 +231,8 @@ local hudSub = label(hud, "", F.body, 13, C.muted, { Name = "Sub", Position = UD
 
 local PLAY_XP = remotes:GetAttribute("PlayXP") or 1
 local PLAY_INTERVAL = remotes:GetAttribute("PlayInterval") or 15
-local XP_PER_ROBUX = remotes:GetAttribute("XPPerRobux") or 20
 local DONOR_XP = remotes:GetAttribute("DonorXPPerRobux") or 20
-local hudInfo = label(hud, string.format("Her %d sn: +%d XP   •   1 Robux destek: +%d XP", PLAY_INTERVAL, PLAY_XP, DONOR_XP), F.body, 13, C.green, { Name = "Info", Position = UDim2.fromOffset(60, 68), Size = UDim2.new(1, -76, 0, 18) })
+label(hud, string.format("Her %d sn: +%d XP   •   1 Robux destek: +%d XP", PLAY_INTERVAL, PLAY_XP, DONOR_XP), F.body, 13, C.green, { Name = "Info", Position = UDim2.fromOffset(60, 68), Size = UDim2.new(1, -76, 0, 18) })
 
 local function refreshHud()
 	local ls = player:FindFirstChild("leaderstats")
@@ -425,8 +424,9 @@ local function buildPanel(p)
 	w.save = button(w.styleSec, "Kaydet", C.green, { Name = "SaveButton", Size = UDim2.new(1, 0, 0, 46), LayoutOrder = 6 })
 	w.save.Activated:Connect(function()
 		local text = w.box.Text
-		if utf8.len(text) and utf8.len(text) > MAX_MESSAGE then
-			text = string.sub(text, 1, utf8.offset(text, MAX_MESSAGE + 1) - 1)
+		local cut = utf8.len(text) and utf8.len(text) > MAX_MESSAGE and utf8.offset(text, MAX_MESSAGE + 1)
+		if cut then
+			text = string.sub(text, 1, cut - 1)
 		end
 		remotes.PanelAction:FireServer({ Action = "Style", Style = selectedStyle, Color = selectedColor, Text = text })
 	end)

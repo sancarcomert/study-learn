@@ -18,10 +18,10 @@ do
 	check(prompt.Name == "BoothPrompt" and prompt.Parent == b1.PrimaryPart, "tek etkilesim butonu (BoothPrompt) PrimaryPart'a baglandi")
 	check(prompt.KeyboardKeyCode == Enum.KeyCode.E and prompt.HoldDuration == 0 and prompt.ActionText == T.PromptClaim, "bos standda 'Standı Al', E tusu, anlik")
 	check(b1.PrimaryPart:FindFirstChild("ClaimPrompt") == nil and b1.PrimaryPart:FindFirstChild("FeedPrompt") == nil, "eski cift/uclu buton yok")
-	local card = b1.Egg.HatcheryGui.Card
+	local card = b1.Egg.Core.HatcheryGui.Card
 	check(card.NameLabel.Text == T.Unclaimed and card.LevelLabel.Text == T.ClaimHint, "bos stand karti: '" .. card.NameLabel.Text .. "' / '" .. card.LevelLabel.Text .. "'")
 	check(card.BarBack.Visible == false and card.MessageLabel.Visible == false, "bos standda cubuk ve mesaj gizli")
-	check(b1.Egg.HatcheryGui.MaxDistance == 60, "kart sadece yakindan gorunur (60 stud)")
+	check(b1.Egg.Core.HatcheryGui.MaxDistance == 32, "bos stand etiketi sadece yakindan gorunur (32 stud)")
 
 	local player = Instance.new("Player")
 	player.Name = "Tester"
@@ -47,6 +47,14 @@ do
 	Registry.Claim(b1, player)
 	Hatchery.SetClaimed(b1, player)
 	check(card.NameLabel.Text == "Tester" and card.LevelLabel.Text == "Seviye 1  •  Yaygın", "sahipli kart: " .. card.NameLabel.Text .. " / " .. card.LevelLabel.Text)
+	check(card.Avatar.Visible == true and card.Avatar.Image == "rbxthumb://type=AvatarHeadShot&id=424242&w=150&h=150", "kartta sahibin avatar fotografi: " .. card.Avatar.Image)
+	check(card.RaisedLabel.Text == "R$ 0 toplandı", "kartta toplanan Robux: " .. card.RaisedLabel.Text)
+	check(b1.Egg.Core.HatcheryGui.MaxDistance == 55 and b1.Egg:GetAttribute("Tier") == 1, "sahipli kart 55 stud'dan gorunur, yumurta Yaygin gorunumunde")
+	ls.Raised.Value = 12500
+	Hatchery.Refresh(player)
+	check(card.RaisedLabel.Text == "R$ 12.500 toplandı", "binlik ayiracli tutar: " .. card.RaisedLabel.Text)
+	ls.Raised.Value = 0
+	Hatchery.Refresh(player)
 	check(prompt.ActionText == T.PromptView and prompt.ObjectText == "Tester", "buton 'Standa Bak', nesne metni sahibin adi")
 	check(card.BarBack.Visible == true, "sahipli standda XP cubugu gorunur")
 
@@ -83,18 +91,16 @@ do
 	Hatchery.Refresh(player)
 	check(card.MessageLabel.Visible == true and card.MessageLabel.Text == "Pet icin", "mesaj kartta gorunur")
 	check(card.MessageLabel.TextColor3 == Config.STYLE_COLORS[3].Color, "mesaj secilen renkte")
-	check(b1.Egg.HatcheryGui.Size.YO > 76, "mesaj varken kart uzar")
+	check(b1.Egg.Core.HatcheryGui.Size.YO > 92, "mesaj varken kart uzar")
 
 	-- cok yuksek XP: tum nadirlikler
-	local colorBefore = b1.Egg.Color
 	Hatchery.AddXP(player, 5000000)
 	check(ls.Level.Value == Config.MAX_LEVEL, "cok buyuk XP seviyeyi MAX_LEVEL'de tutar (" .. ls.Level.Value .. ")")
-	check(Config.GetRarity(ls.Level.Value).Name == "Mitik" and b1.Egg.Color ~= colorBefore, "Mitik nadirlige ulasildi, yumurta rengi degisti")
+	check(Config.GetRarity(ls.Level.Value).Name == "Mitik" and b1.Egg:GetAttribute("Tier") == 4, "Mitik nadirlige ulasildi, yumurta Mitik gorunumunde")
 	check(xp.Value < Config.XPRequired(Config.MAX_LEVEL), "MAX seviyede XP tasmaz")
 	__advance(1)
-	local base = b1.Egg:GetAttribute("BaseSize")
-	check(math.abs(b1.Egg.Size.Y - base.Y * Config.EggScale(ls.Level.Value)) < 0.05, string.format("yumurta seviyeyle buyudu: x%.2f", b1.Egg.Size.Y / base.Y))
-	check(b1.Egg.Aura.Enabled == true and b1.Egg.Aura.Rate == 18, "Mitik yumurtada surekli kivilcim")
+	check(math.abs(b1.Egg:GetAttribute("Scale") - Config.EggScale(ls.Level.Value)) < 1e-6, string.format("yumurta seviyeyle buyudu: x%.2f", b1.Egg:GetAttribute("Scale")))
+	check(b1.Egg.Heart.Aura.Enabled == true and b1.Egg.Heart.Aura.Rate == 18, "Mitik yumurtada surekli kivilcim")
 	local unlockCount = 0
 	for _, f in ipairs(rawget(Remotes.EggFeedback, "_d").fired or {}) do
 		if f[1] == player and f[2].Kind == "Unlock" then
@@ -112,5 +118,5 @@ do
 	Registry.Release(b1)
 	Hatchery.SetUnclaimed(b1)
 	check(card.NameLabel.Text == T.Unclaimed and b1:FindFirstChild("StyleDecor") == nil and prompt.ActionText == T.PromptClaim, "stand birakilinca kart, stil ve buton sifirlandi")
-	check(math.abs(b1.Egg.Color.R - Config.RARITIES[1].Color.R) < 1e-6, "yumurta rengi varsayilana dondu")
+	check(b1.Egg:GetAttribute("Tier") == 0 and b1.Egg:GetAttribute("Scale") == 0.8, "yumurta sahipsiz (soluk) gorunume dondu")
 end

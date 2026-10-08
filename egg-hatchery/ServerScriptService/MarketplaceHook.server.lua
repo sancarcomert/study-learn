@@ -90,7 +90,7 @@ MarketplaceService.ProcessReceipt = function(info)
 		-- Sahibi satin alma sirasinda cikti: bagis kaybolmasin, sahip tekrar girince uygulanir
 		local queued = false
 		for attempt = 1, 3 do
-			local ok = pcall(function()
+			local saved = pcall(function()
 				pendingStore:UpdateAsync(tostring(record.OwnerUserId), function(old)
 					old = old or { XP = 0, Raised = 0 }
 					old.XP = (old.XP or 0) + xp
@@ -98,7 +98,7 @@ MarketplaceService.ProcessReceipt = function(info)
 					return old
 				end)
 			end)
-			if ok then
+			if saved then
 				queued = true
 				break
 			end
@@ -133,6 +133,7 @@ MarketplaceService.ProcessReceipt = function(info)
 		XP = xp,
 	})
 	Hatchery.AddXP(owner, xp)
+	Hatchery.DonationEffect(owner)
 
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end

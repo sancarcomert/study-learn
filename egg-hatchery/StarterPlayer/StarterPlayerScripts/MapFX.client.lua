@@ -1,11 +1,12 @@
 -- StarterPlayer/StarterPlayerScripts/MapFX  (LocalScript)
 --
--- MapBuilder'in isaretledigi (CollectionService tag) nesneleri istemcide gunceller.
+-- Sunucunun isaretledigi (CollectionService tag) nesneleri istemcide canlandirir.
 -- Hepsi SADECE bu oyuncunun ekraninda olur: sunucuya yuk bindirmez.
---   FX_Bob   : stand yumurtasi yukari-asagi hafifce yuzer (BobHeight, BobSpeed, BobPhase)
+--   FX_Egg   : EggModel yumurtasi yukari-asagi yuzer, yavasca doner, taslar yoringede doner
 --   BoothSign: stand tabelasi; sahipsiz = "STAND 07", sahipli = oyuncunun adi (booth OwnerUserId attribute'u)
 --
--- Yuzme her karede baslangic konumundan MUTLAK hesaplanir; sayisal hata birikmez.
+-- Konumlar her karede sunucunun verdigi sabit "Anchor" ve parcalarin "BO/BS" verisinden MUTLAK hesaplanir:
+-- sunucu bir parcayi guncellese bile bir sonraki karede duzelir, sayisal hata birikmez.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -24,29 +25,97 @@ local function watch(tagName, onAdd, onRemove)
 end
 
 ---------------------------------------------------------------------
--- Yumurtalar
+-- EggModel yumurtalari
 ---------------------------------------------------------------------
-local bobbers = {}
+local EGG_RANGE = 140 -- bundan uzaktaki yumurtalar guncellenmez (sunucudaki sabit konumunda kalir)
+local eggs = {}
 
-watch("FX_Bob", function(inst)
-	if bobbers[inst] == nil then
-		bobbers[inst] = {
-			base = inst.CFrame,
-			sizeY = inst.Size.Y, -- yumurta buyuyunce alt kenari sabit kalsin
-			height = inst:GetAttribute("BobHeight") or 0.3,
-			speed = inst:GetAttribute("BobSpeed") or 1,
-			phase = inst:GetAttribute("BobPhase") or 0,
-		}
+local function collectParts(egg, d)
+	d.parts = {}
+	for _, p in ipairs(egg:GetDescendants()) do
+		if p:IsA("BasePart") and p ~= d.core then
+			local bo, bs = p:GetAttribute("BO"), p:GetAttribute("BS")
+			if bo and bs then
+				table.insert(d.parts, {
+					part = p,
+					pos = bo.Position,
+					rot = bo - bo.Position,
+					size = bs,
+					orbit = p:GetAttribute("OR") ~= nil,
+					radius = p:GetAttribute("OR"),
+					speed = p:GetAttribute("OS"),
+					phase = p:GetAttribute("OP"),
+					tilt = p:GetAttribute("OT"),
+					height = p:GetAttribute("OY"),
+					gemRot = p:GetAttribute("GR"),
+				})
+			end
+		end
 	end
-end, function(inst)
-	bobbers[inst] = nil
+	d.dirty = false
+end
+
+watch("FX_Egg", function(egg)
+	if eggs[egg] then
+		return
+	end
+	local d = { core = egg.PrimaryPart or egg:FindFirstChild("Core"), dirty = true, scale = nil }
+	eggs[egg] = d
+	egg.DescendantAdded:Connect(function()
+		d.dirty = true
+	end)
+	egg.DescendantRemoving:Connect(function()
+		d.dirty = true
+	end)
+end, function(egg)
+	eggs[egg] = nil
 end)
+
+local function placeEgg(egg, d, t)
+	local anchor = egg:GetAttribute("Anchor")
+	d.core = d.core or egg.PrimaryPart
+	local core = d.core
+	if not (anchor and core and core.Parent) then
+		return
+	end
+	if d.dirty then
+		collectParts(egg, d)
+	end
+	local scale = egg:GetAttribute("Scale") or 1
+	local phase = egg:GetAttribute("BobPhase") or 0
+	local bob = CFrame.new(0, math.sin(t * (egg:GetAttribute("BobSpeed") or 1) + phase) * (egg:GetAttribute("BobHeight") or 0.2) * scale, 0)
+	local floating = anchor * bob
+	local pivot = floating * CFrame.Angles(0, t * (egg:GetAttribute("SpinSpeed") or 0) + phase, 0)
+	local resize = d.scale ~= scale
+	d.scale = scale
+	core.CFrame = pivot
+	for _, e in ipairs(d.parts) do
+		local p = e.part
+		if p.Parent then
+			if resize then
+				p.Size = e.size * scale
+			end
+			if e.orbit then
+				local angle = t * e.speed + e.phase
+				p.CFrame = floating * CFrame.new(0, e.height * scale, 0) * CFrame.Angles(0, 0, e.tilt)
+					* CFrame.Angles(0, angle, 0) * CFrame.new(e.radius * scale, 0, 0) * e.gemRot
+			else
+				p.CFrame = pivot * CFrame.new(e.pos * scale) * e.rot
+			end
+		end
+	end
+end
 
 RunService.Heartbeat:Connect(function()
 	local t = Workspace:GetServerTimeNow()
-	for inst, d in pairs(bobbers) do
-		if inst.Parent then
-			inst.CFrame = d.base + Vector3.new(0, (inst.Size.Y - d.sizeY) / 2 + math.sin(t * d.speed + d.phase) * d.height, 0)
+	local cam = Workspace.CurrentCamera
+	local camPos = cam and cam.CFrame.Position
+	for egg, d in pairs(eggs) do
+		if egg.Parent then
+			local anchor = egg:GetAttribute("Anchor")
+			if anchor and (camPos == nil or (anchor.Position - camPos).Magnitude < EGG_RANGE) then
+				placeEgg(egg, d, t)
+			end
 		end
 	end
 end)

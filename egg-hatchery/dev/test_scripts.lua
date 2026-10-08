@@ -117,7 +117,7 @@ do
 	press(alice, b2)
 	check(Registry.GetOwner(b2) == alice, "bos standa E: Alice Booth_2'yi sahiplendi")
 	check(b2:GetAttribute("OwnerUserId") == 1001 and alice:GetAttribute("HasBooth") == true, "OwnerUserId ve HasBooth attribute'lari")
-	local card = b2.Egg.HatcheryGui.Card
+	local card = b2.Egg.Core.HatcheryGui.Card
 	check(card.NameLabel.Text == "Alice" and card.LevelLabel.Text == "Seviye 3  •  Yaygın", "kart: " .. card.NameLabel.Text .. " / " .. card.LevelLabel.Text)
 	check(lastNotify(alice) == T.Claimed, "sahiplenme bildirimi: " .. tostring(lastNotify(alice)))
 	check(b2:FindFirstChild("StyleDecor") ~= nil and b2.StyleDecor:FindFirstChild("Rug") ~= nil, "kayitli 'Halı' stili standda gorunur")
@@ -176,7 +176,7 @@ do
 	check(alice:GetAttribute("BoothStyle") == "flags" and alice:GetAttribute("BoothColor") == 5, "acik stil (Bayraklı, Sv.3) ve renk kaydedildi")
 	check(alice:GetAttribute("BoothMessage") == "Pet için biriktiriyorum", "mesaj kirpildi, bosluklar toplandi: " .. tostring(alice:GetAttribute("BoothMessage")))
 	check(b2:FindFirstChild("StyleDecor") ~= nil and b2.StyleDecor:FindFirstChild("Flag") ~= nil and b2.StyleDecor:FindFirstChild("Rug") == nil, "stand gorunumu halidan bayraga degisti")
-	check(b2.Egg.HatcheryGui.Card.MessageLabel.Text == "Pet için biriktiriyorum" and lastNotify(alice) == T.StyleSaved, "kartta mesaj, bildirim: kaydedildi")
+	check(b2.Egg.Core.HatcheryGui.Card.MessageLabel.Text == "Pet için biriktiriyorum" and lastNotify(alice) == T.StyleSaved, "kartta mesaj, bildirim: kaydedildi")
 	check(lastPanel(alice).Style == "flags" and lastPanel(alice).Message == "Pet için biriktiriyorum", "panel yeni stille tazelendi")
 	act(bob, { Action = "Style", Style = "flags", Color = 1, Text = "ele gecirme" })
 	check(alice:GetAttribute("BoothMessage") == "Pet için biriktiriyorum" and bob:GetAttribute("BoothMessage") == nil, "sahip olmayan baskasinin standini ozellestiremez")
@@ -209,7 +209,7 @@ do
 	check(alice:GetAttribute("BoothMessage") == "satir sonu sekme", "satir sonu/tab bosluga cevrildi")
 	__advance(3)
 	act(alice, { Action = "Style", Style = "flags", Color = 2, Text = "" })
-	check(alice:GetAttribute("BoothMessage") == "" and b2.Egg.HatcheryGui.Card.MessageLabel.Visible == false, "bos mesaj: yazi gizlenir")
+	check(alice:GetAttribute("BoothMessage") == "" and b2.Egg.Core.HatcheryGui.Card.MessageLabel.Visible == false, "bos mesaj: yazi gizlenir")
 
 	-- seviye atlayinca yeni stil acilir
 	local before = #feedbackFor(alice, "Unlock")
@@ -279,7 +279,7 @@ do
 	check(#MS.prompts == 2, "bekleme bitince ikinci satin alma serbest")
 	local raisedBeforeLeave = alice.leaderstats.Raised.Value
 	leave(alice)
-	check(Registry.GetOwner(b2) == nil and b2.Egg.HatcheryGui.Card.NameLabel.Text == T.Unclaimed, "sahip cikinca stand sifirlandi, kart 'Boş Stand'")
+	check(Registry.GetOwner(b2) == nil and b2.Egg.Core.HatcheryGui.Card.NameLabel.Text == T.Unclaimed, "sahip cikinca stand sifirlandi, kart 'Boş Stand'")
 	check(b2:FindFirstChild("StyleDecor") == nil and b2:GetAttribute("OwnerUserId") == nil, "stil susleri ve OwnerUserId temizlendi")
 	local pst = __store(Config.PENDING_STORE)
 	local rs2 = __store("EggReceipts_v1")

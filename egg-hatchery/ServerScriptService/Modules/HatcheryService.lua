@@ -6,139 +6,180 @@ local Config = require(Modules.Config)
 local Remotes = require(Modules.Remotes)
 local Registry = require(Modules.BoothRegistry)
 local Styler = require(Modules.BoothStyler)
+local EggModel = require(Modules.EggModel)
 
 local T = Config.TEXT
 local HatcheryService = {}
 
-local DEFAULT_COLOR = Config.RARITIES[1].Color
-local CARD_BG = Color3.fromRGB(22, 26, 38)
+local RGB = Color3.fromRGB
+local DORMANT_COLOR = RGB(190, 186, 178)
+local DONATION_COLOR = RGB(255, 210, 70)
+local CARD_TOP = RGB(36, 42, 62)
+local CARD_BOTTOM = RGB(18, 22, 34)
+local MUTED = RGB(160, 168, 186)
+local GOLD = RGB(255, 205, 80)
+
+local CLAIMED_W, CLAIMED_H, CLAIMED_H_MSG = 280, 92, 116
+local EMPTY_W, EMPTY_H = 210, 52
 
 ---------------------------------------------------------------------
--- Stand uzerindeki kart (BillboardGui): isim, seviye/nadirlik, XP cubugu, mesaj
+-- Stand uzerindeki kart (BillboardGui): avatar, isim, seviye/nadirlik, toplanan Robux, XP cubugu, mesaj
 ---------------------------------------------------------------------
-local function makeLabel(parent, name, font, size, pos, dim)
+local function makeLabel(parent, name, font, size, color, x, y, w, h)
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
-	label.Position = pos
-	label.Size = dim
+	label.Position = UDim2.fromOffset(x, y)
+	label.Size = UDim2.fromOffset(w, h)
 	label.Font = font
 	label.TextSize = size
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextColor3 = color
+	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.Text = ""
 	label.Parent = parent
 	return label
 end
 
-local function buildGui(egg)
+local function round(inst, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = radius
+	c.Parent = inst
+	return c
+end
+
+local function buildGui(core)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HatcheryGui"
-	gui.Size = UDim2.fromOffset(280, 76)
-	gui.StudsOffset = Vector3.new(0, 3.4, 0) -- ApplyGrowth yumurta boyuna gore ayarlar
-	gui.MaxDistance = 60
-	gui.Parent = egg
+	gui.Size = UDim2.fromOffset(CLAIMED_W, CLAIMED_H)
+	gui.StudsOffset = Vector3.new(0, EggModel.Height + 1.5, 0) -- Refresh yumurta boyuna gore ayarlar
+	gui.MaxDistance = 55
+	gui.LightInfluence = 0
+	gui.Parent = core
 
 	local card = Instance.new("Frame")
 	card.Name = "Card"
 	card.Size = UDim2.fromScale(1, 1)
-	card.BackgroundColor3 = CARD_BG
-	card.BackgroundTransparency = 0.12
+	card.BackgroundColor3 = Color3.new(1, 1, 1)
+	card.BackgroundTransparency = 0.06
 	card.BorderSizePixel = 0
 	card.Parent = gui
-	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+	round(card, UDim.new(0, 16))
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(CARD_TOP, CARD_BOTTOM)
+	gradient.Rotation = 90
+	gradient.Parent = card
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "Stroke"
 	stroke.Thickness = 2
-	stroke.Color = DEFAULT_COLOR
+	stroke.Color = DORMANT_COLOR
 	stroke.Parent = card
 
-	local name = makeLabel(card, "NameLabel", Enum.Font.GothamBold, 20, UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 26))
-	name.TextStrokeTransparency = 1
-	makeLabel(card, "LevelLabel", Enum.Font.GothamBold, 15, UDim2.fromOffset(12, 32), UDim2.new(1, -24, 0, 20))
+	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
+	accent.Position = UDim2.fromOffset(18, 0)
+	accent.Size = UDim2.new(1, -36, 0, 3)
+	accent.BackgroundColor3 = DORMANT_COLOR
+	accent.BorderSizePixel = 0
+	accent.Parent = card
+	round(accent, UDim.new(1, 0))
+
+	local avatar = Instance.new("ImageLabel")
+	avatar.Name = "Avatar"
+	avatar.Position = UDim2.fromOffset(12, 14)
+	avatar.Size = UDim2.fromOffset(54, 54)
+	avatar.BackgroundColor3 = RGB(46, 52, 74)
+	avatar.BorderSizePixel = 0
+	avatar.Image = ""
+	avatar.Parent = card
+	round(avatar, UDim.new(1, 0))
+	local avatarStroke = Instance.new("UIStroke")
+	avatarStroke.Name = "Ring"
+	avatarStroke.Thickness = 2.5
+	avatarStroke.Color = DORMANT_COLOR
+	avatarStroke.Parent = avatar
+
+	makeLabel(card, "NameLabel", Enum.Font.GothamBold, 19, Color3.new(1, 1, 1), 76, 12, 192, 24)
+	makeLabel(card, "LevelLabel", Enum.Font.GothamBold, 14, MUTED, 76, 37, 192, 18)
+	makeLabel(card, "RaisedLabel", Enum.Font.GothamMedium, 13, GOLD, 76, 54, 192, 16)
 
 	local back = Instance.new("Frame")
 	back.Name = "BarBack"
-	back.Position = UDim2.new(0, 14, 0, 58)
+	back.Position = UDim2.new(0, 14, 0, 76)
 	back.Size = UDim2.new(1, -28, 0, 8)
-	back.BackgroundColor3 = Color3.fromRGB(52, 58, 78)
+	back.BackgroundColor3 = RGB(46, 52, 74)
 	back.BorderSizePixel = 0
 	back.Parent = card
-	Instance.new("UICorner", back).CornerRadius = UDim.new(1, 0)
+	round(back, UDim.new(1, 0))
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = DEFAULT_COLOR
+	fill.BackgroundColor3 = DORMANT_COLOR
 	fill.BorderSizePixel = 0
 	fill.Parent = back
-	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+	round(fill, UDim.new(1, 0))
 
-	local msg = makeLabel(card, "MessageLabel", Enum.Font.Gotham, 15, UDim2.fromOffset(12, 72), UDim2.new(1, -24, 0, 22))
+	local msg = makeLabel(card, "MessageLabel", Enum.Font.GothamMedium, 14, Color3.new(1, 1, 1), 14, 90, CLAIMED_W - 28, 20)
+	msg.TextXAlignment = Enum.TextXAlignment.Center
 	msg.Visible = false
 	return gui
 end
 
--- mode: "unclaimed" | "claimed"
+-- claimed: dolu stand karti (avatar, istatistik, cubuk); degilse kucuk "Bos Stand" etiketi
 local function layoutGui(gui, claimed, hasMessage)
 	local card = gui.Card
+	card.Avatar.Visible = claimed
+	card.RaisedLabel.Visible = claimed
 	card.BarBack.Visible = claimed
-	card.LevelLabel.Visible = true
+	card.Accent.Visible = claimed
 	card.MessageLabel.Visible = claimed and hasMessage
-	if not claimed then
-		gui.Size = UDim2.fromOffset(240, 62)
-		card.NameLabel.Position = UDim2.fromOffset(12, 6)
-		card.LevelLabel.Position = UDim2.fromOffset(12, 32)
+	local name, level = card.NameLabel, card.LevelLabel
+	if claimed then
+		gui.Size = UDim2.fromOffset(CLAIMED_W, hasMessage and CLAIMED_H_MSG or CLAIMED_H)
+		gui.MaxDistance = 55
+		name.Position, name.Size, name.TextXAlignment = UDim2.fromOffset(76, 12), UDim2.fromOffset(192, 24), Enum.TextXAlignment.Left
+		level.Position, level.Size, level.TextXAlignment = UDim2.fromOffset(76, 37), UDim2.fromOffset(192, 18), Enum.TextXAlignment.Left
 	else
-		gui.Size = UDim2.fromOffset(280, hasMessage and 100 or 76)
+		gui.Size = UDim2.fromOffset(EMPTY_W, EMPTY_H)
+		gui.MaxDistance = 32
+		name.Position, name.Size, name.TextXAlignment = UDim2.fromOffset(8, 6), UDim2.fromOffset(EMPTY_W - 16, 22), Enum.TextXAlignment.Center
+		level.Position, level.Size, level.TextXAlignment = UDim2.fromOffset(8, 28), UDim2.fromOffset(EMPTY_W - 16, 18), Enum.TextXAlignment.Center
 	end
 end
 
+-- 12500 -> "12.500"
+local function formatNumber(n)
+	local s = tostring(math.floor(n))
+	local out = s:reverse():gsub("(%d%d%d)", "%1."):reverse()
+	if string.sub(out, 1, 1) == "." then
+		out = string.sub(out, 2)
+	end
+	return out
+end
+
+local function guiOf(booth)
+	local core = EggModel.Core(booth)
+	return core and core:FindFirstChild("HatcheryGui")
+end
+
+---------------------------------------------------------------------
+-- Stand kurulumu
+---------------------------------------------------------------------
 function HatcheryService.BuildBooth(booth)
 	local base = booth.PrimaryPart or booth:FindFirstChildWhichIsA("BasePart", true)
 	assert(base, booth:GetFullName() .. " icinde en az bir Part olmali")
 	booth.PrimaryPart = base
 
-	local egg = booth:FindFirstChild("Egg")
-	if not egg then
-		egg = Instance.new("Part")
-		egg.Name = "Egg"
-		egg.Shape = Enum.PartType.Ball
-		egg.Size = Vector3.new(3, 4, 3)
-		egg.Material = Enum.Material.Neon
-		egg.CFrame = base.CFrame * CFrame.new(0, base.Size.Y / 2 + 3, 0)
-		egg.Parent = booth
+	if not (booth:FindFirstChild("Egg") and booth.Egg:IsA("Model")) then
+		local F = Styler.Measure(booth)
+		assert(F, booth:GetFullName() .. " olculemedi")
+		-- yumurta: standin en ust noktasinin biraz uzerinde, on yone (cesme/merkez) donuk
+		local anchor = F.frame * CFrame.new(F.xc, F.height + 1.2, (F.front + F.back) / 2)
+		EggModel.Build(booth, anchor)
 	end
-	egg.Anchored = true
-	egg.CanCollide = false
-	egg.Color = DEFAULT_COLOR
-	if egg:GetAttribute("BaseSize") == nil then
-		egg:SetAttribute("BaseSize", egg.Size) -- 1. seviye boyutu; buyume buna gore hesaplanir
-	end
-
-	if not egg:FindFirstChild("Glow") then
-		local glow = Instance.new("PointLight")
-		glow.Name = "Glow"
-		glow.Range = 14
-		glow.Brightness = 0
-		glow.Color = DEFAULT_COLOR
-		glow.Shadows = false
-		glow.Parent = egg
-	end
-	if not egg:FindFirstChild("Aura") then
-		local aura = Instance.new("ParticleEmitter")
-		aura.Name = "Aura"
-		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-		aura.LightEmission = 1
-		aura.Lifetime = NumberRange.new(1.2, 2)
-		aura.Speed = NumberRange.new(1, 3)
-		aura.SpreadAngle = Vector2.new(180, 180)
-		aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
-		aura.Rate = 0
-		aura.Enabled = false
-		aura.Parent = egg
-	end
-	if not egg:FindFirstChild("HatcheryGui") then
-		buildGui(egg)
+	local core = EggModel.Core(booth)
+	if not core:FindFirstChild("HatcheryGui") then
+		buildGui(core)
 	end
 
 	-- Tek etkilesim butonu: bos standda "Standi Al", doluysa "Standa Bak" (panel acar)
@@ -167,32 +208,6 @@ local function getStats(player)
 	return ls:FindFirstChild("Level"), data:FindFirstChild("EggXP")
 end
 
--- Yumurta seviye ile buyur; nadirlige gore parlar (Nadir+ surekli kivilcim)
-function HatcheryService.ApplyGrowth(egg, level, rarity)
-	local base = egg:GetAttribute("BaseSize")
-	if base then
-		local scale = Config.EggScale(level)
-		TweenService:Create(egg, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = base * scale,
-		}):Play()
-		local gui = egg:FindFirstChild("HatcheryGui")
-		if gui then
-			gui.StudsOffset = Vector3.new(0, base.Y * scale / 2 + 2.6, 0) -- kart yumurtanin ustunde kalsin
-		end
-	end
-	local aura = egg:FindFirstChild("Aura")
-	if aura then
-		aura.Color = ColorSequence.new(rarity.Color, Color3.new(1, 1, 1))
-		aura.Rate = rarity.AuraRate or 0
-		aura.Enabled = (rarity.AuraRate or 0) > 0
-	end
-	local glow = egg:FindFirstChild("Glow")
-	if glow then
-		glow.Color = rarity.Color
-		glow.Brightness = (rarity.AuraRate or 0) > 0 and 0.6 or 0
-	end
-end
-
 -- Sahibin guncel durumunu karta, yumurtaya, butona ve stand stiline yansitir
 function HatcheryService.Refresh(player)
 	local booth = Registry.GetBooth(player)
@@ -200,9 +215,8 @@ function HatcheryService.Refresh(player)
 	if not (booth and levelVal and xpVal) then
 		return
 	end
-	local egg = booth:FindFirstChild("Egg")
-	local gui = egg and egg:FindFirstChild("HatcheryGui")
-	if not (egg and gui) then
+	local gui = guiOf(booth)
+	if not gui then
 		return
 	end
 
@@ -211,22 +225,34 @@ function HatcheryService.Refresh(player)
 	local rarity = Config.GetRarity(level)
 	local message = player:GetAttribute("BoothMessage")
 	local hasMessage = type(message) == "string" and message ~= ""
-	local colorIndex = player:GetAttribute("BoothColor") or 1
-	local accent = (Config.STYLE_COLORS[colorIndex] or Config.STYLE_COLORS[1]).Color
+	local colorIndex = player:GetAttribute("BoothColor")
+	local chosen = colorIndex and Config.STYLE_COLORS[colorIndex]
+	local accent = chosen and chosen.Color or rarity.Color
+	local raised = player.leaderstats:FindFirstChild("Raised")
 
 	layoutGui(gui, true, hasMessage)
 	local card = gui.Card
 	card.NameLabel.Text = player.DisplayName
 	card.LevelLabel.Text = string.format("Seviye %d  •  %s", level, rarity.Name)
 	card.LevelLabel.TextColor3 = rarity.Color
+	card.RaisedLabel.Text = string.format("R$ %s toplandı", formatNumber(raised and raised.Value or 0))
 	card.Stroke.Color = rarity.Color
+	card.Accent.BackgroundColor3 = rarity.Color
+	card.Avatar.Ring.Color = rarity.Color
+	if card.Avatar:GetAttribute("UserId") ~= player.UserId then
+		card.Avatar:SetAttribute("UserId", player.UserId)
+		card.Avatar.Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", player.UserId)
+	end
 	card.BarBack.Fill.BackgroundColor3 = rarity.Color
 	TweenService:Create(card.BarBack.Fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
 		Size = UDim2.fromScale(math.clamp(xp / need, 0, 1), 1),
 	}):Play()
 	card.MessageLabel.Text = hasMessage and message or ""
 	card.MessageLabel.TextColor3 = accent
-	egg.Color = rarity.Color
+
+	local scale = Config.EggScale(level)
+	EggModel.Apply(booth, { Tier = EggModel.TierOf(level), Accent = accent, Scale = scale })
+	gui.StudsOffset = Vector3.new(0, EggModel.Height * scale + 1.5, 0) -- kart yumurtanin ustunde kalsin
 
 	local prompt = booth.PrimaryPart:FindFirstChild("BoothPrompt")
 	if prompt then
@@ -239,13 +265,11 @@ function HatcheryService.Refresh(player)
 	if not Config.IsStyleUnlocked(style, level) then
 		style = "classic"
 	end
-	local key = style .. ":" .. colorIndex
+	local key = style .. ":" .. (colorIndex or 0)
 	if booth:GetAttribute("AppliedStyle") ~= key or (style ~= "classic" and not booth:FindFirstChild("StyleDecor")) then
-		Styler.Apply(booth, style, colorIndex)
+		Styler.Apply(booth, style, colorIndex or 1)
 		booth:SetAttribute("AppliedStyle", key)
 	end
-
-	HatcheryService.ApplyGrowth(egg, level, rarity)
 end
 
 function HatcheryService.SetClaimed(booth, player)
@@ -260,24 +284,42 @@ function HatcheryService.SetUnclaimed(booth)
 		prompt.ObjectText = T.PromptObject
 	end
 
-	local egg = booth:FindFirstChild("Egg")
-	local gui = egg.HatcheryGui
+	local gui = guiOf(booth)
 	layoutGui(gui, false, false)
 	local card = gui.Card
 	card.NameLabel.Text = T.Unclaimed
 	card.LevelLabel.Text = T.ClaimHint
-	card.LevelLabel.TextColor3 = Color3.fromRGB(170, 176, 190)
-	card.Stroke.Color = Color3.fromRGB(110, 118, 140)
+	card.LevelLabel.TextColor3 = MUTED
+	card.Stroke.Color = RGB(110, 118, 140)
 	card.BarBack.Fill.Size = UDim2.fromScale(0, 1)
-	card.BarBack.Fill.BackgroundColor3 = DEFAULT_COLOR
 	card.MessageLabel.Text = ""
-	egg.Color = DEFAULT_COLOR
+	card.RaisedLabel.Text = ""
+	card.Avatar.Image = ""
+	card.Avatar:SetAttribute("UserId", nil)
 	Styler.Clear(booth)
 	booth:SetAttribute("AppliedStyle", nil)
-	HatcheryService.ApplyGrowth(egg, 1, Config.RARITIES[1])
+	EggModel.Apply(booth, { Tier = 0, Accent = DORMANT_COLOR, Scale = 0.8, Instant = true })
+	gui.StudsOffset = Vector3.new(0, EggModel.Height * 0.8 + 1.2, 0)
 end
 
-function HatcheryService.BurstParticles(egg, rarity)
+---------------------------------------------------------------------
+-- Efektler
+---------------------------------------------------------------------
+local function flashHeart(booth, color, peak, rest)
+	local heart = EggModel.Heart(booth)
+	local glow = heart and heart:FindFirstChild("Glow")
+	if glow then
+		glow.Color = color
+		glow.Brightness = peak
+		TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Brightness = rest }):Play()
+	end
+end
+
+function HatcheryService.BurstParticles(booth, rarity)
+	local heart = EggModel.Heart(booth)
+	if not heart then
+		return
+	end
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
 	emitter.Color = ColorSequence.new(rarity.Color, Color3.new(1, 1, 1))
@@ -290,19 +332,38 @@ function HatcheryService.BurstParticles(egg, rarity)
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	emitter.Rate = 0
-	emitter.Parent = egg
+	emitter.Parent = heart
 	emitter:Emit(rarity.BurstCount)
 	Debris:AddItem(emitter, 3)
+	flashHeart(booth, rarity.Color, 6, (rarity.AuraRate or 0) > 0 and 0.7 or 0)
+end
 
-	-- kisa isik patlamasi
-	local glow = egg:FindFirstChild("Glow")
-	if glow then
-		glow.Color = rarity.Color
-		glow.Brightness = 6
-		TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Brightness = (rarity.AuraRate or 0) > 0 and 0.6 or 0,
-		}):Play()
+-- Bagis geldiginde standda altin renkli kutlama (sahibin standi)
+function HatcheryService.DonationEffect(owner)
+	local booth = Registry.GetBooth(owner)
+	local heart = booth and EggModel.Heart(booth)
+	if not heart then
+		return
 	end
+	EggModel.Pulse(booth, DONATION_COLOR, 11)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Color = ColorSequence.new(DONATION_COLOR, Color3.new(1, 1, 1))
+	emitter.LightEmission = 1
+	emitter.Lifetime = NumberRange.new(1.2, 2.2)
+	emitter.Speed = NumberRange.new(8, 18)
+	emitter.Acceleration = Vector3.new(0, -14, 0)
+	emitter.SpreadAngle = Vector2.new(60, 60)
+	emitter.EmissionDirection = Enum.NormalId.Top
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.2),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Rate = 0
+	emitter.Parent = heart
+	emitter:Emit(45)
+	Debris:AddItem(emitter, 3)
+	flashHeart(booth, DONATION_COLOR, 5, EggModel.TierOf(owner.leaderstats.Level.Value) >= 2 and 0.7 or 0)
 end
 
 function HatcheryService.AddXP(player, amount)
@@ -341,17 +402,18 @@ function HatcheryService.OnLevelUp(player, oldLevel, newLevel)
 	local oldRarity, newRarity = Config.GetRarity(oldLevel), Config.GetRarity(newLevel)
 	local rarityUp = newRarity ~= oldRarity
 
-	if booth then
-		local egg = booth:FindFirstChild("Egg")
-		if egg then
-			HatcheryService.BurstParticles(egg, newRarity)
-			if rarityUp then
-				task.delay(0.35, function()
-					if egg.Parent then
-						HatcheryService.BurstParticles(egg, newRarity)
-					end
-				end)
-			end
+	if booth and EggModel.Heart(booth) then
+		EggModel.Pulse(booth, newRarity.Color, 9)
+		HatcheryService.BurstParticles(booth, newRarity)
+		if rarityUp then
+			-- evrim: kabuk beyaza doner, zeminde ikinci buyuk dalga
+			EggModel.Flash(booth, 0.35)
+			task.delay(0.35, function()
+				if booth.Parent and Registry.GetBooth(player) == booth then
+					EggModel.Pulse(booth, newRarity.Color, 16)
+					HatcheryService.BurstParticles(booth, newRarity)
+				end
+			end)
 		end
 	end
 

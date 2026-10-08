@@ -35,8 +35,17 @@ do
 		end
 		mk("Base", Vector3.new(10, 1, 6), Vector3.new(0, 0, 0))
 		mk("Wall", Vector3.new(10, 6, 0.5), Vector3.new(0, 1, 3))
-		local egg = mk("Egg", Vector3.new(2, 3, 2), Vector3.new(0, 8, 0))
 		booth.PrimaryPart = booth.Base
+		-- yumurta modeli (Egg/EggPad) olcume katilmamali
+		local eggModel = Instance.new("Model")
+		eggModel.Name = "Egg"
+		local ep = Instance.new("Part")
+		ep.Name = "Shell1"
+		ep.Size = Vector3.new(2, 3, 2)
+		ep.CFrame = pos * CFrame.new(0, 30, 0)
+		ep.Parent = eggModel
+		eggModel.Parent = booth
+		booth:SetAttribute("EggAnchor", pos * CFrame.new(0, 9, 0))
 		booth.Parent = workspace
 
 		local F = Styler.Measure(booth)

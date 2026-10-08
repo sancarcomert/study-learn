@@ -239,6 +239,11 @@ CFrame.identity = CFrame.new()
 Color3 = {}
 local C3 = {}
 C3.__index = function(c, k)
+	if k == "ToHex" then
+		return function(col)
+			return string.format("%02X%02X%02X", math.floor(col.R * 255 + 0.5), math.floor(col.G * 255 + 0.5), math.floor(col.B * 255 + 0.5))
+		end
+	end
 	if k == "Lerp" then
 		return function(a, b, t)
 			return Color3.new(a.R + (b.R - a.R) * t, a.G + (b.G - a.G) * t, a.B + (b.B - a.B) * t)
@@ -506,6 +511,9 @@ local PARENT = {
 	Camera = "Instance",
 	Clouds = "Instance",
 	Terrain = "Instance",
+	Trail = "Instance",
+	UIGradient = "Instance",
+	ImageLabel = "Instance",
 }
 
 local SCHEMA = {
@@ -613,7 +621,6 @@ local SCHEMA = {
 		TextWrapped = tBool,
 		LayoutOrder = tNum(),
 		ZIndex = tNum(),
-		AutoButtonColor = tBool,
 		TextYAlignment = tEnum("TextYAlignment"),
 		Visible = tBool,
 	},
@@ -664,7 +671,6 @@ local SCHEMA = {
 		TextWrapped = tBool,
 		LayoutOrder = tNum(),
 		ZIndex = tNum(),
-		AutoButtonColor = tBool,
 		TextYAlignment = tEnum("TextYAlignment"),
 		Visible = tBool,
 	},
@@ -742,6 +748,33 @@ local SCHEMA = {
 		FogColor = tT("Color3"),
 		FogEnd = tNum(),
 		FogStart = tNum(),
+	},
+	Trail = {
+		Attachment0 = tInst,
+		Attachment1 = tInst,
+		Lifetime = tNum(0),
+		Color = tT("ColorSequence"),
+		Transparency = tT("NumberSequence"),
+		LightEmission = tNum(0, 1),
+		FaceCamera = tBool,
+		Enabled = tBool,
+		MinLength = tNum(0),
+		WidthScale = tT("NumberSequence"),
+	},
+	UIGradient = { Color = tT("ColorSequence"), Rotation = tNum(), Enabled = tBool, Transparency = tT("NumberSequence"), Offset = tT("Vector2") },
+	ImageLabel = {
+		Image = tStr,
+		BackgroundColor3 = tT("Color3"),
+		BackgroundTransparency = tNum(0, 1),
+		Position = tT("UDim2"),
+		Size = tT("UDim2"),
+		BorderSizePixel = tNum(0),
+		ImageColor3 = tT("Color3"),
+		ImageTransparency = tNum(0, 1),
+		AnchorPoint = tT("Vector2"),
+		Visible = tBool,
+		ZIndex = tNum(),
+		LayoutOrder = tNum(),
 	},
 	IntValue = { Value = tNum() },
 	ModuleScript = { Source = tStr },
@@ -875,7 +908,7 @@ IMT.__index = function(self, key)
 		return data.props.CFrame.Position
 	end
 	if key == "ChildAdded" or key == "ChildRemoved" or key == "Changed" or key == "Triggered" or key == "OnServerEvent"
-		or key == "Destroying" or key == "DescendantAdded" or key == "PlayerAdded" or key == "PlayerRemoving" or key == "OnClientEvent" or key == "Activated" then
+		or key == "Destroying" or key == "DescendantAdded" or key == "DescendantRemoving" or key == "PlayerAdded" or key == "PlayerRemoving" or key == "OnClientEvent" or key == "Activated" then
 		return getSignal(self, key)
 	end
 	if Methods[key] then
@@ -1394,14 +1427,26 @@ services.CollectionService = {
 	AddTag = function(_, inst, tag)
 		assert(isType(inst, "Instance"), "AddTag: Instance bekleniyor")
 		assert(type(tag) == "string", "AddTag: tag string olmali")
+		local had = tags[tag] ~= nil and tags[tag][inst] == true
 		tags[tag] = tags[tag] or {}
 		tags[tag][inst] = true
 		instTags[inst] = instTags[inst] or {}
 		instTags[inst][tag] = true
+		-- Roblox gibi: etiket DataModel icindeki bir nesneye eklenince "eklendi" sinyali atesler
+		if not had and tagAdded[tag] and isDescendantOf(inst, workspaceInst) then
+			tagAdded[tag]:Fire(inst)
+		end
 	end,
 	RemoveTag = function(_, inst, tag)
+		local had = tags[tag] ~= nil and tags[tag][inst] == true
 		if tags[tag] then
 			tags[tag][inst] = nil
+		end
+		if instTags[inst] then
+			instTags[inst][tag] = nil
+		end
+		if had and tagRemoved[tag] then
+			tagRemoved[tag]:Fire(inst)
 		end
 	end,
 	HasTag = function(_, inst, tag)
@@ -1468,7 +1513,14 @@ services.TweenService = {
 	end,
 }
 services.Debris = {
-	AddItem = function() end,
+	AddItem = function(_, inst, seconds)
+		assert(type(seconds) == "number" or seconds == nil, "Debris:AddItem sure sayi olmali")
+		task.delay(seconds or 10, function()
+			if inst.Parent then
+				inst:Destroy()
+			end
+		end)
+	end,
 }
 local stores = {}
 local function newStore(name)

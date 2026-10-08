@@ -68,7 +68,8 @@ local function frontTarget()
 end
 
 local function isDecor(part, booth)
-	return part:FindFirstAncestor("StyleDecor") ~= nil or part.Name == "Egg" or part:FindFirstAncestor("HatcheryGui") ~= nil
+	return part:FindFirstAncestor("StyleDecor") ~= nil or part:FindFirstAncestor("Egg") ~= nil or part:FindFirstAncestor("EggPad") ~= nil
+		or part.Name == "PulseRing"
 end
 
 -- Standi olc: on yone donuk bir cerceve + genislik/yukseklik/on kenar
@@ -194,8 +195,8 @@ local function goldPosts(decor, F)
 end
 
 local function eggCenter(booth)
-	local egg = booth:FindFirstChild("Egg")
-	return egg and egg.Position
+	local anchor = booth:GetAttribute("EggAnchor")
+	return anchor and anchor.Position
 end
 
 function builders.gold(decor, F, accent, booth)
